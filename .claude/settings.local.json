@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run docker:db:*)",
+      "Bash(npm run:*)",
+      "Bash(git clone:*)",
+      "Bash(npx prisma db execute:*)",
+      "Bash(npx prisma generate:*)",
+      "Bash(pkill:*)"
+    ],
+    "deny": []
+  },
+  "enableAllProjectMcpServers": false
+}

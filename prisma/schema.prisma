@@ -1,0 +1,265 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      UserRole @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects ProjectUser[]
+  previewSessions PreviewSession[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users     ProjectUser[]
+  fixtures  FixtureInstance[]
+  scenes    Scene[]
+  cueLists  CueList[]
+  previewSessions PreviewSession[]
+
+  @@map("projects")
+}
+
+model ProjectUser {
+  id       String      @id @default(cuid())
+  userId   String
+  projectId String
+  role     ProjectRole @default(VIEWER)
+  joinedAt DateTime    @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@map("project_users")
+}
+
+model FixtureDefinition {
+  id           String      @id @default(cuid())
+  manufacturer String
+  model        String
+  type         FixtureType
+  isBuiltIn    Boolean     @default(false)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  channels  ChannelDefinition[]
+  modes     FixtureMode[]
+  instances FixtureInstance[]
+
+  @@unique([manufacturer, model])
+  @@map("fixture_definitions")
+}
+
+model ChannelDefinition {
+  id           String      @id @default(cuid())
+  name         String
+  type         ChannelType
+  offset       Int
+  minValue     Int         @default(0)
+  maxValue     Int         @default(255)
+  defaultValue Int         @default(0)
+  definitionId String
+
+  definition FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  channelValues ChannelValue[]
+  modeChannels  ModeChannel[]
+
+  @@map("channel_definitions")
+}
+
+model FixtureMode {
+  id           String @id @default(cuid())
+  name         String
+  shortName    String?
+  channelCount Int
+  definitionId String
+
+  definition   FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  modeChannels ModeChannel[]
+
+  @@unique([definitionId, name])
+  @@map("fixture_modes")
+}
+
+model ModeChannel {
+  id        String @id @default(cuid())
+  modeId    String
+  channelId String
+  offset    Int
+
+  mode    FixtureMode       @relation(fields: [modeId], references: [id], onDelete: Cascade)
+  channel ChannelDefinition @relation(fields: [channelId], references: [id])
+
+  @@unique([modeId, offset])
+  @@map("mode_channels")
+}
+
+model FixtureInstance {
+  id           String   @id @default(cuid())
+  name         String
+  definitionId String
+  projectId    String
+  universe     Int
+  startChannel Int
+  tags         String[] @default([])
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  definition    FixtureDefinition @relation(fields: [definitionId], references: [id])
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fixtureValues FixtureValue[]
+
+  @@unique([projectId, universe, startChannel])
+  @@map("fixture_instances")
+}
+
+model Scene {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  projectId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fixtureValues FixtureValue[]
+  cues          Cue[]
+
+  @@map("scenes")
+}
+
+model FixtureValue {
+  id        String @id @default(cuid())
+  sceneId   String
+  fixtureId String
+
+  scene         Scene           @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  fixture       FixtureInstance @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
+  channelValues ChannelValue[]
+
+  @@unique([sceneId, fixtureId])
+  @@map("fixture_values")
+}
+
+model ChannelValue {
+  id             String @id @default(cuid())
+  fixtureValueId String
+  channelId      String
+  value          Int
+
+  fixtureValue FixtureValue      @relation(fields: [fixtureValueId], references: [id], onDelete: Cascade)
+  channel      ChannelDefinition @relation(fields: [channelId], references: [id])
+
+  @@unique([fixtureValueId, channelId])
+  @@map("channel_values")
+}
+
+model CueList {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  projectId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  cues    Cue[]
+
+  @@map("cue_lists")
+}
+
+model Cue {
+  id          String  @id @default(cuid())
+  name        String
+  cueNumber   Float
+  cueListId   String
+  sceneId     String
+  fadeInTime  Float   @default(0)
+  fadeOutTime Float   @default(0)
+  followTime  Float?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cueList CueList @relation(fields: [cueListId], references: [id], onDelete: Cascade)
+  scene   Scene   @relation(fields: [sceneId], references: [id])
+
+  @@unique([cueListId, cueNumber])
+  @@map("cues")
+}
+
+model PreviewSession {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@map("preview_sessions")
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+enum ProjectRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum FixtureType {
+  LED_PAR
+  MOVING_HEAD
+  STROBE
+  DIMMER
+  OTHER
+}
+
+enum ChannelType {
+  INTENSITY
+  RED
+  GREEN
+  BLUE
+  WHITE
+  AMBER
+  UV
+  PAN
+  TILT
+  ZOOM
+  FOCUS
+  IRIS
+  GOBO
+  COLOR_WHEEL
+  EFFECT
+  STROBE
+  MACRO
+  OTHER
+}
