@@ -102,7 +102,9 @@ export const fixtureResolvers = {
       return prisma.fixtureInstance.create({
         data: {
           name: input.name,
+          description: input.description,
           definitionId: input.definitionId,
+          modeId: input.modeId,
           projectId: input.projectId,
           universe: input.universe,
           startChannel: input.startChannel,
@@ -112,14 +114,48 @@ export const fixtureResolvers = {
           definition: {
             include: {
               channels: true,
+              modes: true,
             },
           },
+          mode: true,
           project: true,
         },
       });
     },
 
-    // TODO: Add update and delete mutations
+    updateFixtureInstance: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
+      // Only include fields that are provided in the input
+      const updateData: any = {};
+      if (input.name !== undefined) updateData.name = input.name;
+      if (input.description !== undefined) updateData.description = input.description;
+      if (input.definitionId !== undefined) updateData.definitionId = input.definitionId;
+      if (input.modeId !== undefined) updateData.modeId = input.modeId;
+      if (input.universe !== undefined) updateData.universe = input.universe;
+      if (input.startChannel !== undefined) updateData.startChannel = input.startChannel;
+      if (input.tags !== undefined) updateData.tags = input.tags;
+
+      return prisma.fixtureInstance.update({
+        where: { id },
+        data: updateData,
+        include: {
+          definition: {
+            include: {
+              channels: true,
+              modes: true,
+            },
+          },
+          mode: true,
+          project: true,
+        },
+      });
+    },
+
+    deleteFixtureInstance: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+      await prisma.fixtureInstance.delete({
+        where: { id },
+      });
+      return true;
+    },
   },
 
   types: {

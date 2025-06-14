@@ -92,16 +92,46 @@ export const projectResolvers = {
       fixtures: (parent: any, _: any, { prisma }: Context) => {
         return prisma.fixtureInstance.findMany({
           where: { projectId: parent.id },
+          include: {
+            definition: {
+              include: {
+                modes: true,
+              },
+            },
+            mode: true,
+          },
         });
       },
       scenes: (parent: any, _: any, { prisma }: Context) => {
         return prisma.scene.findMany({
           where: { projectId: parent.id },
+          include: {
+            fixtureValues: {
+              include: {
+                fixture: true,
+                channelValues: {
+                  include: {
+                    channel: true,
+                  },
+                },
+              },
+            },
+          },
         });
       },
       cueLists: (parent: any, _: any, { prisma }: Context) => {
         return prisma.cueList.findMany({
           where: { projectId: parent.id },
+          include: {
+            cues: {
+              include: {
+                scene: true,
+              },
+              orderBy: {
+                cueNumber: 'asc',
+              },
+            },
+          },
         });
       },
     },

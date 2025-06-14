@@ -14,6 +14,7 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
+    "debug:fade-spikes": "tsx scripts/debug-fade-spikes.ts",
     "docker:up": "docker-compose up -d",
     "docker:down": "docker-compose down",
     "docker:logs": "docker-compose logs -f",
@@ -22,7 +23,14 @@
     "docker:clean": "docker-compose down -v --remove-orphans",
     "docker:db": "docker-compose up -d postgres",
     "docker:dev": "docker-compose up -d postgres redis && npm run dev",
-    "seed:ofl": "tsx scripts/import-ofl-fixtures.ts"
+    "seed:ofl": "tsx scripts/import-ofl-fixtures.ts",
+    "create:slimpar": "tsx scripts/create-slimpar-fixtures.ts",
+    "create:scenes": "tsx scripts/create-lighting-scenes.ts",
+    "preview:scenes": "tsx scripts/preview-scenes.ts",
+    "test:artnet": "tsx scripts/test-artnet.ts",
+    "test:fade": "tsx scripts/test-fade-engine.ts",
+    "test:e2e-fade": "tsx scripts/test-e2e-fade.ts",
+    "introspect:schema": "tsx scripts/introspect-schema.ts"
   },
   "keywords": [
     "lighting",
@@ -35,6 +43,7 @@
   "dependencies": {
     "@apollo/server": "^4.9.5",
     "@prisma/client": "^5.6.0",
+    "artnet-protocol": "^0.2.1",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "graphql": "^16.8.1",
@@ -47,7 +56,7 @@
     "@types/cors": "^2.8.15",
     "@types/express": "^4.17.20",
     "@types/jest": "^29.5.7",
-    "@types/node": "^20.8.10",
+    "@types/node": "^20.17.57",
     "@types/ws": "^8.5.8",
     "@typescript-eslint/eslint-plugin": "^6.9.1",
     "@typescript-eslint/parser": "^6.9.1",

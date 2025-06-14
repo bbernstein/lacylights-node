@@ -52,7 +52,9 @@ export const typeDefs = gql`
   type FixtureInstance {
     id: ID!
     name: String!
+    description: String
     definition: FixtureDefinition!
+    mode: FixtureMode
     project: Project!
     universe: Int!
     startChannel: Int!
@@ -98,6 +100,7 @@ export const typeDefs = gql`
     fadeInTime: Float!
     fadeOutTime: Float!
     followTime: Float
+    easingType: EasingType
     notes: String
   }
 
@@ -171,6 +174,15 @@ export const typeDefs = gql`
     VIEWER
   }
 
+  enum EasingType {
+    LINEAR
+    EASE_IN_OUT_CUBIC
+    EASE_IN_OUT_SINE
+    EASE_OUT_EXPONENTIAL
+    BEZIER
+    S_CURVE
+  }
+
   # Input Types
   input CreateProjectInput {
     name: String!
@@ -194,10 +206,22 @@ export const typeDefs = gql`
   }
   input CreateFixtureInstanceInput {
     name: String!
+    description: String
     definitionId: ID!
+    modeId: ID
     projectId: ID!
     universe: Int!
     startChannel: Int!
+    tags: [String!]
+  }
+
+  input UpdateFixtureInstanceInput {
+    name: String
+    description: String
+    definitionId: ID
+    modeId: ID
+    universe: Int
+    startChannel: Int
     tags: [String!]
   }
 
@@ -206,6 +230,12 @@ export const typeDefs = gql`
     description: String
     projectId: ID!
     fixtureValues: [FixtureValueInput!]!
+  }
+
+  input UpdateSceneInput {
+    name: String
+    description: String
+    fixtureValues: [FixtureValueInput!]
   }
 
   input FixtureValueInput {
@@ -240,6 +270,7 @@ export const typeDefs = gql`
     fadeInTime: Float!
     fadeOutTime: Float!
     followTime: Float
+    easingType: EasingType
     notes: String
   }
 
@@ -252,6 +283,12 @@ export const typeDefs = gql`
     # Fixtures
     fixtureDefinitions(filter: FixtureDefinitionFilter): [FixtureDefinition!]!
     fixtureDefinition(id: ID!): FixtureDefinition
+
+    # Scenes
+    scene(id: ID!): Scene
+
+    # Cue Lists
+    cueList(id: ID!): CueList
 
     # DMX Output
     dmxOutput(universe: Int!): [Int!]!
@@ -278,13 +315,14 @@ export const typeDefs = gql`
     createFixtureInstance(input: CreateFixtureInstanceInput!): FixtureInstance!
     updateFixtureInstance(
       id: ID!
-      input: CreateFixtureInstanceInput!
+      input: UpdateFixtureInstanceInput!
     ): FixtureInstance!
     deleteFixtureInstance(id: ID!): Boolean!
 
     # Scenes
     createScene(input: CreateSceneInput!): Scene!
-    updateScene(id: ID!, input: CreateSceneInput!): Scene!
+    updateScene(id: ID!, input: UpdateSceneInput!): Scene!
+    duplicateScene(id: ID!): Scene!
     deleteScene(id: ID!): Boolean!
 
     # Cue Lists
@@ -305,6 +343,8 @@ export const typeDefs = gql`
     # DMX Control
     setChannelValue(universe: Int!, channel: Int!, value: Int!): Boolean!
     setSceneLive(sceneId: ID!): Boolean!
+    playCue(cueId: ID!, fadeInTime: Float): Boolean!
+    fadeToBlack(fadeOutTime: Float!): Boolean!
   }
 
   # Subscriptions

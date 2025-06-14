@@ -1,7 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 
 // Global test setup
-let prisma: PrismaClient;
+let prisma: PrismaClient | undefined;
 
 beforeAll(async () => {
   // Set test environment
@@ -44,7 +44,7 @@ beforeEach(async () => {
 });
 
 // Global test utilities
-global.testPrisma = prisma;
+(global as any).testPrisma = prisma;
 
 // Increase test timeout for database operations
 jest.setTimeout(30000);
