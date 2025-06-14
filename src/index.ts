@@ -26,7 +26,7 @@ async function startServer() {
         async serverWillStart() {
           return {
             async drainServer() {
-              await wsServer.dispose();
+              wsServer.dispose();
             },
           };
         },
@@ -52,7 +52,7 @@ async function startServer() {
       origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
       credentials: true,
     }),
-    express.json(),
+    express.json({ limit: '50mb' }),
     expressMiddleware(server, {
       context: createContext,
     }),

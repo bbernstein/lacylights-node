@@ -15,8 +15,8 @@ model User {
   email     String   @unique
   name      String?
   role      UserRole @default(USER)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   projects ProjectUser[]
   previewSessions PreviewSession[]
@@ -28,8 +28,8 @@ model Project {
   id          String   @id @default(cuid())
   name        String
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   users     ProjectUser[]
   fixtures  FixtureInstance[]
@@ -42,10 +42,10 @@ model Project {
 
 model ProjectUser {
   id       String      @id @default(cuid())
-  userId   String
-  projectId String
+  userId   String      @map("user_id")
+  projectId String     @map("project_id")
   role     ProjectRole @default(VIEWER)
-  joinedAt DateTime    @default(now())
+  joinedAt DateTime    @default(now()) @map("joined_at")
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -59,9 +59,9 @@ model FixtureDefinition {
   manufacturer String
   model        String
   type         FixtureType
-  isBuiltIn    Boolean     @default(false)
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  isBuiltIn    Boolean     @default(false) @map("is_built_in")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  updatedAt    DateTime    @updatedAt @map("updated_at")
 
   channels  ChannelDefinition[]
   modes     FixtureMode[]
@@ -76,10 +76,10 @@ model ChannelDefinition {
   name         String
   type         ChannelType
   offset       Int
-  minValue     Int         @default(0)
-  maxValue     Int         @default(255)
-  defaultValue Int         @default(0)
-  definitionId String
+  minValue     Int         @default(0) @map("min_value")
+  maxValue     Int         @default(255) @map("max_value")
+  defaultValue Int         @default(0) @map("default_value")
+  definitionId String      @map("definition_id")
 
   definition FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
   channelValues ChannelValue[]
@@ -91,12 +91,13 @@ model ChannelDefinition {
 model FixtureMode {
   id           String @id @default(cuid())
   name         String
-  shortName    String?
-  channelCount Int
-  definitionId String
+  shortName    String? @map("short_name")
+  channelCount Int     @map("channel_count")
+  definitionId String  @map("definition_id")
 
-  definition   FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
-  modeChannels ModeChannel[]
+  definition       FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  modeChannels     ModeChannel[]
+  fixtureInstances FixtureInstance[]
 
   @@unique([definitionId, name])
   @@map("fixture_modes")
@@ -104,8 +105,8 @@ model FixtureMode {
 
 model ModeChannel {
   id        String @id @default(cuid())
-  modeId    String
-  channelId String
+  modeId    String @map("mode_id")
+  channelId String @map("channel_id")
   offset    Int
 
   mode    FixtureMode       @relation(fields: [modeId], references: [id], onDelete: Cascade)
@@ -118,15 +119,18 @@ model ModeChannel {
 model FixtureInstance {
   id           String   @id @default(cuid())
   name         String
-  definitionId String
-  projectId    String
+  description  String?
+  definitionId String   @map("definition_id")
+  modeId       String?  @map("mode_id")
+  projectId    String   @map("project_id")
   universe     Int
-  startChannel Int
+  startChannel Int      @map("start_channel")
   tags         String[] @default([])
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   definition    FixtureDefinition @relation(fields: [definitionId], references: [id])
+  mode          FixtureMode?      @relation(fields: [modeId], references: [id])
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   fixtureValues FixtureValue[]
 
@@ -138,9 +142,9 @@ model Scene {
   id          String   @id @default(cuid())
   name        String
   description String?
-  projectId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  projectId   String   @map("project_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   fixtureValues FixtureValue[]
@@ -151,8 +155,8 @@ model Scene {
 
 model FixtureValue {
   id        String @id @default(cuid())
-  sceneId   String
-  fixtureId String
+  sceneId   String @map("scene_id")
+  fixtureId String @map("fixture_id")
 
   scene         Scene           @relation(fields: [sceneId], references: [id], onDelete: Cascade)
   fixture       FixtureInstance @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
@@ -164,8 +168,8 @@ model FixtureValue {
 
 model ChannelValue {
   id             String @id @default(cuid())
-  fixtureValueId String
-  channelId      String
+  fixtureValueId String @map("fixture_value_id")
+  channelId      String @map("channel_id")
   value          Int
 
   fixtureValue FixtureValue      @relation(fields: [fixtureValueId], references: [id], onDelete: Cascade)
@@ -179,9 +183,9 @@ model CueList {
   id          String   @id @default(cuid())
   name        String
   description String?
-  projectId   String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  projectId   String   @map("project_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   cues    Cue[]
@@ -190,20 +194,21 @@ model CueList {
 }
 
 model Cue {
-  id          String  @id @default(cuid())
+  id          String      @id @default(cuid())
   name        String
-  cueNumber   Float
-  cueListId   String
-  sceneId     String
-  fadeInTime  Float   @default(0)
-  fadeOutTime Float   @default(0)
-  followTime  Float?
+  cueNumber   Float       @map("cue_number")
+  cueListId   String      @map("cue_list_id")
+  sceneId     String      @map("scene_id")
+  fadeInTime  Float       @default(0) @map("fade_in_time")
+  fadeOutTime Float       @default(0) @map("fade_out_time")
+  followTime  Float?      @map("follow_time")
+  easingType  EasingType? @map("easing_type")
   notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
 
   cueList CueList @relation(fields: [cueListId], references: [id], onDelete: Cascade)
-  scene   Scene   @relation(fields: [sceneId], references: [id])
+  scene   Scene   @relation(fields: [sceneId], references: [id], onDelete: Cascade)
 
   @@unique([cueListId, cueNumber])
   @@map("cues")
@@ -211,11 +216,11 @@ model Cue {
 
 model PreviewSession {
   id        String   @id @default(cuid())
-  projectId String
-  userId    String
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -262,4 +267,13 @@ enum ChannelType {
   STROBE
   MACRO
   OTHER
+}
+
+enum EasingType {
+  LINEAR
+  EASE_IN_OUT_CUBIC
+  EASE_IN_OUT_SINE
+  EASE_OUT_EXPONENTIAL
+  BEZIER
+  S_CURVE
 }

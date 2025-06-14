@@ -6,7 +6,8 @@
       "Bash(git clone:*)",
       "Bash(npx prisma db execute:*)",
       "Bash(npx prisma generate:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "Bash(npx jest:*)"
     ],
     "deny": []
   },

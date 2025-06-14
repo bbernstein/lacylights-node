@@ -91,6 +91,8 @@ jspm_packages/
 *.swo
 *~
 
+.claude/
+
 # OS generated files
 Thumbs.db
 EOF < /dev/null
