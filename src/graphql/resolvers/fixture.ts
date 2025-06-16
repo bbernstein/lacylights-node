@@ -99,6 +99,63 @@ export const fixtureResolvers = {
     },
 
     createFixtureInstance: async (_: any, { input }: any, { prisma }: Context) => {
+      // First, get the definition and mode to determine channels
+      const definition = await prisma.fixtureDefinition.findUnique({
+        where: { id: input.definitionId },
+        include: { channels: true },
+      });
+      
+      if (!definition) {
+        throw new Error('Fixture definition not found');
+      }
+
+      let mode = null;
+      let channelsToCreate: Array<{
+        offset: number;
+        name: string;
+        type: any;
+        minValue: number;
+        maxValue: number;
+        defaultValue: number;
+      }> = [];
+      
+      if (input.modeId) {
+        mode = await prisma.fixtureMode.findUnique({
+          where: { id: input.modeId },
+          include: {
+            modeChannels: {
+              include: { channel: true },
+              orderBy: { offset: 'asc' },
+            },
+          },
+        });
+        
+        if (mode) {
+          channelsToCreate = mode.modeChannels.map((mc: any) => ({
+            offset: mc.offset,
+            name: mc.channel.name,
+            type: mc.channel.type,
+            minValue: mc.channel.minValue,
+            maxValue: mc.channel.maxValue,
+            defaultValue: mc.channel.defaultValue,
+          }));
+        }
+      }
+      
+      // If no mode channels, use definition channels
+      if (channelsToCreate.length === 0) {
+        channelsToCreate = definition.channels
+          .sort((a: any, b: any) => a.offset - b.offset)
+          .map((ch: any) => ({
+            offset: ch.offset,
+            name: ch.name,
+            type: ch.type,
+            minValue: ch.minValue,
+            maxValue: ch.maxValue,
+            defaultValue: ch.defaultValue,
+          }));
+      }
+
       return prisma.fixtureInstance.create({
         data: {
           name: input.name,
@@ -109,15 +166,33 @@ export const fixtureResolvers = {
           universe: input.universe,
           startChannel: input.startChannel,
           tags: input.tags,
+          manufacturer: definition.manufacturer,
+          model: definition.model,
+          type: definition.type,
+          modeName: mode?.name || 'Default',
+          channelCount: mode?.channelCount || definition.channels.length,
+          channels: {
+            create: channelsToCreate,
+          },
         },
         include: {
+          channels: {
+            orderBy: { offset: 'asc' },
+          },
           definition: {
             include: {
               channels: true,
-              modes: true,
+              modes: {
+                include: {
+                  modeChannels: {
+                    include: {
+                      channel: true,
+                    },
+                  },
+                },
+              },
             },
           },
-          mode: true,
           project: true,
         },
       });
@@ -129,7 +204,6 @@ export const fixtureResolvers = {
       if (input.name !== undefined) updateData.name = input.name;
       if (input.description !== undefined) updateData.description = input.description;
       if (input.definitionId !== undefined) updateData.definitionId = input.definitionId;
-      if (input.modeId !== undefined) updateData.modeId = input.modeId;
       if (input.universe !== undefined) updateData.universe = input.universe;
       if (input.startChannel !== undefined) updateData.startChannel = input.startChannel;
       if (input.tags !== undefined) updateData.tags = input.tags;
@@ -141,10 +215,17 @@ export const fixtureResolvers = {
           definition: {
             include: {
               channels: true,
-              modes: true,
+              modes: {
+                include: {
+                  modeChannels: {
+                    include: {
+                      channel: true,
+                    },
+                  },
+                },
+              },
             },
           },
-          mode: true,
           project: true,
         },
       });
@@ -160,24 +241,10 @@ export const fixtureResolvers = {
 
   types: {
     FixtureInstance: {
-      definition: (parent: any, _: any, { prisma }: Context) => {
-        return prisma.fixtureDefinition.findUnique({
-          where: { id: parent.definitionId },
-          include: { 
-            channels: true,
-            modes: {
-              include: {
-                modeChannels: {
-                  include: {
-                    channel: true,
-                  },
-                  orderBy: {
-                    offset: 'asc',
-                  },
-                },
-              },
-            },
-          },
+      channels: (parent: any, _: any, { prisma }: Context) => {
+        return prisma.instanceChannel.findMany({
+          where: { fixtureId: parent.id },
+          orderBy: { offset: 'asc' },
         });
       },
     },
@@ -193,5 +260,6 @@ export const fixtureResolvers = {
         return parent.channel;
       },
     },
+
   },
 };

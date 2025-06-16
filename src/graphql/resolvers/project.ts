@@ -93,12 +93,32 @@ export const projectResolvers = {
         return prisma.fixtureInstance.findMany({
           where: { projectId: parent.id },
           include: {
+            channels: {
+              orderBy: { offset: 'asc' },
+            },
+            // Include legacy fields for backward compatibility
             definition: {
               include: {
-                modes: true,
+                modes: {
+                  include: {
+                    modeChannels: {
+                      include: {
+                        channel: true,
+                      },
+                    },
+                  },
+                },
               },
             },
-            mode: true,
+            mode: {
+              include: {
+                modeChannels: {
+                  include: {
+                    channel: true,
+                  },
+                },
+              },
+            },
           },
         });
       },
@@ -109,11 +129,6 @@ export const projectResolvers = {
             fixtureValues: {
               include: {
                 fixture: true,
-                channelValues: {
-                  include: {
-                    channel: true,
-                  },
-                },
               },
             },
           },

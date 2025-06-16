@@ -18,6 +18,16 @@ export const cueResolvers = {
         },
       });
     },
+
+    cue: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+      return prisma.cue.findUnique({
+        where: { id },
+        include: {
+          scene: true,
+          cueList: true,
+        },
+      });
+    },
   },
 
   Mutation: {
@@ -113,6 +123,25 @@ export const cueResolvers = {
         where: { id },
       });
       return true;
+    },
+  },
+
+  Cue: {
+    cueList: async (parent: any, _: any, { prisma }: Context) => {
+      return prisma.cueList.findUnique({
+        where: { id: parent.cueListId },
+        include: {
+          project: true,
+          cues: {
+            include: {
+              scene: true,
+            },
+            orderBy: {
+              cueNumber: 'asc',
+            },
+          },
+        },
+      });
     },
   },
 
