@@ -81,9 +81,8 @@ model ChannelDefinition {
   defaultValue Int         @default(0) @map("default_value")
   definitionId String      @map("definition_id")
 
-  definition FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
-  channelValues ChannelValue[]
-  modeChannels  ModeChannel[]
+  definition   FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  modeChannels ModeChannel[]
 
   @@map("channel_definitions")
 }
@@ -117,21 +116,37 @@ model ModeChannel {
 }
 
 model FixtureInstance {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   name         String
   description  String?
-  definitionId String   @map("definition_id")
-  modeId       String?  @map("mode_id")
-  projectId    String   @map("project_id")
+  
+  // Fixture Definition Reference
+  definitionId String       @map("definition_id")
+  manufacturer String?      // Denormalized from definition
+  model        String?      // Denormalized from definition
+  type         FixtureType? // Denormalized from definition
+  
+  // Flattened Mode Information
+  modeName     String?      @map("mode_name")
+  channelCount Int?         @map("channel_count")
+  
+  // Legacy field to be removed after migration
+  modeId       String?      @map("mode_id")
+  
+  // DMX Configuration
+  projectId    String       @map("project_id")
   universe     Int
-  startChannel Int      @map("start_channel")
-  tags         String[] @default([])
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
+  startChannel Int          @map("start_channel")
+  tags         String[]     @default([])
+  
+  createdAt    DateTime     @default(now()) @map("created_at")
+  updatedAt    DateTime     @updatedAt @map("updated_at")
 
+  // Relations
   definition    FixtureDefinition @relation(fields: [definitionId], references: [id])
   mode          FixtureMode?      @relation(fields: [modeId], references: [id])
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  channels      InstanceChannel[]
   fixtureValues FixtureValue[]
 
   @@unique([projectId, universe, startChannel])
@@ -154,30 +169,34 @@ model Scene {
 }
 
 model FixtureValue {
-  id        String @id @default(cuid())
-  sceneId   String @map("scene_id")
-  fixtureId String @map("fixture_id")
+  id            String @id @default(cuid())
+  sceneId       String @map("scene_id")
+  fixtureId     String @map("fixture_id")
+  channelValues Int[]  @default([]) // Array of 0-255 values, index = channel offset
 
-  scene         Scene           @relation(fields: [sceneId], references: [id], onDelete: Cascade)
-  fixture       FixtureInstance @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
-  channelValues ChannelValue[]
+  scene   Scene           @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+  fixture FixtureInstance @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
 
   @@unique([sceneId, fixtureId])
   @@map("fixture_values")
 }
 
-model ChannelValue {
-  id             String @id @default(cuid())
-  fixtureValueId String @map("fixture_value_id")
-  channelId      String @map("channel_id")
-  value          Int
+model InstanceChannel {
+  id           String      @id @default(cuid())
+  fixtureId    String      @map("fixture_id")
+  offset       Int
+  name         String
+  type         ChannelType
+  minValue     Int         @default(0) @map("min_value")
+  maxValue     Int         @default(255) @map("max_value")
+  defaultValue Int         @default(0) @map("default_value")
 
-  fixtureValue FixtureValue      @relation(fields: [fixtureValueId], references: [id], onDelete: Cascade)
-  channel      ChannelDefinition @relation(fields: [channelId], references: [id])
+  fixture FixtureInstance @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
 
-  @@unique([fixtureValueId, channelId])
-  @@map("channel_values")
+  @@unique([fixtureId, offset])
+  @@map("instance_channels")
 }
+
 
 model CueList {
   id          String   @id @default(cuid())

@@ -56,6 +56,20 @@ npm run dev
 
 The server will start at `http://localhost:4000/graphql`
 
+### Starting and Stopping the Server
+
+**Development Mode (with hot reload):**
+```bash
+npm run dev    # Start development server
+# Press Ctrl+C to stop
+```
+
+**Production Mode:**
+```bash
+npm start      # Start production server (runs in background)
+npm run stop   # Stop the production server
+```
+
 **Database Management:**
 - PostgreSQL runs on `localhost:5432`
 - Adminer (database GUI) available at `http://localhost:8080`
@@ -163,6 +177,7 @@ lacylights-node/
 npm run dev          # Start development server with hot reload
 npm run build        # Build for production
 npm start           # Start production server
+npm run stop         # Stop the production server
 
 # Database
 npm run db:generate  # Generate Prisma client

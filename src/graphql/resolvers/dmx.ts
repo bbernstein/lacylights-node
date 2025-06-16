@@ -27,11 +27,6 @@ export const dmxResolvers = {
           fixtureValues: {
             include: {
               fixture: true,
-              channelValues: {
-                include: {
-                  channel: true,
-                },
-              },
             },
           },
         },
@@ -47,14 +42,15 @@ export const dmxResolvers = {
       for (const fixtureValue of scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
         
-        for (const channelValue of fixtureValue.channelValues) {
-          const channel = channelValue.channel;
-          const dmxChannel = fixture.startChannel + channel.offset;
+        // Iterate through channelValues array by index
+        for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+          const value = fixtureValue.channelValues[channelIndex];
+          const dmxChannel = fixture.startChannel + channelIndex;
           
           sceneChannels.push({
             universe: fixture.universe,
             channel: dmxChannel,
-            value: channelValue.value,
+            value: value,
           });
         }
       }
@@ -75,11 +71,6 @@ export const dmxResolvers = {
               fixtureValues: {
                 include: {
                   fixture: true,
-                  channelValues: {
-                    include: {
-                      channel: true,
-                    },
-                  },
                 },
               },
             },
@@ -100,14 +91,15 @@ export const dmxResolvers = {
       for (const fixtureValue of cue.scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
         
-        for (const channelValue of fixtureValue.channelValues) {
-          const channel = channelValue.channel;
-          const dmxChannel = fixture.startChannel + channel.offset;
+        // Iterate through channelValues array by index
+        for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+          const value = fixtureValue.channelValues[channelIndex];
+          const dmxChannel = fixture.startChannel + channelIndex;
           
           sceneChannels.push({
             universe: fixture.universe,
             channel: dmxChannel,
-            value: channelValue.value,
+            value: value,
           });
         }
       }

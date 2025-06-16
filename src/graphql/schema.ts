@@ -53,13 +53,35 @@ export const typeDefs = gql`
     id: ID!
     name: String!
     description: String
-    definition: FixtureDefinition!
-    mode: FixtureMode
+    
+    # Fixture Definition Info (flattened)
+    definitionId: ID!
+    manufacturer: String!
+    model: String!
+    type: FixtureType!
+    
+    # Mode Info (flattened)
+    modeName: String!
+    channelCount: Int!
+    channels: [InstanceChannel!]!
+    
+    # DMX Configuration
     project: Project!
     universe: Int!
     startChannel: Int!
     tags: [String!]!
     createdAt: String!
+    
+  }
+
+  type InstanceChannel {
+    id: ID!
+    offset: Int!
+    name: String!
+    type: ChannelType!
+    minValue: Int!
+    maxValue: Int!
+    defaultValue: Int!
   }
 
   type Scene {
@@ -74,12 +96,7 @@ export const typeDefs = gql`
   type FixtureValue {
     id: ID!
     fixture: FixtureInstance!
-    channelValues: [ChannelValue!]!
-  }
-
-  type ChannelValue {
-    channel: ChannelDefinition!
-    value: Int!
+    channelValues: [Int!]!
   }
 
   type CueList {
@@ -97,6 +114,7 @@ export const typeDefs = gql`
     name: String!
     cueNumber: Float!
     scene: Scene!
+    cueList: CueList!
     fadeInTime: Float!
     fadeOutTime: Float!
     followTime: Float
@@ -240,12 +258,7 @@ export const typeDefs = gql`
 
   input FixtureValueInput {
     fixtureId: ID!
-    channelValues: [ChannelValueInput!]!
-  }
-
-  input ChannelValueInput {
-    channelId: ID!
-    value: Int!
+    channelValues: [Int!]!
   }
 
   input FixtureDefinitionFilter {
@@ -289,6 +302,9 @@ export const typeDefs = gql`
 
     # Cue Lists
     cueList(id: ID!): CueList
+    
+    # Cues
+    cue(id: ID!): Cue
 
     # DMX Output
     dmxOutput(universe: Int!): [Int!]!

@@ -9,10 +9,11 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             include: {
-              fixture: true,
-              channelValues: {
+              fixture: {
                 include: {
-                  channel: true,
+                  channels: {
+                    orderBy: { offset: 'asc' },
+                  },
                 },
               },
             },
@@ -32,12 +33,7 @@ export const sceneResolvers = {
           fixtureValues: {
             create: input.fixtureValues.map((fv: any) => ({
               fixtureId: fv.fixtureId,
-              channelValues: {
-                create: fv.channelValues.map((cv: any) => ({
-                  channelId: cv.channelId,
-                  value: cv.value,
-                })),
-              },
+              channelValues: fv.channelValues, // Now just a simple array of integers
             })),
           },
         },
@@ -45,10 +41,11 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             include: {
-              fixture: true,
-              channelValues: {
+              fixture: {
                 include: {
-                  channel: true,
+                  channels: {
+                    orderBy: { offset: 'asc' },
+                  },
                 },
               },
             },
@@ -80,12 +77,7 @@ export const sceneResolvers = {
         updateData.fixtureValues = {
           create: input.fixtureValues.map((fv: any) => ({
             fixtureId: fv.fixtureId,
-            channelValues: {
-              create: fv.channelValues.map((cv: any) => ({
-                channelId: cv.channelId,
-                value: cv.value,
-              })),
-            },
+            channelValues: fv.channelValues, // Now just a simple array of integers
           })),
         };
       }
@@ -97,10 +89,11 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             include: {
-              fixture: true,
-              channelValues: {
+              fixture: {
                 include: {
-                  channel: true,
+                  channels: {
+                    orderBy: { offset: 'asc' },
+                  },
                 },
               },
             },
@@ -114,11 +107,7 @@ export const sceneResolvers = {
       const originalScene = await prisma.scene.findUnique({
         where: { id },
         include: {
-          fixtureValues: {
-            include: {
-              channelValues: true,
-            },
-          },
+          fixtureValues: true, // No need to include channelValues since it's now just an array
         },
       });
 
@@ -135,12 +124,7 @@ export const sceneResolvers = {
           fixtureValues: {
             create: originalScene.fixtureValues.map((fv) => ({
               fixtureId: fv.fixtureId,
-              channelValues: {
-                create: fv.channelValues.map((cv) => ({
-                  channelId: cv.channelId,
-                  value: cv.value,
-                })),
-              },
+              channelValues: fv.channelValues, // Now just a simple array copy
             })),
           },
         },
@@ -148,10 +132,11 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             include: {
-              fixture: true,
-              channelValues: {
+              fixture: {
                 include: {
-                  channel: true,
+                  channels: {
+                    orderBy: { offset: 'asc' },
+                  },
                 },
               },
             },
