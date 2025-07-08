@@ -309,6 +309,9 @@ export const typeDefs = gql`
     # DMX Output
     dmxOutput(universe: Int!): [Int!]!
     allDmxOutput: [UniverseOutput!]!
+
+    # Preview System
+    previewSession(sessionId: ID!): PreviewSession
   }
   # Mutations
   type Mutation {
@@ -355,6 +358,8 @@ export const typeDefs = gql`
     startPreviewSession(projectId: ID!): PreviewSession!
     commitPreviewSession(sessionId: ID!): Boolean!
     cancelPreviewSession(sessionId: ID!): Boolean!
+    updatePreviewChannel(sessionId: ID!, fixtureId: ID!, channelIndex: Int!, value: Int!): Boolean!
+    initializePreviewWithScene(sessionId: ID!, sceneId: ID!): Boolean!
 
     # DMX Control
     setChannelValue(universe: Int!, channel: Int!, value: Int!): Boolean!

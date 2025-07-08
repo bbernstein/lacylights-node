@@ -20,8 +20,8 @@ export function setupWebSocketServer(httpServer: any) {
     {
       schema,
       context: async (ctx, msg, args) => {
-        // TODO: Implement WebSocket context creation
-        return {};
+        const { createWebSocketContext } = await import('../context');
+        return createWebSocketContext();
       },
     },
     wsServer,

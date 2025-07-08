@@ -7,6 +7,7 @@ export interface UniverseOutput {
 
 export class DMXService {
   private universes: Map<number, number[]> = new Map();
+  private channelOverrides: Map<string, number> = new Map(); // Key: "universe:channel"
   private refreshRate: number = 44; // Hz
   private intervalId?: NodeJS.Timeout;
   private socket?: dgram.Socket;
@@ -70,6 +71,15 @@ export class DMXService {
   }
 
   private sendArtNetPacket(universe: number, channels: number[]) {
+    // Apply channel overrides to the output
+    const outputChannels = [...channels];
+    for (let i = 0; i < 512; i++) {
+      const overrideKey = `${universe}:${i + 1}`;
+      if (this.channelOverrides.has(overrideKey)) {
+        outputChannels[i] = this.channelOverrides.get(overrideKey)!;
+      }
+    }
+
     // Art-Net packet structure
     const packet = Buffer.alloc(530); // Header (18) + Data (512)
 
@@ -84,7 +94,7 @@ export class DMXService {
 
     // DMX data (512 channels)
     for (let i = 0; i < 512; i++) {
-      packet.writeUInt8(channels[i] || 0, 18 + i);
+      packet.writeUInt8(outputChannels[i] || 0, 18 + i);
     }
 
     // Send the packet
@@ -112,15 +122,60 @@ export class DMXService {
   }
 
   getUniverseOutput(universe: number): number[] {
-    return this.universes.get(universe) || [];
+    const baseChannels = this.universes.get(universe) || [];
+    const outputChannels = [...baseChannels];
+    
+    // Apply overrides
+    for (let i = 0; i < 512; i++) {
+      const overrideKey = `${universe}:${i + 1}`;
+      if (this.channelOverrides.has(overrideKey)) {
+        outputChannels[i] = this.channelOverrides.get(overrideKey)!;
+      }
+    }
+    
+    return outputChannels;
+  }
+
+  getUniverseChannels(universe: number): number[] | null {
+    const baseChannels = this.universes.get(universe);
+    if (!baseChannels) return null;
+    
+    const outputChannels = [...baseChannels];
+    
+    // Apply overrides
+    for (let i = 0; i < 512; i++) {
+      const overrideKey = `${universe}:${i + 1}`;
+      if (this.channelOverrides.has(overrideKey)) {
+        outputChannels[i] = this.channelOverrides.get(overrideKey)!;
+      }
+    }
+    
+    return outputChannels;
+  }
+
+  setChannelOverride(universe: number, channel: number, value: number): void {
+    if (channel >= 1 && channel <= 512) {
+      const overrideKey = `${universe}:${channel}`;
+      const clampedValue = Math.max(0, Math.min(255, value));
+      this.channelOverrides.set(overrideKey, clampedValue);
+    }
+  }
+
+  clearChannelOverride(universe: number, channel: number): void {
+    const overrideKey = `${universe}:${channel}`;
+    this.channelOverrides.delete(overrideKey);
+  }
+
+  clearAllOverrides(): void {
+    this.channelOverrides.clear();
   }
   getAllUniverseOutputs(): UniverseOutput[] {
     const outputs: UniverseOutput[] = [];
 
-    for (const [universe, channels] of this.universes.entries()) {
+    for (const [universe] of this.universes.entries()) {
       outputs.push({
         universe,
-        channels: [...channels], // Create a copy
+        channels: this.getUniverseOutput(universe), // This now includes overrides
       });
     }
 

@@ -1,17 +1,121 @@
 import { Context } from '../../context';
+import { previewService } from '../../services/previewService';
 
 export const previewResolvers = {
   Query: {
-    // TODO: Add preview queries
+    previewSession: async (_: any, { sessionId }: { sessionId: string }, context: Context) => {
+      const session = await previewService.getPreviewSession(sessionId);
+      if (!session) {
+        throw new Error('Preview session not found');
+      }
+
+      const project = await context.prisma.project.findUnique({
+        where: { id: session.projectId },
+      });
+
+      return {
+        id: session.id,
+        project,
+        user: null, // TODO: Implement user lookup when auth is added
+        isActive: session.isActive,
+        createdAt: session.createdAt.toISOString(),
+        dmxOutput: await getDMXOutput(session.id),
+      };
+    },
   },
 
   Mutation: {
-    // TODO: Add preview mutations
+    startPreviewSession: async (_: any, { projectId }: { projectId: string }, context: Context) => {
+      // Verify project exists
+      const project = await context.prisma.project.findUnique({
+        where: { id: projectId },
+      });
+
+      if (!project) {
+        throw new Error('Project not found');
+      }
+
+      const session = await previewService.startPreviewSession(projectId);
+
+      return {
+        id: session.id,
+        project,
+        user: null, // TODO: Implement user lookup when auth is added
+        isActive: session.isActive,
+        createdAt: session.createdAt.toISOString(),
+        dmxOutput: await getDMXOutput(session.id),
+      };
+    },
+
+    commitPreviewSession: async (_: any, { sessionId }: { sessionId: string }, context: Context) => {
+      return await previewService.commitPreviewSession(sessionId);
+    },
+
+    cancelPreviewSession: async (_: any, { sessionId }: { sessionId: string }, context: Context) => {
+      return await previewService.cancelPreviewSession(sessionId);
+    },
+
+    updatePreviewChannel: async (
+      _: any,
+      { sessionId, fixtureId, channelIndex, value }: {
+        sessionId: string;
+        fixtureId: string;
+        channelIndex: number;
+        value: number;
+      },
+      context: Context
+    ) => {
+      return await previewService.updateChannelValue(sessionId, fixtureId, channelIndex, value);
+    },
+
+    initializePreviewWithScene: async (
+      _: any,
+      { sessionId, sceneId }: { sessionId: string; sceneId: string },
+      context: Context
+    ) => {
+      return await previewService.initializeWithScene(sessionId, sceneId);
+    },
   },
 
   Subscription: {
-    // TODO: Add preview subscriptions
+    previewSessionUpdated: {
+      subscribe: (_: any, { projectId }: { projectId: string }, context: Context) => {
+        return context.pubsub.asyncIterator(['PREVIEW_SESSION_UPDATED']);
+      },
+    },
+
+    dmxOutputChanged: {
+      subscribe: (_: any, { universe }: { universe?: number }, context: Context) => {
+        return context.pubsub.asyncIterator(['DMX_OUTPUT_CHANGED']);
+      },
+    },
   },
 
   types: {},
 };
+
+// Helper function to get DMX output for a session
+async function getDMXOutput(sessionId: string) {
+  const session = await previewService.getPreviewSession(sessionId);
+  if (!session) return [];
+
+  const universesUsed = new Set<number>();
+  for (const channelKey of session.channelOverrides.keys()) {
+    const [universe] = channelKey.split(':').map(Number);
+    universesUsed.add(universe);
+  }
+
+  const output = [];
+  for (const universe of universesUsed) {
+    // This will be implemented in the preview service
+    output.push({
+      universe,
+      channels: Array.from({ length: 512 }, (_, i) => {
+        const channelKey = `${universe}:${i + 1}`;
+        return session.channelOverrides.get(channelKey) || 0;
+      }),
+    });
+  }
+
+  return output;
+}
