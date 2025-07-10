@@ -287,6 +287,26 @@ export const typeDefs = gql`
     notes: String
   }
 
+  # AI Assistant Types
+  input AIAssistantCommandInput {
+    command: String!
+    projectId: ID
+    currentMode: String
+    contextData: String
+  }
+
+  type AIAssistantOperation {
+    type: String!
+    result: String
+    error: String
+  }
+
+  type AIAssistantResponse {
+    success: Boolean!
+    message: String!
+    operations: [AIAssistantOperation!]!
+  }
+
   # Queries
   type Query {
     # Projects
@@ -366,6 +386,9 @@ export const typeDefs = gql`
     setSceneLive(sceneId: ID!): Boolean!
     playCue(cueId: ID!, fadeInTime: Float): Boolean!
     fadeToBlack(fadeOutTime: Float!): Boolean!
+
+    # AI Assistant
+    askAIAssistant(input: AIAssistantCommandInput!): AIAssistantResponse!
   }
 
   # Subscriptions

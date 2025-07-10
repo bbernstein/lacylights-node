@@ -4,6 +4,7 @@ import { sceneResolvers } from './scene';
 import { cueResolvers } from './cue';
 import { dmxResolvers } from './dmx';
 import { previewResolvers } from './preview';
+import { aiAssistantResolvers } from './naturalLanguage';
 
 export const resolvers = {
   Query: {
@@ -21,6 +22,7 @@ export const resolvers = {
     ...cueResolvers.Mutation,
     ...dmxResolvers.Mutation,
     ...previewResolvers.Mutation,
+    ...aiAssistantResolvers.Mutation,
   },
   Subscription: {
     ...dmxResolvers.Subscription,
