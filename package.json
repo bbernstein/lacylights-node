@@ -33,7 +33,7 @@
     "test:fade": "tsx scripts/test-fade-engine.ts",
     "test:e2e-fade": "tsx scripts/test-e2e-fade.ts",
     "introspect:schema": "tsx scripts/introspect-schema.ts",
-    "prepare": "husky"
+    "prepare": "husky || true"
   },
   "keywords": [
     "lighting",
@@ -45,8 +45,8 @@
   "license": "MIT",
   "dependencies": {
     "@apollo/server": "^4.9.5",
+    "@graphql-tools/schema": "^10.0.25",
     "@prisma/client": "^5.6.0",
-    "artnet-protocol": "^0.2.1",
     "cors": "^2.8.5",
     "express": "^4.18.2",
     "graphql": "^16.8.1",
