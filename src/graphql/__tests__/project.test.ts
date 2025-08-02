@@ -2,17 +2,20 @@ import { ApolloServer } from '@apollo/server';
 import { typeDefs } from '../schema';
 import { resolvers } from '../resolvers';
 import { PrismaClient } from '@prisma/client';
+import { PubSub } from 'graphql-subscriptions';
 import { Context } from '../../context';
 
 describe('Project GraphQL Resolvers', () => {
-  let server: ApolloServer;
+  let server: ApolloServer<Context>;
   let prisma: PrismaClient;
+  let pubsub: PubSub;
 
   beforeAll(async () => {
     prisma = new PrismaClient();
+    pubsub = new PubSub();
     await prisma.$connect();
 
-    server = new ApolloServer({
+    server = new ApolloServer<Context>({
       typeDefs,
       resolvers,
     });
@@ -23,14 +26,18 @@ describe('Project GraphQL Resolvers', () => {
   });
 
   beforeEach(async () => {
-    // Clean up test data
+    // Clean up test data in correct order to avoid foreign key constraints
     await prisma.projectUser.deleteMany();
     await prisma.project.deleteMany();
     await prisma.user.deleteMany();
+    
+    // Wait a bit to avoid race conditions
+    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   const createTestContext = (): Context => ({
     prisma,
+    pubsub,
     req: {} as any,
     res: {} as any,
   });
@@ -91,7 +98,7 @@ describe('Project GraphQL Resolvers', () => {
       if (response.body.kind === 'single') {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.projects).toHaveLength(1);
-        expect(response.body.singleResult.data?.projects[0]).toMatchObject({
+        expect((response.body.singleResult.data as any)?.projects[0]).toMatchObject({
           id: testProject.id,
           name: 'Test Project',
           description: 'A test project',
@@ -192,11 +199,11 @@ describe('Project GraphQL Resolvers', () => {
       expect(response.body.kind).toBe('single');
       if (response.body.kind === 'single') {
         expect(response.body.singleResult.errors).toBeUndefined();
-        expect(response.body.singleResult.data?.createProject).toMatchObject({
+        expect((response.body.singleResult.data as any)?.createProject).toMatchObject({
           name: 'New Project',
           description: 'A new test project',
         });
-        expect(response.body.singleResult.data?.createProject.id).toBeDefined();
+        expect((response.body.singleResult.data as any)?.createProject.id).toBeDefined();
       }
 
       // Verify project was created in database
