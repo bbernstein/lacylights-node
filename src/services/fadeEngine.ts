@@ -74,7 +74,7 @@ class FadeEngine {
         });
 
         completedFades.push(fadeId);
-        if (fade.onComplete) {fade.onComplete();}
+        if (fade.onComplete) { fade.onComplete(); }
       } else {
         // Interpolate values
         fade.channels.forEach((channel) => {
