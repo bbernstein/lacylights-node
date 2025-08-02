@@ -177,6 +177,8 @@ export class PreviewService {
 
       return true;
     } catch (error) {
+      // TODO: Replace with proper logging
+      // eslint-disable-next-line no-console
       console.error('Error initializing preview with scene:', error);
       return false;
     }
@@ -236,9 +238,9 @@ export class PreviewService {
     }
   }
 
-  private async getCurrentDMXOutput(sessionId: string): Promise<any[]> {
+  private async getCurrentDMXOutput(sessionId: string): Promise<Array<{ universe: number; channels: number[] }>> {
     const session = this.sessions.get(sessionId);
-    if (!session) return [];
+    if (!session) {return [];}
 
     const universesUsed = new Set<number>();
     for (const channelKey of session.channelOverrides.keys()) {
@@ -288,8 +290,10 @@ let previewServiceInstance: PreviewService | null = null;
 
 export function getPreviewService(): PreviewService {
   if (!previewServiceInstance) {
-    // Import here to avoid circular dependency
+    // Dynamic imports to avoid circular dependency
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PubSub } = require('graphql-subscriptions');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { PrismaClient } = require('@prisma/client');
     
     previewServiceInstance = new PreviewService(

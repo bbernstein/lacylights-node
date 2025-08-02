@@ -12,6 +12,7 @@
     "test:watch": "jest --watch",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
+    "check": "npm run lint && npm run build",
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
@@ -31,7 +32,8 @@
     "test:artnet": "tsx scripts/test-artnet.ts",
     "test:fade": "tsx scripts/test-fade-engine.ts",
     "test:e2e-fade": "tsx scripts/test-e2e-fade.ts",
-    "introspect:schema": "tsx scripts/introspect-schema.ts"
+    "introspect:schema": "tsx scripts/introspect-schema.ts",
+    "prepare": "husky"
   },
   "keywords": [
     "lighting",
@@ -59,10 +61,12 @@
     "@types/jest": "^29.5.7",
     "@types/node": "^20.17.57",
     "@types/ws": "^8.5.8",
-    "@typescript-eslint/eslint-plugin": "^6.9.1",
-    "@typescript-eslint/parser": "^6.9.1",
-    "eslint": "^8.53.0",
+    "@typescript-eslint/eslint-plugin": "^8.38.0",
+    "@typescript-eslint/parser": "^8.38.0",
+    "eslint": "^9.32.0",
+    "husky": "^9.1.7",
     "jest": "^29.7.0",
+    "lint-staged": "^16.1.2",
     "prisma": "^5.6.0",
     "ts-jest": "^29.1.1",
     "tsx": "^4.1.4",
@@ -70,5 +74,16 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "lint-staged": {
+    "src/**/*.{ts,tsx}": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged && npm run build"
+    }
   }
 }

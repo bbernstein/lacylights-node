@@ -1,0 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Run lint-staged to lint and fix files
+npx lint-staged
+
+# Run build to ensure TypeScript compilation works
+npm run build
