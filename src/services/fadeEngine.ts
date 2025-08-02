@@ -38,7 +38,7 @@ class FadeEngine {
   }
 
   start() {
-    if (this.isRunning) {return;}
+    if (this.isRunning) { return; }
 
     this.isRunning = true;
     // Run at 40Hz (25ms intervals) for smooth fading

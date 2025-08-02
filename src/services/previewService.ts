@@ -240,7 +240,7 @@ export class PreviewService {
 
   private async getCurrentDMXOutput(sessionId: string): Promise<Array<{ universe: number; channels: number[] }>> {
     const session = this.sessions.get(sessionId);
-    if (!session) {return [];}
+    if (!session) { return []; }
 
     const universesUsed = new Set<number>();
     for (const channelKey of session.channelOverrides.keys()) {
