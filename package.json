@@ -26,6 +26,7 @@
     "docker:db": "docker-compose up -d postgres",
     "docker:dev": "docker-compose up -d postgres redis && npm run dev",
     "seed:ofl": "tsx scripts/import-ofl-fixtures.ts",
+    "check:fixtures": "tsx scripts/check-and-import-fixtures.ts",
     "create:slimpar": "tsx scripts/create-slimpar-fixtures.ts",
     "create:scenes": "tsx scripts/create-lighting-scenes.ts",
     "preview:scenes": "tsx scripts/preview-scenes.ts",

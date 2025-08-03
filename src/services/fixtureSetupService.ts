@@ -3,11 +3,7 @@ import { PrismaClient, FixtureType, ChannelType } from "@prisma/client";
 import https from "https";
 import fs from "fs";
 import path from "path";
-import { promisify } from "util";
-import { pipeline } from "stream";
 import unzipper from "unzipper";
-
-const streamPipeline = promisify(pipeline);
 
 const prisma = new PrismaClient();
 
@@ -125,16 +121,24 @@ export class FixtureSetupService {
       console.log("📦 Extracting fixture data...");
       await this.extractOFLData();
 
+      // Check extraction directory
+      console.log("  Checking extracted data...");
+      const extractedDirs = fs.readdirSync(this.OFL_EXTRACT_PATH)
+        .filter(item => fs.statSync(path.join(this.OFL_EXTRACT_PATH, item)).isDirectory());
+      console.log(`  Found ${extractedDirs.length} manufacturer directories`);
+
       console.log("💾 Importing fixtures into database...");
       await this.importFixtures();
 
+      console.log("✅ Fixture import completed successfully!");
+      
+      // Only cleanup on success
       console.log("🧹 Cleaning up temporary files...");
       await this.cleanup();
-
-      console.log("✅ Fixture import completed successfully!");
     } catch (error) {
       console.error("❌ Error during fixture setup:", error);
-      await this.cleanup();
+      // Don't cleanup on error for debugging
+      console.log("⚠️  Temporary files preserved in:", this.TEMP_DIR);
       throw error;
     }
   }
@@ -156,16 +160,20 @@ export class FixtureSetupService {
         let downloadedSize = 0;
         let lastLoggedProgress = 0;
 
-        response.on('data', (chunk) => {
-          downloadedSize += chunk.length;
-          const progress = Math.round((downloadedSize / totalSize) * 100);
-          
-          // Log progress every 10%
-          if (progress >= lastLoggedProgress + 10) {
-            console.log(`  Download progress: ${progress}%`);
-            lastLoggedProgress = progress;
-          }
-        });
+        if (totalSize > 0) {
+          response.on('data', (chunk) => {
+            downloadedSize += chunk.length;
+            const progress = Math.round((downloadedSize / totalSize) * 100);
+            
+            // Log progress every 10%
+            if (progress >= lastLoggedProgress + 10) {
+              console.log(`  Download progress: ${progress}%`);
+              lastLoggedProgress = progress;
+            }
+          });
+        } else {
+          console.log("  Downloading... (size unknown)");
+        }
 
         response.pipe(file);
 
@@ -190,23 +198,40 @@ export class FixtureSetupService {
       fs.mkdirSync(this.OFL_EXTRACT_PATH, { recursive: true });
     }
 
-    await streamPipeline(
-      fs.createReadStream(this.OFL_ZIP_PATH),
-      unzipper.Extract({ path: this.OFL_EXTRACT_PATH })
-    );
+    return new Promise((resolve, reject) => {
+      fs.createReadStream(this.OFL_ZIP_PATH)
+        .pipe(unzipper.Extract({ path: this.OFL_EXTRACT_PATH }))
+        .on('close', () => {
+          console.log("  Extraction complete!");
+          resolve();
+        })
+        .on('error', (err) => {
+          console.error("  Extraction error:", err);
+          reject(err);
+        });
+    });
   }
 
   /**
    * Import fixtures from extracted OFL data
    */
   private static async importFixtures(): Promise<void> {
-    const fixturesPath = path.join(this.OFL_EXTRACT_PATH, "fixtures");
-    const manufacturersPath = path.join(fixturesPath, "manufacturers.json");
+    // Since manufacturers.json doesn't exist, build manufacturers from directories
+    const manufacturerDirs = fs.readdirSync(this.OFL_EXTRACT_PATH)
+      .filter(item => {
+        const itemPath = path.join(this.OFL_EXTRACT_PATH, item);
+        return fs.statSync(itemPath).isDirectory();
+      });
 
-    // Load manufacturers
-    const manufacturersData: OFLManufacturers = JSON.parse(
-      fs.readFileSync(manufacturersPath, "utf8")
-    );
+    // Create manufacturers data from directory names
+    const manufacturersData: OFLManufacturers = {};
+    manufacturerDirs.forEach(dir => {
+      // Convert directory name to manufacturer name (e.g., "american-dj" -> "American DJ")
+      const name = dir.split('-').map(word => 
+        word.charAt(0).toUpperCase() + word.slice(1)
+      ).join(' ');
+      manufacturersData[dir] = { name };
+    });
 
     let totalFixtures = 0;
     let successfulImports = 0;
@@ -214,7 +239,7 @@ export class FixtureSetupService {
 
     // Process each manufacturer directory
     for (const manufacturerKey of Object.keys(manufacturersData)) {
-      const manufacturerPath = path.join(fixturesPath, manufacturerKey);
+      const manufacturerPath = path.join(this.OFL_EXTRACT_PATH, manufacturerKey);
 
       if (!fs.existsSync(manufacturerPath) || !fs.statSync(manufacturerPath).isDirectory()) {
         continue;
