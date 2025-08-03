@@ -95,4 +95,6 @@ jspm_packages/
 
 # OS generated files
 Thumbs.db
-EOF < /dev/null
+
+# Temporary files
+temp/
