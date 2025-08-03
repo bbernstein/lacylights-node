@@ -5,6 +5,21 @@ import { PrismaClient } from '@prisma/client';
 import { PubSub } from 'graphql-subscriptions';
 import { Context } from '../../context';
 
+// Types for GraphQL responses
+interface Project {
+  id: string;
+  name: string;
+  description: string | null;
+}
+
+interface ProjectsQueryData {
+  projects?: Project[];
+}
+
+interface CreateProjectData {
+  createProject?: Project;
+}
+
 describe('Project GraphQL Resolvers', () => {
   let server: ApolloServer<Context>;
   let prisma: PrismaClient;
@@ -98,7 +113,8 @@ describe('Project GraphQL Resolvers', () => {
       if (response.body.kind === 'single') {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.projects).toHaveLength(1);
-        expect((response.body.singleResult.data as any)?.projects[0]).toMatchObject({
+        const data = response.body.singleResult.data as ProjectsQueryData;
+        expect(data?.projects?.[0]).toMatchObject({
           id: testProject.id,
           name: 'Test Project',
           description: 'A test project',
@@ -199,11 +215,12 @@ describe('Project GraphQL Resolvers', () => {
       expect(response.body.kind).toBe('single');
       if (response.body.kind === 'single') {
         expect(response.body.singleResult.errors).toBeUndefined();
-        expect((response.body.singleResult.data as any)?.createProject).toMatchObject({
+        const data = response.body.singleResult.data as CreateProjectData;
+        expect(data?.createProject).toMatchObject({
           name: 'New Project',
           description: 'A new test project',
         });
-        expect((response.body.singleResult.data as any)?.createProject.id).toBeDefined();
+        expect(data?.createProject?.id).toBeDefined();
       }
 
       // Verify project was created in database
