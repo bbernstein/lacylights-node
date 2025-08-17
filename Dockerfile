@@ -1,5 +1,5 @@
 # Multi-stage build for Node.js application
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -32,7 +32,7 @@ RUN npx tsc
 FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
@@ -47,7 +47,7 @@ USER nextjs
 
 EXPOSE 4000
 
-ENV PORT 4000
+ENV PORT=4000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
