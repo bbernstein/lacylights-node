@@ -1,4 +1,5 @@
 import * as dgram from "dgram";
+import { selectNetworkInterface, saveInterfacePreference } from '../../utils/interfaceSelector';
 
 export interface UniverseOutput {
   universe: number;
@@ -19,7 +20,17 @@ export class DMXService {
     const universeCount = parseInt(process.env.DMX_UNIVERSE_COUNT || "4");
     const refreshRate = parseInt(process.env.DMX_REFRESH_RATE || "44");
     this.artNetEnabled = process.env.ARTNET_ENABLED !== "false";
-    this.broadcastAddress = process.env.ARTNET_BROADCAST || "255.255.255.255";
+    
+    // Select network interface for Art-Net broadcast
+    if (this.artNetEnabled) {
+      const selectedInterface = await selectNetworkInterface();
+      if (selectedInterface) {
+        this.broadcastAddress = selectedInterface;
+        saveInterfacePreference(selectedInterface);
+      } else {
+        this.broadcastAddress = "255.255.255.255";
+      }
+    }
 
     this.refreshRate = refreshRate;
 
