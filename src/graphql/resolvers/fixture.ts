@@ -1,4 +1,5 @@
 import { Context } from '../../context';
+import { ChannelType } from '@prisma/client';
 
 export const fixtureResolvers = {
   Query: {
@@ -243,7 +244,7 @@ export const fixtureResolvers = {
           let channelsToUpdate: Array<{
             offset: number;
             name: string;
-            type: any;
+            type: ChannelType;
             minValue: number;
             maxValue: number;
             defaultValue: number;
@@ -268,7 +269,7 @@ export const fixtureResolvers = {
               channelsToUpdate = mode.modeChannels.map((mc: any) => ({
                 offset: mc.offset,
                 name: mc.channel.name,
-                type: mc.channel.type,
+                type: mc.channel.type as ChannelType,
                 minValue: mc.channel.minValue,
                 maxValue: mc.channel.maxValue,
                 defaultValue: mc.channel.defaultValue,
@@ -288,7 +289,7 @@ export const fixtureResolvers = {
               .map((ch: any) => ({
                 offset: ch.offset,
                 name: ch.name,
-                type: ch.type,
+                type: ch.type as ChannelType,
                 minValue: ch.minValue,
                 maxValue: ch.maxValue,
                 defaultValue: ch.defaultValue,

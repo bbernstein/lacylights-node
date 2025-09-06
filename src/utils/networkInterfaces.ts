@@ -83,13 +83,13 @@ export function formatInterfaceTable(interfaces: NetworkInterfaceOption[]): stri
   const lines: string[] = [];
   lines.push('');
   lines.push('Available Network Interface Options:');
-  lines.push('=' .repeat(60));
+  lines.push('='.repeat(60));
   
   interfaces.forEach((iface, index) => {
     lines.push(`[${index + 1}] ${iface.description}`);
     lines.push(`    Address: ${iface.address} -> ${iface.broadcast}`);
   });
   
-  lines.push('=' .repeat(60));
+  lines.push('='.repeat(60));
   return lines.join('\n');
 }
