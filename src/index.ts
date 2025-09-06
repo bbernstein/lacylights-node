@@ -9,6 +9,7 @@ import { resolvers } from './graphql/resolvers';
 import { createContext } from './context';
 import { setupWebSocketServer } from './graphql/subscriptions';
 import { dmxService } from './services/dmx';
+import { fadeEngine } from './services/fadeEngine';
 import { FixtureSetupService } from './services/fixtureSetupService';
 
 async function startServer() {
@@ -66,13 +67,78 @@ async function startServer() {
   await dmxService.initialize();
 
   const PORT = process.env.PORT || 4000;
-  httpServer.listen(PORT, () => {
+  const httpListener = httpServer.listen(PORT, () => {
     console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
     console.log(`🔌 Subscriptions ready at ws://localhost:${PORT}/graphql`);
   });
+
+  // Return server instance for graceful shutdown
+  return { server: httpListener, wsServer };
 }
 
-startServer().catch((error) => {
-  console.error('Failed to start server:', error);
-  process.exit(1);
+// Keep reference to server instances for graceful shutdown
+let serverInstances: { server: any; wsServer: any } | null = null;
+
+// Graceful shutdown handler
+async function gracefulShutdown() {
+  console.log('🔄 Graceful shutdown initiated...');
+
+  try {
+    // Close HTTP server first
+    if (serverInstances?.server) {
+      console.log('🌐 Closing HTTP server...');
+      await new Promise<void>((resolve) => {
+        serverInstances!.server.close(() => {
+          console.log('✅ HTTP server closed');
+          resolve();
+        });
+      });
+    }
+
+    // Close WebSocket server
+    if (serverInstances?.wsServer) {
+      console.log('🔌 Closing WebSocket server...');
+      serverInstances.wsServer.dispose();
+      console.log('✅ WebSocket server closed');
+    }
+
+    // Stop services in reverse order of initialization
+    console.log('🎭 Stopping DMX service...');
+    dmxService.stop();
+
+    console.log('🎬 Stopping fade engine...');
+    fadeEngine.stop();
+
+    console.log('✅ All services stopped successfully');
+  } catch (error) {
+    console.error('❌ Error during service cleanup:', error);
+  }
+
+  // Exit process
+  console.log('👋 Server shutdown complete');
+  process.exit(0);
+}
+
+// Setup signal handlers for graceful shutdown
+process.on('SIGINT', gracefulShutdown);
+process.on('SIGTERM', gracefulShutdown);
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught exception:', error);
+  gracefulShutdown();
 });
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
+  gracefulShutdown();
+});
+
+startServer()
+  .then((instances) => {
+    serverInstances = instances;
+  })
+  .catch((error) => {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  });
