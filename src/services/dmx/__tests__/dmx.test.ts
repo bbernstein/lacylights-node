@@ -10,6 +10,7 @@ describe('DMXService', () => {
     // Set test environment variables
     process.env.DMX_UNIVERSE_COUNT = '2';
     process.env.DMX_REFRESH_RATE = '44';
+    process.env.ARTNET_ENABLED = 'false'; // Disable Art-Net for tests to avoid socket issues
     
     await dmxService.initialize();
   });
@@ -18,6 +19,11 @@ describe('DMXService', () => {
     if (dmxService) {
       dmxService.stop();
     }
+    
+    // Clean up environment variables
+    delete process.env.DMX_UNIVERSE_COUNT;
+    delete process.env.DMX_REFRESH_RATE;
+    delete process.env.ARTNET_ENABLED;
   });
 
   describe('initialization', () => {

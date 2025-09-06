@@ -9,6 +9,7 @@ import { resolvers } from './graphql/resolvers';
 import { createContext } from './context';
 import { setupWebSocketServer } from './graphql/subscriptions';
 import { dmxService } from './services/dmx';
+import { FixtureSetupService } from './services/fixtureSetupService';
 
 async function startServer() {
   const app = express();
@@ -57,6 +58,9 @@ async function startServer() {
       context: createContext,
     }),
   );
+
+  // Ensure fixtures are populated before starting services
+  await FixtureSetupService.ensureFixturesPopulated();
 
   // Start DMX service
   await dmxService.initialize();

@@ -38,12 +38,15 @@ beforeEach(async () => {
     try {
       await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
     } catch (error) {
+      // TODO: Replace with proper test logging
+      // eslint-disable-next-line no-console
       console.log({ error });
     }
   }
 });
 
 // Global test utilities
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 (global as any).testPrisma = prisma;
 
 // Increase test timeout for database operations
