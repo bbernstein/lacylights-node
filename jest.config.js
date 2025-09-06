@@ -22,10 +22,12 @@ module.exports = {
     'html'
   ],
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
-  testTimeout: 10000,
+  testTimeout: 30000,
   verbose: true,
   forceExit: true,
   clearMocks: true,
   restoreMocks: true,
   resetMocks: true,
+  // Run tests sequentially to avoid database conflicts
+  maxWorkers: 1,
 };

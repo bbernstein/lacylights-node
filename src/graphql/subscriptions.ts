@@ -1,11 +1,11 @@
-import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
 import { useServer } from 'graphql-ws/lib/use/ws';
 import { makeExecutableSchema } from '@graphql-tools/schema';
 import { typeDefs } from './schema';
 import { resolvers } from './resolvers';
+import { Server } from 'http';
 
-export function setupWebSocketServer(httpServer: any) {
+export function setupWebSocketServer(httpServer: Server) {
   const wsServer = new WebSocketServer({
     server: httpServer,
     path: '/graphql',
@@ -19,7 +19,7 @@ export function setupWebSocketServer(httpServer: any) {
   const serverCleanup = useServer(
     {
       schema,
-      context: async (ctx, msg, args) => {
+      context: async (_ctx, _msg, _args) => {
         const { createWebSocketContext } = await import('../context');
         return createWebSocketContext();
       },

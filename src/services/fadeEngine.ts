@@ -38,7 +38,7 @@ class FadeEngine {
   }
 
   start() {
-    if (this.isRunning) return;
+    if (this.isRunning) { return; }
 
     this.isRunning = true;
     // Run at 40Hz (25ms intervals) for smooth fading
@@ -74,7 +74,7 @@ class FadeEngine {
         });
 
         completedFades.push(fadeId);
-        if (fade.onComplete) fade.onComplete();
+        if (fade.onComplete) { fade.onComplete(); }
       } else {
         // Interpolate values
         fade.channels.forEach((channel) => {
@@ -157,9 +157,9 @@ class FadeEngine {
   ): number {
     // Simplified cubic bezier implementation for standard ease curves
     // For a more complete implementation, we'd use Newton-Raphson method
-    const cx = 3 * p1x;
-    const bx = 3 * (p2x - p1x) - cx;
-    const ax = 1 - cx - bx;
+    // const cx = 3 * p1x; // Not used in current implementation
+    // const bx = 3 * (p2x - p1x) - cx; // Not used in current implementation
+    // const ax = 1 - cx - bx; // Not used in current implementation
 
     const cy = 3 * p1y;
     const by = 3 * (p2y - p1y) - cy;
