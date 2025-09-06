@@ -1,5 +1,6 @@
+/* eslint-disable no-console */
 import * as readlineSync from 'readline-sync';
-import { getNetworkInterfaces, formatInterfaceTable, NetworkInterfaceOption } from './networkInterfaces';
+import { getNetworkInterfaces, formatInterfaceTable } from './networkInterfaces';
 
 export async function selectNetworkInterface(): Promise<string | null> {
   // Check if ARTNET_BROADCAST is already set

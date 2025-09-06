@@ -21,7 +21,7 @@ export function getNetworkInterfaces(): NetworkInterfaceOption[] {
 
   // Process all network interfaces
   for (const [ifaceName, iface] of Object.entries(interfaces)) {
-    if (!iface) continue;
+    if (!iface) {continue;}
 
     for (const config of iface) {
       // Only include IPv4 addresses
