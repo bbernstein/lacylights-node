@@ -124,15 +124,18 @@ async function gracefulShutdown() {
 process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 
-// Handle uncaught exceptions
+// Handle uncaught exceptions - exit immediately as the app is in an undefined state
 process.on('uncaughtException', (error) => {
   console.error('💥 Uncaught exception:', error);
+  // Don't attempt graceful shutdown on uncaught exceptions as the app state is corrupted
   process.exit(1);
 });
 
+// Handle unhandled rejections - attempt graceful shutdown
 process.on('unhandledRejection', (reason, promise) => {
   console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
-  process.exit(1);
+  // Unhandled rejections are less likely to corrupt app state, so attempt graceful shutdown
+  gracefulShutdown();
 });
 
 startServer()
