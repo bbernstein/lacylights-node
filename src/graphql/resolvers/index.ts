@@ -4,6 +4,7 @@ import { sceneResolvers } from './scene';
 import { cueResolvers } from './cue';
 import { dmxResolvers } from './dmx';
 import { previewResolvers } from './preview';
+import { qlcExportResolvers } from './qlcExport';
 
 export const resolvers = {
   Query: {
@@ -13,6 +14,7 @@ export const resolvers = {
     ...cueResolvers.Query,
     ...dmxResolvers.Query,
     ...previewResolvers.Query,
+    ...qlcExportResolvers.Query,
   },
   Mutation: {
     ...projectResolvers.Mutation,
