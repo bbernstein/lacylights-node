@@ -98,10 +98,15 @@ async function gracefulShutdown() {
     if (serverInstances?.server) {
       console.log('🌐 Closing HTTP server...');
       const httpServerInstance = serverInstances.server;
-      await new Promise<void>((resolve) => {
-        httpServerInstance.close(() => {
-          console.log('✅ HTTP server closed');
-          resolve();
+      await new Promise<void>((resolve, reject) => {
+        httpServerInstance.close((err) => {
+          if (err) {
+            console.error('❌ Error closing HTTP server:', err);
+            reject(err);
+          } else {
+            console.log('✅ HTTP server closed');
+            resolve();
+          }
         });
       });
     }
@@ -128,7 +133,12 @@ async function gracefulShutdown() {
 
   // Exit process
   console.log('👋 Server shutdown complete');
-  process.exit(0);
+  
+  // Allow process to exit naturally. As a fallback, force exit after 10 seconds.
+  setTimeout(() => {
+    console.warn('⏳ Force exiting process after graceful shutdown timeout');
+    process.exit(0);
+  }, 10000).unref();
 }
 
 // Setup signal handlers for graceful shutdown
@@ -146,7 +156,10 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
   // Unhandled rejections are less likely to corrupt app state, so attempt graceful shutdown
-  gracefulShutdown();
+  // Check if not already shutting down to prevent race conditions
+  if (!isShuttingDown) {
+    gracefulShutdown();
+  }
 });
 
 startServer()
