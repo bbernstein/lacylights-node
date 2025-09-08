@@ -52,9 +52,10 @@ export class QLCFixtureLibrary {
   private fixtureListPath: string;
   
   constructor(qlcFixturesPath?: string) {
-    // Default to the QLC+ app fixture path
-    this.fixtureListPath = qlcFixturesPath || 
-      '/Users/bernard/src/lacylights/qlcplus/QLC+-4.app/Contents/Resources/Fixtures';
+    // Use the provided path, or the QLC_FIXTURES_PATH environment variable, or throw an error
+    this.fixtureListPath = qlcFixturesPath 
+      || process.env.QLC_FIXTURES_PATH 
+      || (() => { throw new Error('QLC+ fixtures path not specified. Please provide it as a constructor argument or set the QLC_FIXTURES_PATH environment variable.'); })();
   }
 
   async loadFixtureLibrary(): Promise<void> {
@@ -81,7 +82,7 @@ export class QLCFixtureLibrary {
             this.fixtures.set(key, fixtureData);
           }
         } catch (error) {
-          // Skip problematic fixture files
+          console.error(`Failed to parse fixture file: ${path.join(manufacturerPath, fixtureFile)}\nError:`, error);
           continue;
         }
       }
@@ -97,7 +98,7 @@ export class QLCFixtureLibrary {
       const result = await parser.parseStringPromise(xmlContent);
       
       const fixtureDef = result.FixtureDefinition;
-      if (!fixtureDef) return null;
+      if (!fixtureDef) {return null;}
 
       const manufacturer = fixtureDef.Manufacturer?.[0] || 'Unknown';
       const model = fixtureDef.Model?.[0] || 'Unknown';
@@ -148,6 +149,7 @@ export class QLCFixtureLibrary {
         channels,
       };
     } catch (error) {
+      console.error(`Failed to parse fixture file "${filePath}":`, error);
       return null;
     }
   }
@@ -344,7 +346,8 @@ export class QLCFixtureLibrary {
       if (lacyHasColor && qlcHasColor) {
         colorMatches++;
       } else if (lacyHasColor && !qlcHasColor) {
-        score -= 5; // Penalty for missing color channel
+        const COLOR_CHANNEL_MISSING_PENALTY = 5;
+        score -= COLOR_CHANNEL_MISSING_PENALTY; // Penalty for missing color channel
       }
     }
 
@@ -390,7 +393,7 @@ export class QLCFixtureLibrary {
     const s1 = str1.toLowerCase().trim();
     const s2 = str2.toLowerCase().trim();
     
-    if (s1 === s2) return 1.0;
+    if (s1 === s2) {return 1.0;}
     
     // Simple word-based similarity
     const words1 = s1.split(/\s+/);

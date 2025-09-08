@@ -204,11 +204,12 @@ export const qlcExportResolvers = {
                   const sceneIndex = project.scenes.findIndex(
                     (scene) => scene.id === cue.sceneId
                   );
+                  const QLC_DEFAULT_HOLD_TIME = '4294967294'; // QLC+ default infinite hold time (2^32 - 2)
                   return {
                     $: {
                       Number: cueIndex.toString(),
                       FadeIn: Math.round(cue.fadeInTime * 1000).toString(), // Convert to milliseconds
-                      Hold: '4294967294', // QLC+ default hold time
+                      Hold: QLC_DEFAULT_HOLD_TIME,
                       FadeOut: Math.round(cue.fadeOutTime * 1000).toString(),
                     },
                     _: sceneIndex.toString(),
