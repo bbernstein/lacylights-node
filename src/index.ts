@@ -77,7 +77,7 @@ async function startServer() {
 }
 
 // Keep reference to server instances for graceful shutdown
-let serverInstances: { server: any; wsServer: any } | null = null;
+let serverInstances: { server: http.Server; wsServer: ReturnType<typeof setupWebSocketServer> } | null = null;
 
 // Graceful shutdown handler
 async function gracefulShutdown() {
@@ -87,8 +87,9 @@ async function gracefulShutdown() {
     // Close HTTP server first
     if (serverInstances?.server) {
       console.log('🌐 Closing HTTP server...');
+      const httpServerInstance = serverInstances.server;
       await new Promise<void>((resolve) => {
-        serverInstances!.server.close(() => {
+        httpServerInstance.close(() => {
           console.log('✅ HTTP server closed');
           resolve();
         });
@@ -126,12 +127,12 @@ process.on('SIGTERM', gracefulShutdown);
 // Handle uncaught exceptions
 process.on('uncaughtException', (error) => {
   console.error('💥 Uncaught exception:', error);
-  gracefulShutdown();
+  process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
-  gracefulShutdown();
+  process.exit(1);
 });
 
 startServer()
