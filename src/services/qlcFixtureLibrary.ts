@@ -83,6 +83,7 @@ export class QLCFixtureLibrary {
           }
         } catch (error) {
           console.error(`Failed to parse fixture file: ${path.join(manufacturerPath, fixtureFile)}\nError:`, error);
+          console.error(`Failed to parse fixture file: ${path.join(manufacturerPath, fixtureFile)}\nError:`, error);
           continue;
         }
       }
@@ -149,6 +150,7 @@ export class QLCFixtureLibrary {
         channels,
       };
     } catch (error) {
+      console.error(`Failed to parse fixture file "${filePath}":`, error);
       console.error(`Failed to parse fixture file "${filePath}":`, error);
       return null;
     }
