@@ -79,8 +79,18 @@ async function startServer() {
 // Keep reference to server instances for graceful shutdown
 let serverInstances: { server: http.Server; wsServer: ReturnType<typeof setupWebSocketServer> } | null = null;
 
+// Flag to prevent multiple concurrent shutdown attempts
+let isShuttingDown = false;
+
 // Graceful shutdown handler
 async function gracefulShutdown() {
+  // Prevent multiple concurrent shutdown attempts
+  if (isShuttingDown) {
+    console.log('⚠️ Shutdown already in progress...');
+    return;
+  }
+  isShuttingDown = true;
+  
   console.log('🔄 Graceful shutdown initiated...');
 
   try {
@@ -104,6 +114,7 @@ async function gracefulShutdown() {
     }
 
     // Stop services in reverse order of initialization
+    // Note: These stop() methods are synchronous - they just clear intervals and don't return promises
     console.log('🎭 Stopping DMX service...');
     dmxService.stop();
 
