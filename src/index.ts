@@ -12,6 +12,9 @@ import { dmxService } from './services/dmx';
 import { fadeEngine } from './services/fadeEngine';
 import { FixtureSetupService } from './services/fixtureSetupService';
 
+// Graceful shutdown timeout in milliseconds
+const GRACEFUL_SHUTDOWN_TIMEOUT = 10000;
+
 async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
@@ -77,6 +80,8 @@ async function startServer() {
 }
 
 // Keep reference to server instances for graceful shutdown
+// Note: Module-level variable is necessary here to maintain references across async operations
+// and signal handlers. This is a common pattern for graceful shutdown in Node.js applications.
 let serverInstances: { server: http.Server; wsServer: ReturnType<typeof setupWebSocketServer> } | null = null;
 
 // Flag to prevent multiple concurrent shutdown attempts
@@ -134,11 +139,11 @@ async function gracefulShutdown() {
   // Exit process
   console.log('👋 Server shutdown complete');
   
-  // Allow process to exit naturally. As a fallback, force exit after 10 seconds.
+  // Allow process to exit naturally. As a fallback, force exit after timeout.
   setTimeout(() => {
     console.warn('⏳ Force exiting process after graceful shutdown timeout');
     process.exit(0);
-  }, 10000).unref();
+  }, GRACEFUL_SHUTDOWN_TIMEOUT).unref();
 }
 
 // Setup signal handlers for graceful shutdown
@@ -146,6 +151,9 @@ process.on('SIGINT', gracefulShutdown);
 process.on('SIGTERM', gracefulShutdown);
 
 // Handle uncaught exceptions - exit immediately as the app is in an undefined state
+// Note: While handling uncaughtException is discouraged, we use it here to ensure
+// critical errors are logged before the process exits. This helps with debugging
+// production issues. The immediate exit prevents the app from continuing in a corrupted state.
 process.on('uncaughtException', (error) => {
   console.error('💥 Uncaught exception:', error);
   // Don't attempt graceful shutdown on uncaught exceptions as the app state is corrupted
