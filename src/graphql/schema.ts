@@ -151,6 +151,51 @@ export const typeDefs = gql`
     universe: Int!
     channels: [Int!]!
   }
+
+  # QLC+ Export
+  type QLCExportResult {
+    projectName: String!
+    xmlContent: String!
+    fixtureCount: Int!
+    sceneCount: Int!
+    cueListCount: Int!
+  }
+
+  type QLCFixtureDefinition {
+    manufacturer: String!
+    model: String!
+    type: String!
+    modes: [QLCFixtureMode!]!
+  }
+
+  type QLCFixtureMode {
+    name: String!
+    channelCount: Int!
+  }
+
+  type FixtureMapping {
+    lacyLightsKey: String!
+    qlcManufacturer: String!
+    qlcModel: String!
+    qlcMode: String!
+  }
+
+  type FixtureMappingSuggestion {
+    fixture: LacyLightsFixture!
+    suggestions: [QLCFixtureDefinition!]!
+  }
+
+  type LacyLightsFixture {
+    manufacturer: String!
+    model: String!
+  }
+
+  type QLCFixtureMappingResult {
+    projectId: String!
+    lacyLightsFixtures: [LacyLightsFixture!]!
+    suggestions: [FixtureMappingSuggestion!]!
+    defaultMappings: [FixtureMapping!]!
+  }
   # Enums
   enum FixtureType {
     LED_PAR
@@ -287,6 +332,13 @@ export const typeDefs = gql`
     notes: String
   }
 
+  input FixtureMappingInput {
+    lacyLightsKey: String!
+    qlcManufacturer: String!
+    qlcModel: String!
+    qlcMode: String!
+  }
+
   # Queries
   type Query {
     # Projects
@@ -312,6 +364,10 @@ export const typeDefs = gql`
 
     # Preview System
     previewSession(sessionId: ID!): PreviewSession
+
+    # QLC+ Export
+    getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
+    exportProjectToQLC(projectId: ID!, fixtureMappings: [FixtureMappingInput!]): QLCExportResult!
   }
   # Mutations
   type Mutation {
