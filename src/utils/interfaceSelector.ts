@@ -32,10 +32,22 @@ export async function selectNetworkInterface(): Promise<string | null> {
     console.log(formatInterfaceTable(interfaces));
     console.log('\n📡 Select Art-Net broadcast destination:');
     console.log('   (This determines where DMX data will be sent)');
-    console.log('   Press Enter for default (Global Broadcast)\n');
+    console.log('   Press Enter for default (Global Broadcast)');
+    
+    // Show development mode warning
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n💡 Development mode: Please wait a moment after selecting to prevent restart');
+    }
+    console.log('');
 
     const defaultIndex = interfaces.findIndex(i => i.name === 'global-broadcast');
     const answer = readlineSync.question(`Select option [1-${interfaces.length}] (default: ${defaultIndex + 1}): `);
+    
+    // Add a small delay to prevent tsx from capturing the Enter key press
+    // This is needed because tsx monitors stdin for restart commands in development
+    if (process.env.NODE_ENV !== 'production') {
+      await new Promise(resolve => setTimeout(resolve, 200));
+    }
     
     let selectedIndex: number;
     
