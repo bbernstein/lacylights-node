@@ -59,6 +59,7 @@ export class QLCFixtureLibrary {
   }
 
   async loadFixtureLibrary(): Promise<void> {
+    // eslint-disable-next-line no-console
     console.log('🔍 Loading QLC+ fixture library...');
     
     if (!fs.existsSync(this.fixtureListPath)) {
@@ -82,13 +83,14 @@ export class QLCFixtureLibrary {
             this.fixtures.set(key, fixtureData);
           }
         } catch (error) {
-          console.error(`Failed to parse fixture file: ${path.join(manufacturerPath, fixtureFile)}\nError:`, error);
+          // eslint-disable-next-line no-console
           console.error(`Failed to parse fixture file: ${path.join(manufacturerPath, fixtureFile)}\nError:`, error);
           continue;
         }
       }
     }
     
+    // eslint-disable-next-line no-console
     console.log(`✅ Loaded ${this.fixtures.size} QLC+ fixture definitions`);
   }
 
@@ -150,7 +152,7 @@ export class QLCFixtureLibrary {
         channels,
       };
     } catch (error) {
-      console.error(`Failed to parse fixture file "${filePath}":`, error);
+      // eslint-disable-next-line no-console
       console.error(`Failed to parse fixture file "${filePath}":`, error);
       return null;
     }
