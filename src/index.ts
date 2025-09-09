@@ -105,9 +105,16 @@ async function gracefulShutdown() {
       try {
         await serverInstances.wsServer.dispose();
         console.log('✅ WebSocket server closed');
-      } catch {
-        // Suppress WebSocket disposal errors during shutdown as they're expected
-        console.log('✅ WebSocket server closed (with expected cleanup warnings)');
+      } catch (err: any) {
+        // Suppress expected WebSocket disposal errors during shutdown, log unexpected ones
+        if (err && typeof err.message === 'string' && (
+          err.message.includes('server is not running') ||
+          err.message.includes('WebSocket server is already closed')
+        )) {
+          console.log('✅ WebSocket server closed (with expected cleanup warnings)');
+        } else {
+          console.error('❌ Unexpected error closing WebSocket server:', err);
+        }
       }
     }
 
@@ -179,8 +186,13 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   // Suppress WebSocket server cleanup errors during shutdown as they're expected
   const isWebSocketShutdownError = isShuttingDown && 
-    reason instanceof Error && 
-    reason.message === 'The server is not running';
+    reason instanceof Error && (
+      // Check for error code if available (more reliable than message)
+      (reason as any).code === 'ERR_SERVER_NOT_RUNNING' ||
+      // Fallback to message content check for common WebSocket errors
+      reason.message.includes('server is not running') ||
+      reason.message.includes('WebSocket server is already closed')
+    );
   
   if (isWebSocketShutdownError) {
     // WebSocket cleanup errors during shutdown are expected, just log as debug
