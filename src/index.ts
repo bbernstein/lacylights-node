@@ -124,12 +124,22 @@ async function gracefulShutdown() {
     }
 
     // Stop services in reverse order of initialization
-    // Note: These stop() methods are synchronous - they just clear intervals and don't return promises
+    // Note: These stop() methods are currently synchronous, but we wrap them in try-catch for safety
     console.log('🎭 Stopping DMX service...');
-    dmxService.stop();
+    try {
+      dmxService.stop();
+      console.log('✅ DMX service stopped');
+    } catch (err) {
+      console.error('❌ Error stopping DMX service:', err);
+    }
 
     console.log('🎬 Stopping fade engine...');
-    fadeEngine.stop();
+    try {
+      fadeEngine.stop();
+      console.log('✅ Fade engine stopped');
+    } catch (err) {
+      console.error('❌ Error stopping fade engine:', err);
+    }
 
     console.log('✅ All services stopped successfully');
   } catch (error) {
@@ -142,7 +152,7 @@ async function gracefulShutdown() {
   // Allow process to exit naturally. As a fallback, force exit after timeout.
   setTimeout(() => {
     console.warn('⏳ Force exiting process after graceful shutdown timeout');
-    process.exit(0);
+    process.exit(1); // Exit with error code to indicate abnormal termination
   }, GRACEFUL_SHUTDOWN_TIMEOUT).unref();
 }
 
