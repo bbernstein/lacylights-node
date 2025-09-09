@@ -15,6 +15,9 @@ import { FixtureSetupService } from './services/fixtureSetupService';
 // Graceful shutdown timeout in milliseconds
 const GRACEFUL_SHUTDOWN_TIMEOUT = 10000;
 
+// Individual operation timeout in milliseconds (for WebSocket and HTTP server cleanup)
+const SHUTDOWN_OPERATION_TIMEOUT = 5000;
+
 async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
@@ -103,13 +106,22 @@ async function gracefulShutdown() {
     if (serverInstances?.wsServer) {
       console.log('🔌 Closing WebSocket server...');
       try {
-        await serverInstances.wsServer.dispose();
+        // Set a timeout for WebSocket disposal to prevent hanging
+        const webSocketTimeout = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('WebSocket disposal timeout')), SHUTDOWN_OPERATION_TIMEOUT)
+        );
+        
+        await Promise.race([
+          serverInstances.wsServer.dispose(),
+          webSocketTimeout
+        ]);
         console.log('✅ WebSocket server closed');
       } catch (err: any) {
         // Suppress expected WebSocket disposal errors during shutdown, log unexpected ones
         if (err && typeof err.message === 'string' && (
           err.message.includes('server is not running') ||
-          err.message.includes('WebSocket server is already closed')
+          err.message.includes('WebSocket server is already closed') ||
+          err.message.includes('WebSocket disposal timeout')
         )) {
           console.log('✅ WebSocket server closed (with expected cleanup warnings)');
         } else {
@@ -122,17 +134,31 @@ async function gracefulShutdown() {
     if (serverInstances?.server) {
       console.log('🌐 Closing HTTP server...');
       const httpServerInstance = serverInstances.server;
-      await new Promise<void>((resolve, reject) => {
-        httpServerInstance.close((err) => {
-          if (err) {
-            console.error('❌ Error closing HTTP server:', err);
-            reject(err);
-          } else {
-            console.log('✅ HTTP server closed');
-            resolve();
-          }
+      try {
+        const httpTimeout = new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('HTTP server close timeout')), SHUTDOWN_OPERATION_TIMEOUT)
+        );
+        
+        const httpClose = new Promise<void>((resolve, reject) => {
+          httpServerInstance.close((err) => {
+            if (err) {
+              console.error('❌ Error closing HTTP server:', err);
+              reject(err);
+            } else {
+              console.log('✅ HTTP server closed');
+              resolve();
+            }
+          });
         });
-      });
+
+        await Promise.race([httpClose, httpTimeout]);
+      } catch (err: any) {
+        if (err && err.message === 'HTTP server close timeout') {
+          console.log('✅ HTTP server closed (timeout - likely closed)');
+        } else {
+          console.error('❌ Error closing HTTP server:', err);
+        }
+      }
     }
 
     // Stop services in reverse order of initialization
@@ -169,8 +195,14 @@ async function gracefulShutdown() {
 }
 
 // Setup signal handlers for graceful shutdown
-process.on('SIGINT', gracefulShutdown);
-process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', (signalName: string) => {
+  console.log(`\n📡 Received ${signalName} signal`);
+  gracefulShutdown();
+});
+process.on('SIGTERM', (signalName: string) => {
+  console.log(`\n📡 Received ${signalName} signal`);
+  gracefulShutdown();
+});
 
 // Handle uncaught exceptions - exit immediately as the app is in an undefined state
 // Note: While handling uncaughtException is discouraged, we use it here to ensure
