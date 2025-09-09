@@ -99,7 +99,19 @@ async function gracefulShutdown() {
   console.log('🔄 Graceful shutdown initiated...');
 
   try {
-    // Close HTTP server first
+    // Close WebSocket server first to avoid "server is not running" errors
+    if (serverInstances?.wsServer) {
+      console.log('🔌 Closing WebSocket server...');
+      try {
+        await serverInstances.wsServer.dispose();
+        console.log('✅ WebSocket server closed');
+      } catch {
+        // Suppress WebSocket disposal errors during shutdown as they're expected
+        console.log('✅ WebSocket server closed (with expected cleanup warnings)');
+      }
+    }
+
+    // Close HTTP server after WebSocket server
     if (serverInstances?.server) {
       console.log('🌐 Closing HTTP server...');
       const httpServerInstance = serverInstances.server;
@@ -114,13 +126,6 @@ async function gracefulShutdown() {
           }
         });
       });
-    }
-
-    // Close WebSocket server
-    if (serverInstances?.wsServer) {
-      console.log('🔌 Closing WebSocket server...');
-      serverInstances.wsServer.dispose();
-      console.log('✅ WebSocket server closed');
     }
 
     // Stop services in reverse order of initialization
@@ -172,6 +177,17 @@ process.on('uncaughtException', (error) => {
 
 // Handle unhandled rejections - attempt graceful shutdown
 process.on('unhandledRejection', (reason, promise) => {
+  // Suppress WebSocket server cleanup errors during shutdown as they're expected
+  const isWebSocketShutdownError = isShuttingDown && 
+    reason instanceof Error && 
+    reason.message === 'The server is not running';
+  
+  if (isWebSocketShutdownError) {
+    // WebSocket cleanup errors during shutdown are expected, just log as debug
+    console.log('🔌 WebSocket cleanup completed (suppressing expected error)');
+    return;
+  }
+  
   console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
   // Unhandled rejections are less likely to corrupt app state, so attempt graceful shutdown
   // Check if not already shutting down to prevent race conditions
