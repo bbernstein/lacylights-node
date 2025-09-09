@@ -15,6 +15,9 @@ import { FixtureSetupService } from './services/fixtureSetupService';
 // Graceful shutdown timeout in milliseconds
 const GRACEFUL_SHUTDOWN_TIMEOUT = 10000;
 
+// Individual operation timeout in milliseconds (for WebSocket and HTTP server cleanup)
+const SHUTDOWN_OPERATION_TIMEOUT = 5000;
+
 async function startServer() {
   const app = express();
   const httpServer = http.createServer(app);
@@ -105,7 +108,7 @@ async function gracefulShutdown() {
       try {
         // Set a timeout for WebSocket disposal to prevent hanging
         const webSocketTimeout = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('WebSocket disposal timeout')), 5000)
+          setTimeout(() => reject(new Error('WebSocket disposal timeout')), SHUTDOWN_OPERATION_TIMEOUT)
         );
         
         await Promise.race([
@@ -133,7 +136,7 @@ async function gracefulShutdown() {
       const httpServerInstance = serverInstances.server;
       try {
         const httpTimeout = new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error('HTTP server close timeout')), 5000)
+          setTimeout(() => reject(new Error('HTTP server close timeout')), SHUTDOWN_OPERATION_TIMEOUT)
         );
         
         const httpClose = new Promise<void>((resolve, reject) => {
@@ -192,12 +195,12 @@ async function gracefulShutdown() {
 }
 
 // Setup signal handlers for graceful shutdown
-process.on('SIGINT', (signal) => {
-  console.log(`\n📡 Received ${signal} signal`);
+process.on('SIGINT', (signalName: string) => {
+  console.log(`\n📡 Received ${signalName} signal`);
   gracefulShutdown();
 });
-process.on('SIGTERM', (signal) => {
-  console.log(`\n📡 Received ${signal} signal`);
+process.on('SIGTERM', (signalName: string) => {
+  console.log(`\n📡 Received ${signalName} signal`);
   gracefulShutdown();
 });
 
