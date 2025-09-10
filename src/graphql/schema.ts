@@ -377,10 +377,8 @@ export const typeDefs = gql`
     # Active Scene Tracking
     currentActiveScene: Scene
 
-    # QLC+ Export/Import
+    # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
-    exportProjectToQLC(projectId: ID!, fixtureMappings: [FixtureMappingInput!]): QLCExportResult!
-    importProjectFromQLC(xmlContent: String!, originalFileName: String!): QLCImportResult!
   }
   # Mutations
   type Mutation {
@@ -435,6 +433,10 @@ export const typeDefs = gql`
     setSceneLive(sceneId: ID!): Boolean!
     playCue(cueId: ID!, fadeInTime: Float): Boolean!
     fadeToBlack(fadeOutTime: Float!): Boolean!
+
+    # QLC+ Import/Export (data-modifying operations)
+    importProjectFromQLC(xmlContent: String!, originalFileName: String!): QLCImportResult!
+    exportProjectToQLC(projectId: ID!, fixtureMappings: [FixtureMappingInput!]): QLCExportResult!
   }
 
   # Subscriptions

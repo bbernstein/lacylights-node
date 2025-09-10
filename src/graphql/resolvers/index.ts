@@ -23,6 +23,7 @@ export const resolvers = {
     ...cueResolvers.Mutation,
     ...dmxResolvers.Mutation,
     ...previewResolvers.Mutation,
+    ...qlcExportResolvers.Mutation,
   },
   Subscription: {
     ...dmxResolvers.Subscription,
