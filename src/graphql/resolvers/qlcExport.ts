@@ -349,7 +349,7 @@ export const qlcExportResolvers = {
               },
             });
 
-            // If no exact match, try to find a similar fixture
+            // If no exact match, try to find a similar fixture using prioritized matching
             if (!fixtureDefinition) {
               // Get all fixture definitions to search for matches
               const allFixtures = await prisma.fixtureDefinition.findMany({
@@ -359,59 +359,100 @@ export const qlcExportResolvers = {
                 },
               });
 
-              // Try various matching strategies with more sophisticated term extraction
-              const searchTerms = [
-                model.toLowerCase(),
-                manufacturer.toLowerCase(),
-                `${manufacturer} ${model}`.toLowerCase(),
-                // Extract key terms from model names (removing common words)
-                ...model.toLowerCase().split(/\s+/).filter((word: string) => word.length > 2),
-                ...manufacturer.toLowerCase().split(/\s+/).filter((word: string) => word.length > 2),
-              ];
+              const manufacturerLower = manufacturer.toLowerCase();
+              const modelLower = model.toLowerCase();
 
-              // Look for fixtures that match any of the search terms
-              for (const fixture of allFixtures) {
-                const fixtureSearchString = `${fixture.manufacturer} ${fixture.model}`.toLowerCase();
+              // Strategy 1: Exact manufacturer + model match (case insensitive)
+              if (!fixtureDefinition) {
+                const exactMatch = allFixtures.find(fixture => {
+                  const manufacturerMatch = fixture.manufacturer.toLowerCase() === manufacturerLower;
+                  const modelMatch = fixture.model.toLowerCase() === modelLower;
+                  const hasCompatibleMode = fixture.modes.some(m => m.channelCount === channelCount);
+                  return manufacturerMatch && modelMatch && hasCompatibleMode;
+                });
                 
-                for (const term of searchTerms) {
-                  let isMatch = false;
+                if (exactMatch) {
+                  fixtureDefinition = exactMatch;
+                  const compatibleMode = exactMatch.modes.find(m => m.channelCount === channelCount);
+                  warnings.push(`Perfect match: "${manufacturer} ${model}" -> "${exactMatch.manufacturer} ${exactMatch.model}" (${compatibleMode?.name} mode)`);
+                }
+              }
+
+              // Strategy 2: Manufacturer match + similar model with compatible channels
+              if (!fixtureDefinition) {
+                const candidatesByManufacturer = allFixtures.filter(fixture => {
+                  // Check for manufacturer variations (ETC/Etc, Chauvet/Chauvet DJ, etc.)
+                  const fixtureManufacturerLower = fixture.manufacturer.toLowerCase();
+                  return fixtureManufacturerLower === manufacturerLower || 
+                         fixtureManufacturerLower.includes(manufacturerLower) || 
+                         manufacturerLower.includes(fixtureManufacturerLower);
+                });
+
+                for (const fixture of candidatesByManufacturer) {
+                  const fixtureModelLower = fixture.model.toLowerCase();
+                  const hasCompatibleMode = fixture.modes.some(m => m.channelCount === channelCount);
                   
-                  // Direct substring match
-                  if (fixtureSearchString.includes(term) || term.includes(fixture.model.toLowerCase())) {
-                    isMatch = true;
-                  }
-                  
-                  // Special handling for manufacturer variations (e.g., "Chauvet" -> "Chauvet DJ")
-                  if (!isMatch && manufacturer.toLowerCase() === 'chauvet' && fixture.manufacturer.toLowerCase().includes('chauvet')) {
-                    // Check if model names are similar
-                    const modelWords = model.toLowerCase().split(/\s+/);
-                    const fixtureModelWords = fixture.model.toLowerCase().split(/\s+/);
-                    const commonWords = modelWords.filter((word: string) => fixtureModelWords.some((fw: string) => fw.includes(word) || word.includes(fw)));
-                    if (commonWords.length >= Math.min(2, modelWords.length / 2)) {
-                      isMatch = true;
-                    }
-                  }
-                  
-                  if (isMatch) {
-                    // Check if channel count is compatible
-                    const compatibleMode = fixture.modes.find(m => m.channelCount === channelCount);
-                    if (compatibleMode) {
+                  if (hasCompatibleMode) {
+                    // Check for model similarity - high threshold for same manufacturer
+                    const modelWords = modelLower.split(/\s+/).filter((w: string) => w.length > 2);
+                    const fixtureModelWords = fixtureModelLower.split(/\s+/).filter((w: string) => w.length > 2);
+                    
+                    // Count exact word matches
+                    const exactMatches = modelWords.filter((word: string) => 
+                      fixtureModelWords.some((fw: string) => fw === word)
+                    ).length;
+                    
+                    // Count partial matches (one word contains another)
+                    const partialMatches = modelWords.filter((word: string) => 
+                      fixtureModelWords.some((fw: string) => fw.includes(word) || word.includes(fw))
+                    ).length;
+                    
+                    // Require at least 50% of words to match for same manufacturer
+                    const requiredMatches = Math.max(1, Math.ceil(modelWords.length * 0.5));
+                    if (exactMatches >= requiredMatches || (exactMatches + partialMatches) >= Math.min(2, modelWords.length)) {
                       fixtureDefinition = fixture;
-                      warnings.push(`Mapped QLC+ fixture "${manufacturer} ${model}" to existing fixture "${fixture.manufacturer} ${fixture.model}" (${compatibleMode.name} mode)`);
+                      const compatibleMode = fixture.modes.find(m => m.channelCount === channelCount);
+                      warnings.push(`Manufacturer match: "${manufacturer} ${model}" -> "${fixture.manufacturer} ${fixture.model}" (${compatibleMode?.name} mode)`);
                       break;
                     }
                   }
                 }
-                if (fixtureDefinition) { break; }
               }
 
-              // If still no match, try to find any fixture with the same channel count
+              // Strategy 3: Model similarity across manufacturers (stricter criteria)
+              if (!fixtureDefinition) {
+                for (const fixture of allFixtures) {
+                  const fixtureModelLower = fixture.model.toLowerCase();
+                  const hasCompatibleMode = fixture.modes.some(m => m.channelCount === channelCount);
+                  
+                  if (hasCompatibleMode) {
+                    // For cross-manufacturer matching, require very high similarity
+                    const modelWords = modelLower.split(/\s+/).filter((w: string) => w.length > 3); // Longer words only
+                    const fixtureModelWords = fixtureModelLower.split(/\s+/).filter((w: string) => w.length > 3);
+                    
+                    // Require exact matches of significant words
+                    const exactMatches = modelWords.filter((word: string) => 
+                      fixtureModelWords.some((fw: string) => fw === word)
+                    ).length;
+                    
+                    // For cross-manufacturer, need at least 2 exact word matches or perfect model match
+                    if (exactMatches >= 2 || (modelWords.length > 0 && exactMatches === modelWords.length)) {
+                      fixtureDefinition = fixture;
+                      const compatibleMode = fixture.modes.find(m => m.channelCount === channelCount);
+                      warnings.push(`Model similarity match: "${manufacturer} ${model}" -> "${fixture.manufacturer} ${fixture.model}" (${compatibleMode?.name} mode)`);
+                      break;
+                    }
+                  }
+                }
+              }
+
+              // Strategy 4: Last resort - any fixture with same channel count (with warning)
               if (!fixtureDefinition) {
                 for (const fixture of allFixtures) {
                   const compatibleMode = fixture.modes.find(m => m.channelCount === channelCount);
                   if (compatibleMode) {
                     fixtureDefinition = fixture;
-                    warnings.push(`No direct match found for "${manufacturer} ${model}". Using "${fixture.manufacturer} ${fixture.model}" (${compatibleMode.name} mode) with ${channelCount} channels`);
+                    warnings.push(`⚠️  FALLBACK MATCH: No good match found for "${manufacturer} ${model}". Using "${fixture.manufacturer} ${fixture.model}" (${compatibleMode.name} mode) - VERIFY MANUALLY!`);
                     break;
                   }
                 }
@@ -426,6 +467,72 @@ export const qlcExportResolvers = {
 
             // Find the appropriate mode for the matched fixture
             const compatibleMode = fixtureDefinition.modes.find(m => m.channelCount === channelCount) || fixtureDefinition.modes[0];
+            
+            // Get the channel definitions for this fixture and mode
+            const fullDefinition = await prisma.fixtureDefinition.findUnique({
+              where: { id: fixtureDefinition.id },
+              include: { 
+                channels: true,
+                modes: {
+                  include: {
+                    modeChannels: {
+                      include: { channel: true },
+                      orderBy: { offset: 'asc' },
+                    },
+                  },
+                },
+              },
+            });
+            
+            let channelsToCreate: Array<{
+              offset: number;
+              name: string;
+              type: any;
+              minValue: number;
+              maxValue: number;
+              defaultValue: number;
+            }> = [];
+            
+            // Use mode channels if available, otherwise use definition channels
+            if (compatibleMode && fullDefinition) {
+              const modeData = fullDefinition.modes.find(m => m.id === compatibleMode.id);
+              if (modeData && modeData.modeChannels && modeData.modeChannels.length > 0) {
+                channelsToCreate = modeData.modeChannels.map((mc: any) => ({
+                  offset: mc.offset,
+                  name: mc.channel.name,
+                  type: mc.channel.type,
+                  minValue: mc.channel.minValue,
+                  maxValue: mc.channel.maxValue,
+                  defaultValue: mc.channel.defaultValue,
+                }));
+              } else if (fullDefinition.channels?.length > 0) {
+                channelsToCreate = fullDefinition.channels
+                  .sort((a: any, b: any) => a.offset - b.offset)
+                  .slice(0, channelCount) // Only take the number of channels we need
+                  .map((ch: any) => ({
+                    offset: ch.offset,
+                    name: ch.name,
+                    type: ch.type,
+                    minValue: ch.minValue,
+                    maxValue: ch.maxValue,
+                    defaultValue: ch.defaultValue,
+                  }));
+              }
+            }
+            
+            // If still no channels, create basic intensity channels as fallback
+            if (channelsToCreate.length === 0) {
+              for (let i = 0; i < channelCount; i++) {
+                channelsToCreate.push({
+                  offset: i,
+                  name: `Channel ${i + 1}`,
+                  type: i === 0 ? 'INTENSITY' : 'OTHER',
+                  minValue: 0,
+                  maxValue: 255,
+                  defaultValue: 0,
+                });
+              }
+            }
             
             // Create fixture instance using the matched fixture's details
             const fixtureInstance = await prisma.fixtureInstance.create({
@@ -442,6 +549,14 @@ export const qlcExportResolvers = {
                 universe,
                 startChannel,
                 tags: ['imported'],
+                channels: {
+                  create: channelsToCreate,
+                },
+              },
+              include: {
+                channels: {
+                  orderBy: { offset: 'asc' },
+                },
               },
             });
 
@@ -483,31 +598,38 @@ export const qlcExportResolvers = {
                                    (fv?.$ && (fv.$.ID || fv.$.id || fv.$.Id));
                 const lacyFixtureId = qlcFixtureId ? fixtureIdMap.get(qlcFixtureId) : null;
                 
-                if (lacyFixtureId && fv._) {
-                  // Parse channel values from QLC+ format
-                  const channelData = fv._.split(',');
+                if (lacyFixtureId) {
                   const fixture = createdFixtures.find(f => f.id === lacyFixtureId);
                   
                   if (fixture) {
-                    // Initialize channel values array with zeros to prevent undefined values
+                    // Initialize channel values array with zeros - this handles fixtures with no values
                     const channelValues: number[] = new Array(fixture.channelCount).fill(0);
                     
-                    // Set specific channel values from QLC+ data
-                    for (let i = 0; i < channelData.length; i += 2) {
-                      const channelIndex = parseInt(channelData[i] || '0');
-                      const value = parseInt(channelData[i + 1] || '0');
+                    // Parse channel values from QLC+ format if they exist
+                    if (fv._ && fv._.trim() !== '') {
+                      const channelData = fv._.split(',');
                       
-                      // Ensure channel index is valid and value is a number
-                      if (!isNaN(channelIndex) && !isNaN(value) && channelIndex < fixture.channelCount) {
-                        channelValues[channelIndex] = Math.max(0, Math.min(255, value)); // Clamp to 0-255
+                      // Set specific channel values from QLC+ data
+                      for (let i = 0; i < channelData.length; i += 2) {
+                        const channelIndex = parseInt(channelData[i] || '0');
+                        const value = parseInt(channelData[i + 1] || '0');
+                        
+                        // Ensure channel index is valid and value is a number
+                        if (!isNaN(channelIndex) && !isNaN(value) && channelIndex < fixture.channelCount) {
+                          channelValues[channelIndex] = Math.max(0, Math.min(255, value)); // Clamp to 0-255
+                        }
                       }
                     }
+                    // If no channel data (fv._ is empty/undefined), channelValues remains all zeros
                     
                     sceneFixtureValues.push({
                       fixtureId: lacyFixtureId,
                       channelValues: channelValues,
                     });
                   }
+                } else if (qlcFixtureId) {
+                  // Log warning for fixtures that couldn't be mapped
+                  warnings.push(`Warning: Scene "${sceneName}" references fixture ID ${qlcFixtureId} which was not found or not imported`);
                 }
               }
 
