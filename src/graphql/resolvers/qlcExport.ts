@@ -273,5 +273,275 @@ export const qlcExportResolvers = {
         cueListCount: project.cueLists.length,
       };
     },
+
+    importProjectFromQLC: async (
+      _: any, 
+      { xmlContent, originalFileName }: { xmlContent: string; originalFileName: string }, 
+      { prisma }: Context
+    ) => {
+      try {
+        // Parse XML content
+        const parser = new xml2js.Parser();
+        const result = await parser.parseStringPromise(xmlContent);
+        
+        if (!result.Workspace) {
+          throw new Error('Invalid QLC+ file: Missing Workspace element');
+        }
+
+        const workspace = result.Workspace;
+        const warnings: string[] = [];
+
+        // Generate project name with timestamp, removing existing timestamps
+        const baseFileName = originalFileName.replace(/\.qxw$/i, '');
+        const cleanName = baseFileName.replace(/_\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/, '');
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+        const projectName = `${cleanName}_${timestamp}`;
+
+        // Create new project
+        const project = await prisma.project.create({
+          data: {
+            name: projectName,
+            description: `Imported from QLC+ file: ${originalFileName}`,
+          },
+        });
+
+        // Parse fixtures from QLC+ format
+        const fixtures = workspace.Engine?.[0]?.Fixture || [];
+        const createdFixtures: any[] = [];
+        const fixtureIdMap = new Map<string, string>(); // QLC ID -> LacyLights ID
+
+        for (const qlcFixture of fixtures) {
+          const manufacturer = qlcFixture.Manufacturer?.[0] || 'Unknown';
+          const model = qlcFixture.Model?.[0] || 'Unknown';
+          const mode = qlcFixture.Mode?.[0] || 'Default';
+          const name = qlcFixture.Name?.[0] || `${manufacturer} ${model}`;
+          const universe = parseInt(qlcFixture.Universe?.[0] || '0') + 1; // Convert from 0-based
+          const startChannel = parseInt(qlcFixture.Address?.[0] || '0') + 1; // Convert from 0-based
+          const channelCount = parseInt(qlcFixture.Channels?.[0] || '1');
+
+          try {
+            // Try to find or create fixture definition
+            let fixtureDefinition = await prisma.fixtureDefinition.findFirst({
+              where: {
+                manufacturer: manufacturer,
+                model: model,
+              },
+            });
+
+            if (!fixtureDefinition) {
+              // Create basic fixture definition with generic channels
+              const channels = Array.from({ length: channelCount }, (_, i) => ({
+                name: `Channel ${i + 1}`,
+                type: (i === 0 ? 'INTENSITY' : 'OTHER') as any, // Cast to satisfy Prisma enum
+                offset: i,
+                minValue: 0,
+                maxValue: 255,
+                defaultValue: 0,
+              }));
+
+              fixtureDefinition = await prisma.fixtureDefinition.create({
+                data: {
+                  manufacturer,
+                  model,
+                  type: 'OTHER', // Default type
+                  isBuiltIn: false,
+                  channels: {
+                    create: channels,
+                  },
+                  modes: {
+                    create: [{
+                      name: mode,
+                      channelCount,
+                    }],
+                  },
+                },
+                include: {
+                  channels: true,
+                  modes: true,
+                },
+              });
+
+              warnings.push(`Created new fixture definition for ${manufacturer} ${model}`);
+            }
+
+            // Create fixture instance
+            const fixtureInstance = await prisma.fixtureInstance.create({
+              data: {
+                name,
+                description: `Imported from QLC+: ${mode} mode`,
+                manufacturer,
+                model,
+                modeName: mode,
+                channelCount,
+                definitionId: fixtureDefinition.id,
+                projectId: project.id,
+                universe,
+                startChannel,
+                tags: ['imported'],
+              },
+            });
+
+            createdFixtures.push(fixtureInstance);
+            fixtureIdMap.set(qlcFixture.$.ID, fixtureInstance.id);
+
+          } catch (error) {
+            warnings.push(`Failed to create fixture ${name}: ${error}`);
+          }
+        }
+
+        // Parse scenes from QLC+ functions
+        const functions = workspace.Engine?.[0]?.Function || [];
+        const sceneCount = functions.filter((f: any) => f.$.Type === 'Scene').length;
+        const cueListCount = functions.filter((f: any) => f.$.Type === 'Chaser').length;
+
+        for (const func of functions) {
+          if (func.$.Type === 'Scene') {
+            try {
+              const sceneName = func.$.Name || 'Imported Scene';
+              const fixtureValues = func.FixtureVal || [];
+
+              const sceneFixtureValues = [];
+
+              for (const fv of fixtureValues) {
+                const qlcFixtureId = fv.$.ID;
+                const lacyFixtureId = fixtureIdMap.get(qlcFixtureId);
+                
+                if (lacyFixtureId && fv._) {
+                  // Parse channel values from QLC+ format
+                  const channelData = fv._.split(',');
+                  const channelValues: number[] = [];
+                  
+                  for (let i = 0; i < channelData.length; i += 2) {
+                    const channelIndex = parseInt(channelData[i] || '0');
+                    const value = parseInt(channelData[i + 1] || '0');
+                    channelValues[channelIndex] = value;
+                  }
+
+                  // Pad with zeros if needed
+                  const fixture = createdFixtures.find(f => f.id === lacyFixtureId);
+                  if (fixture) {
+                    while (channelValues.length < fixture.channelCount) {
+                      channelValues.push(0);
+                    }
+
+                    sceneFixtureValues.push({
+                      fixtureId: lacyFixtureId,
+                      channelValues: channelValues.slice(0, fixture.channelCount),
+                    });
+                  }
+                }
+              }
+
+              // Create scene
+              await prisma.scene.create({
+                data: {
+                  name: sceneName,
+                  description: 'Imported from QLC+',
+                  projectId: project.id,
+                  fixtureValues: {
+                    create: sceneFixtureValues,
+                  },
+                },
+              });
+
+            } catch (error) {
+              warnings.push(`Failed to import scene ${func.$.Name}: ${error}`);
+            }
+          }
+        }
+
+        // Parse cue lists from QLC+ Chaser functions
+        for (const func of functions) {
+          if (func.$.Type === 'Chaser') {
+            try {
+              const cueListName = func.$.Name || 'Imported Cue List';
+              const steps = func.Step || [];
+
+              // Create cue list
+              const cueList = await prisma.cueList.create({
+                data: {
+                  name: cueListName,
+                  description: 'Imported from QLC+',
+                  projectId: project.id,
+                },
+              });
+
+              // Create cues from steps
+              const scenes = await prisma.scene.findMany({
+                where: { projectId: project.id },
+                orderBy: { createdAt: 'asc' },
+              });
+
+              for (const step of steps) {
+                const stepNumber = parseInt(step.$.Number || '0');
+                const fadeInMs = parseInt(step.$.FadeIn || '0');
+                const fadeOutMs = parseInt(step.$.FadeOut || '0');
+                const sceneIndex = parseInt(step._ || '0');
+
+                if (sceneIndex < scenes.length) {
+                  await prisma.cue.create({
+                    data: {
+                      name: `Cue ${stepNumber + 1}`,
+                      cueNumber: stepNumber + 1,
+                      sceneId: scenes[sceneIndex].id,
+                      cueListId: cueList.id,
+                      fadeInTime: fadeInMs / 1000, // Convert to seconds
+                      fadeOutTime: fadeOutMs / 1000, // Convert to seconds
+                      notes: 'Imported from QLC+',
+                    },
+                  });
+                }
+              }
+
+            } catch (error) {
+              warnings.push(`Failed to import cue list ${func.$.Name}: ${error}`);
+            }
+          }
+        }
+
+        // Fetch the complete project with all relations for return
+        const completeProject = await prisma.project.findUnique({
+          where: { id: project.id },
+          include: {
+            fixtures: true,
+            scenes: {
+              include: {
+                fixtureValues: {
+                  include: {
+                    fixture: true,
+                  },
+                },
+              },
+            },
+            cueLists: {
+              include: {
+                cues: {
+                  include: {
+                    scene: true,
+                  },
+                },
+              },
+            },
+            users: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        });
+
+        return {
+          project: completeProject,
+          originalFileName,
+          fixtureCount: createdFixtures.length,
+          sceneCount,
+          cueListCount,
+          warnings,
+        };
+
+      } catch (error) {
+        throw new Error(`Failed to import QLC+ file: ${error}`);
+      }
+    },
   },
 };
