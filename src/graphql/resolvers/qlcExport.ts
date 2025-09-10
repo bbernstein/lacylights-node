@@ -424,6 +424,7 @@ export const qlcExportResolvers = {
                 description: `Imported from QLC+: ${mode} mode (mapped to ${fixtureDefinition.manufacturer} ${fixtureDefinition.model})`,
                 manufacturer: fixtureDefinition.manufacturer,
                 model: fixtureDefinition.model,
+                type: fixtureDefinition.type, // Add the required type field
                 modeName: compatibleMode.name,
                 channelCount: compatibleMode.channelCount,
                 definitionId: fixtureDefinition.id,
