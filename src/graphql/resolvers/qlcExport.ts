@@ -319,9 +319,18 @@ export const qlcExportResolvers = {
         // Debug: Log the structure of the first fixture to understand the format
         if (fixtures.length > 0) {
           console.log('Debug: First fixture structure:', JSON.stringify(fixtures[0], null, 2));
+          console.log('Debug: First fixture has $ property?', fixtures[0].$ !== undefined);
+          console.log('Debug: First fixture attributes:', fixtures[0].$);
         }
 
         for (const qlcFixture of fixtures) {
+          // Debug individual fixture during processing
+          console.log('Processing fixture:', {
+            hasAttributes: qlcFixture.$ !== undefined,
+            attributes: qlcFixture.$,
+            keys: Object.keys(qlcFixture)
+          });
+          
           const manufacturer = qlcFixture.Manufacturer?.[0] || 'Unknown';
           const model = qlcFixture.Model?.[0] || 'Unknown';
           const mode = qlcFixture.Mode?.[0] || 'Default';
@@ -420,7 +429,13 @@ export const qlcExportResolvers = {
             createdFixtures.push(fixtureInstance);
             
             // Handle different ways the fixture ID might be stored in the XML
-            const fixtureId = qlcFixture.$.ID || qlcFixture.ID || qlcFixture.$.id || qlcFixture.id || qlcFixture.$.Id;
+            let fixtureId;
+            if (qlcFixture.$) {
+              fixtureId = qlcFixture.$.ID || qlcFixture.$.id || qlcFixture.$.Id;
+            }
+            if (!fixtureId) {
+              fixtureId = qlcFixture.ID || qlcFixture.id || qlcFixture.Id;
+            }
             if (fixtureId) {
               fixtureIdMap.set(fixtureId, fixtureInstance.id);
             } else {
