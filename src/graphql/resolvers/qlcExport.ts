@@ -33,7 +33,9 @@ export const qlcExportResolvers = {
         defaultMappings,
       };
     },
+  },
 
+  Mutation: {
     exportProjectToQLC: async (
       _: any, 
       { projectId, fixtureMappings }: { projectId: string; fixtureMappings?: FixtureMapping[] }, 
