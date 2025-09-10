@@ -475,24 +475,26 @@ export const qlcExportResolvers = {
                 if (lacyFixtureId && fv._) {
                   // Parse channel values from QLC+ format
                   const channelData = fv._.split(',');
-                  const channelValues: number[] = [];
-                  
-                  for (let i = 0; i < channelData.length; i += 2) {
-                    const channelIndex = parseInt(channelData[i] || '0');
-                    const value = parseInt(channelData[i + 1] || '0');
-                    channelValues[channelIndex] = value;
-                  }
-
-                  // Pad with zeros if needed
                   const fixture = createdFixtures.find(f => f.id === lacyFixtureId);
+                  
                   if (fixture) {
-                    while (channelValues.length < fixture.channelCount) {
-                      channelValues.push(0);
+                    // Initialize channel values array with zeros to prevent undefined values
+                    const channelValues: number[] = new Array(fixture.channelCount).fill(0);
+                    
+                    // Set specific channel values from QLC+ data
+                    for (let i = 0; i < channelData.length; i += 2) {
+                      const channelIndex = parseInt(channelData[i] || '0');
+                      const value = parseInt(channelData[i + 1] || '0');
+                      
+                      // Ensure channel index is valid and value is a number
+                      if (!isNaN(channelIndex) && !isNaN(value) && channelIndex < fixture.channelCount) {
+                        channelValues[channelIndex] = Math.max(0, Math.min(255, value)); // Clamp to 0-255
+                      }
                     }
-
+                    
                     sceneFixtureValues.push({
                       fixtureId: lacyFixtureId,
-                      channelValues: channelValues.slice(0, fixture.channelCount),
+                      channelValues: channelValues,
                     });
                   }
                 }
