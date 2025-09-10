@@ -52,16 +52,13 @@ export class QLCFixtureLibrary {
   private fixtureListPath: string;
   
   constructor(qlcFixturesPath?: string) {
-    // Use the provided path, or the QLC_FIXTURES_PATH environment variable, or throw an error
+    // Use the provided path, or the QLC_FIXTURES_PATH environment variable, or default to local resources
     this.fixtureListPath = qlcFixturesPath 
       || process.env.QLC_FIXTURES_PATH 
-      || (() => { throw new Error('QLC+ fixtures path not specified. Please provide it as a constructor argument or set the QLC_FIXTURES_PATH environment variable.'); })();
+      || path.join(__dirname, '../../resources/qlc-fixtures');
   }
 
   async loadFixtureLibrary(): Promise<void> {
-    // eslint-disable-next-line no-console
-    console.log('🔍 Loading QLC+ fixture library...');
-    
     if (!fs.existsSync(this.fixtureListPath)) {
       throw new Error(`QLC+ fixtures path not found: ${this.fixtureListPath}`);
     }
@@ -82,16 +79,12 @@ export class QLCFixtureLibrary {
             const key = `${fixtureData.manufacturer}/${fixtureData.model}`;
             this.fixtures.set(key, fixtureData);
           }
-        } catch (error) {
-          // eslint-disable-next-line no-console
-          console.error(`Failed to parse fixture file: ${path.join(manufacturerPath, fixtureFile)}\nError:`, error);
+        } catch {
+          // Silently skip fixtures that fail to parse
           continue;
         }
       }
     }
-    
-    // eslint-disable-next-line no-console
-    console.log(`✅ Loaded ${this.fixtures.size} QLC+ fixture definitions`);
   }
 
   private async parseFixtureFile(filePath: string): Promise<QLCFixtureDefinition | null> {
