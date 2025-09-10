@@ -394,7 +394,7 @@ export const qlcExportResolvers = {
                     }
                   }
                 }
-                if (fixtureDefinition) {break;}
+                if (fixtureDefinition) { break; }
               }
 
               // If still no match, try to find any fixture with the same channel count
@@ -451,8 +451,8 @@ export const qlcExportResolvers = {
 
           } catch (error) {
             warnings.push(`Failed to create fixture ${name}: ${error}`);
-            console.error('Fixture parsing error details:', error);
-            console.error('Fixture XML structure:', JSON.stringify(qlcFixture, null, 2));
+            // Log errors to warnings array instead of console
+            warnings.push(`Debug: Fixture parsing error for ${name}`);
           }
         }
 
