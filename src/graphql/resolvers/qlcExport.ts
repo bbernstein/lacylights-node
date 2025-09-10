@@ -280,8 +280,14 @@ export const qlcExportResolvers = {
       { prisma }: Context
     ) => {
       try {
-        // Parse XML content
-        const parser = new xml2js.Parser();
+        // Parse XML content with explicit attribute handling
+        const parser = new xml2js.Parser({
+          explicitArray: true,
+          mergeAttrs: false,
+          explicitCharkey: false,
+          charkey: '_',
+          attrkey: '$'
+        });
         const result = await parser.parseStringPromise(xmlContent);
         
         if (!result.Workspace) {
@@ -309,6 +315,11 @@ export const qlcExportResolvers = {
         const fixtures = workspace.Engine?.[0]?.Fixture || [];
         const createdFixtures: any[] = [];
         const fixtureIdMap = new Map<string, string>(); // QLC ID -> LacyLights ID
+
+        // Debug: Log the structure of the first fixture to understand the format
+        if (fixtures.length > 0) {
+          console.log('Debug: First fixture structure:', JSON.stringify(fixtures[0], null, 2));
+        }
 
         for (const qlcFixture of fixtures) {
           const manufacturer = qlcFixture.Manufacturer?.[0] || 'Unknown';
@@ -407,10 +418,19 @@ export const qlcExportResolvers = {
             });
 
             createdFixtures.push(fixtureInstance);
-            fixtureIdMap.set(qlcFixture.$.ID, fixtureInstance.id);
+            
+            // Handle different ways the fixture ID might be stored in the XML
+            const fixtureId = qlcFixture.$.ID || qlcFixture.ID || qlcFixture.$.id || qlcFixture.id || qlcFixture.$.Id;
+            if (fixtureId) {
+              fixtureIdMap.set(fixtureId, fixtureInstance.id);
+            } else {
+              warnings.push(`Warning: Could not find ID for fixture ${name}, scenes may not reference this fixture correctly`);
+            }
 
           } catch (error) {
             warnings.push(`Failed to create fixture ${name}: ${error}`);
+            console.error('Fixture parsing error details:', error);
+            console.error('Fixture XML structure:', JSON.stringify(qlcFixture, null, 2));
           }
         }
 
@@ -428,8 +448,9 @@ export const qlcExportResolvers = {
               const sceneFixtureValues = [];
 
               for (const fv of fixtureValues) {
-                const qlcFixtureId = fv.$.ID;
-                const lacyFixtureId = fixtureIdMap.get(qlcFixtureId);
+                // Handle different ways the fixture ID might be stored
+                const qlcFixtureId = fv?.$.ID || fv?.ID || fv?.$.id || fv?.id || fv?.$.Id;
+                const lacyFixtureId = qlcFixtureId ? fixtureIdMap.get(qlcFixtureId) : null;
                 
                 if (lacyFixtureId && fv._) {
                   // Parse channel values from QLC+ format
