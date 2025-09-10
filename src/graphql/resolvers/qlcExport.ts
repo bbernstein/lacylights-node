@@ -320,59 +320,84 @@ export const qlcExportResolvers = {
           const channelCount = parseInt(qlcFixture.Channels?.[0] || '1');
 
           try {
-            // Try to find or create fixture definition
+            // Try to find existing fixture definition with exact match first
             let fixtureDefinition = await prisma.fixtureDefinition.findFirst({
               where: {
                 manufacturer: manufacturer,
                 model: model,
               },
+              include: {
+                channels: true,
+                modes: true,
+              },
             });
 
+            // If no exact match, try to find a similar fixture
             if (!fixtureDefinition) {
-              // Create basic fixture definition with generic channels
-              const channels = Array.from({ length: channelCount }, (_, i) => ({
-                name: `Channel ${i + 1}`,
-                type: (i === 0 ? 'INTENSITY' : 'OTHER') as any, // Cast to satisfy Prisma enum
-                offset: i,
-                minValue: 0,
-                maxValue: 255,
-                defaultValue: 0,
-              }));
-
-              fixtureDefinition = await prisma.fixtureDefinition.create({
-                data: {
-                  manufacturer,
-                  model,
-                  type: 'OTHER', // Default type
-                  isBuiltIn: false,
-                  channels: {
-                    create: channels,
-                  },
-                  modes: {
-                    create: [{
-                      name: mode,
-                      channelCount,
-                    }],
-                  },
-                },
+              // Get all fixture definitions to search for matches
+              const allFixtures = await prisma.fixtureDefinition.findMany({
                 include: {
                   channels: true,
                   modes: true,
                 },
               });
 
-              warnings.push(`Created new fixture definition for ${manufacturer} ${model}`);
+              // Try various matching strategies
+              const searchTerms = [
+                model.toLowerCase(),
+                manufacturer.toLowerCase(),
+                `${manufacturer} ${model}`.toLowerCase(),
+              ];
+
+              // Look for fixtures that match any of the search terms
+              for (const fixture of allFixtures) {
+                const fixtureSearchString = `${fixture.manufacturer} ${fixture.model}`.toLowerCase();
+                
+                for (const term of searchTerms) {
+                  if (fixtureSearchString.includes(term) || term.includes(fixture.model.toLowerCase())) {
+                    // Check if channel count is compatible
+                    const compatibleMode = fixture.modes.find(m => m.channelCount === channelCount);
+                    if (compatibleMode) {
+                      fixtureDefinition = fixture;
+                      warnings.push(`Mapped QLC+ fixture "${manufacturer} ${model}" to existing fixture "${fixture.manufacturer} ${fixture.model}" (${compatibleMode.name} mode)`);
+                      break;
+                    }
+                  }
+                }
+                if (fixtureDefinition) {break;}
+              }
+
+              // If still no match, try to find any fixture with the same channel count
+              if (!fixtureDefinition) {
+                for (const fixture of allFixtures) {
+                  const compatibleMode = fixture.modes.find(m => m.channelCount === channelCount);
+                  if (compatibleMode) {
+                    fixtureDefinition = fixture;
+                    warnings.push(`No direct match found for "${manufacturer} ${model}". Using "${fixture.manufacturer} ${fixture.model}" (${compatibleMode.name} mode) with ${channelCount} channels`);
+                    break;
+                  }
+                }
+              }
+
+              // If still no fixture found, skip this fixture
+              if (!fixtureDefinition) {
+                warnings.push(`Could not find or match fixture "${manufacturer} ${model}" with ${channelCount} channels. Skipping fixture.`);
+                continue;
+              }
             }
 
-            // Create fixture instance
+            // Find the appropriate mode for the matched fixture
+            const compatibleMode = fixtureDefinition.modes.find(m => m.channelCount === channelCount) || fixtureDefinition.modes[0];
+            
+            // Create fixture instance using the matched fixture's details
             const fixtureInstance = await prisma.fixtureInstance.create({
               data: {
                 name,
-                description: `Imported from QLC+: ${mode} mode`,
-                manufacturer,
-                model,
-                modeName: mode,
-                channelCount,
+                description: `Imported from QLC+: ${mode} mode (mapped to ${fixtureDefinition.manufacturer} ${fixtureDefinition.model})`,
+                manufacturer: fixtureDefinition.manufacturer,
+                model: fixtureDefinition.model,
+                modeName: compatibleMode.name,
+                channelCount: compatibleMode.channelCount,
                 definitionId: fixtureDefinition.id,
                 projectId: project.id,
                 universe,
