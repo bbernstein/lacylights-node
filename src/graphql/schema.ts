@@ -161,6 +161,15 @@ export const typeDefs = gql`
     cueListCount: Int!
   }
 
+  type QLCImportResult {
+    project: Project!
+    originalFileName: String!
+    fixtureCount: Int!
+    sceneCount: Int!
+    cueListCount: Int!
+    warnings: [String!]!
+  }
+
   type QLCFixtureDefinition {
     manufacturer: String!
     model: String!
@@ -368,9 +377,10 @@ export const typeDefs = gql`
     # Active Scene Tracking
     currentActiveScene: Scene
 
-    # QLC+ Export
+    # QLC+ Export/Import
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
     exportProjectToQLC(projectId: ID!, fixtureMappings: [FixtureMappingInput!]): QLCExportResult!
+    importProjectFromQLC(xmlContent: String!, originalFileName: String!): QLCImportResult!
   }
   # Mutations
   type Mutation {
