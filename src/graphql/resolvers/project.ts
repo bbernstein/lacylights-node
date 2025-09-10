@@ -92,6 +92,10 @@ export const projectResolvers = {
       fixtures: (parent: any, _: any, { prisma }: Context) => {
         return prisma.fixtureInstance.findMany({
           where: { projectId: parent.id },
+          orderBy: [
+            { projectOrder: 'asc' },
+            { createdAt: 'asc' } // Fallback for fixtures without order
+          ],
           include: {
             channels: {
               orderBy: { offset: 'asc' },

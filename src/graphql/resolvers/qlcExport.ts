@@ -52,11 +52,19 @@ export const qlcExportResolvers = {
                 orderBy: { offset: 'asc' },
               },
             },
-            orderBy: [{ universe: 'asc' }, { startChannel: 'asc' }],
+            orderBy: [
+              { projectOrder: 'asc' },
+              { universe: 'asc' },
+              { startChannel: 'asc' }
+            ],
           },
           scenes: {
             include: {
               fixtureValues: {
+                orderBy: [
+                  { sceneOrder: 'asc' },
+                  { id: 'asc' }
+                ],
                 include: {
                   fixture: true,
                 },
