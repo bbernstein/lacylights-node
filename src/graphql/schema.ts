@@ -364,6 +364,9 @@ export const typeDefs = gql`
 
     # Preview System
     previewSession(sessionId: ID!): PreviewSession
+    
+    # Active Scene Tracking
+    currentActiveScene: Scene
 
     # QLC+ Export
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!

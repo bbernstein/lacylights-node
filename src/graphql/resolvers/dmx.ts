@@ -11,6 +11,29 @@ export const dmxResolvers = {
     allDmxOutput: async () => {
       return dmxService.getAllUniverseOutputs();
     },
+
+    currentActiveScene: async (_: any, __: any, { prisma }: Context) => {
+      const currentActiveSceneId = dmxService.getCurrentActiveSceneId();
+      
+      if (!currentActiveSceneId) {
+        return null;
+      }
+
+      // Fetch the scene from the database
+      const scene = await prisma.scene.findUnique({
+        where: { id: currentActiveSceneId },
+        include: {
+          project: true,
+          fixtureValues: {
+            include: {
+              fixture: true,
+            },
+          },
+        },
+      });
+
+      return scene;
+    },
   },
 
   Mutation: {
@@ -57,6 +80,9 @@ export const dmxResolvers = {
 
       // Instant scene change (0 second fade)
       fadeEngine.fadeToScene(sceneChannels, 0, `scene-${sceneId}`);
+
+      // Track the currently active scene
+      dmxService.setActiveScene(sceneId);
 
       return true;
     },
@@ -107,12 +133,19 @@ export const dmxResolvers = {
       // Use fade engine to transition to the scene with the cue's easing type
       fadeEngine.fadeToScene(sceneChannels, actualFadeTime, `cue-${cueId}`, cue.easingType as EasingType | undefined);
 
+      // Track the currently active scene (from the cue)
+      dmxService.setActiveScene(cue.scene.id);
+
       return true;
     },
 
     fadeToBlack: async (_: any, { fadeOutTime }: { fadeOutTime: number }) => {
       // Use fade engine to fade all channels to black
       fadeEngine.fadeToBlack(fadeOutTime);
+      
+      // Clear the currently active scene since we're fading to black
+      dmxService.clearActiveScene();
+      
       return true;
     },
   },

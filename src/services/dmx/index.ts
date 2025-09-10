@@ -9,6 +9,7 @@ export interface UniverseOutput {
 export class DMXService {
   private universes: Map<number, number[]> = new Map();
   private channelOverrides: Map<string, number> = new Map(); // Key: "universe:channel"
+  private currentActiveSceneId: string | null = null; // Track currently active scene
   private refreshRate: number = 44; // Hz
   private intervalId?: NodeJS.Timeout;
   private socket?: dgram.Socket;
@@ -149,7 +150,7 @@ export class DMXService {
 
   getUniverseChannels(universe: number): number[] | null {
     const baseChannels = this.universes.get(universe);
-    if (!baseChannels) return null;
+    if (!baseChannels) {return null;}
     
     const outputChannels = [...baseChannels];
     
@@ -214,6 +215,19 @@ export class DMXService {
     }
 
     console.log("🎭 DMX Service stopped");
+  }
+
+  // Active scene tracking methods
+  setActiveScene(sceneId: string): void {
+    this.currentActiveSceneId = sceneId;
+  }
+
+  getCurrentActiveSceneId(): string | null {
+    return this.currentActiveSceneId;
+  }
+
+  clearActiveScene(): void {
+    this.currentActiveSceneId = null;
   }
 }
 
