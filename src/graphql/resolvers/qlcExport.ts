@@ -316,20 +316,7 @@ export const qlcExportResolvers = {
         const createdFixtures: any[] = [];
         const fixtureIdMap = new Map<string, string>(); // QLC ID -> LacyLights ID
 
-        // Debug: Log the structure of the first fixture to understand the format
-        if (fixtures.length > 0) {
-          console.log('Debug: First fixture structure:', JSON.stringify(fixtures[0], null, 2));
-          console.log('Debug: First fixture has $ property?', fixtures[0].$ !== undefined);
-          console.log('Debug: First fixture attributes:', fixtures[0].$);
-        }
-
         for (const qlcFixture of fixtures) {
-          // Debug individual fixture during processing
-          console.log('Processing fixture:', {
-            hasAttributes: qlcFixture.$ !== undefined,
-            attributes: qlcFixture.$,
-            keys: Object.keys(qlcFixture)
-          });
           
           const manufacturer = qlcFixture.Manufacturer?.[0] || 'Unknown';
           const model = qlcFixture.Model?.[0] || 'Unknown';
@@ -362,11 +349,14 @@ export const qlcExportResolvers = {
                 },
               });
 
-              // Try various matching strategies
+              // Try various matching strategies with more sophisticated term extraction
               const searchTerms = [
                 model.toLowerCase(),
                 manufacturer.toLowerCase(),
                 `${manufacturer} ${model}`.toLowerCase(),
+                // Extract key terms from model names (removing common words)
+                ...model.toLowerCase().split(/\s+/).filter((word: string) => word.length > 2),
+                ...manufacturer.toLowerCase().split(/\s+/).filter((word: string) => word.length > 2),
               ];
 
               // Look for fixtures that match any of the search terms
@@ -374,7 +364,25 @@ export const qlcExportResolvers = {
                 const fixtureSearchString = `${fixture.manufacturer} ${fixture.model}`.toLowerCase();
                 
                 for (const term of searchTerms) {
+                  let isMatch = false;
+                  
+                  // Direct substring match
                   if (fixtureSearchString.includes(term) || term.includes(fixture.model.toLowerCase())) {
+                    isMatch = true;
+                  }
+                  
+                  // Special handling for manufacturer variations (e.g., "Chauvet" -> "Chauvet DJ")
+                  if (!isMatch && manufacturer.toLowerCase() === 'chauvet' && fixture.manufacturer.toLowerCase().includes('chauvet')) {
+                    // Check if model names are similar
+                    const modelWords = model.toLowerCase().split(/\s+/);
+                    const fixtureModelWords = fixture.model.toLowerCase().split(/\s+/);
+                    const commonWords = modelWords.filter((word: string) => fixtureModelWords.some((fw: string) => fw.includes(word) || word.includes(fw)));
+                    if (commonWords.length >= Math.min(2, modelWords.length / 2)) {
+                      isMatch = true;
+                    }
+                  }
+                  
+                  if (isMatch) {
                     // Check if channel count is compatible
                     const compatibleMode = fixture.modes.find(m => m.channelCount === channelCount);
                     if (compatibleMode) {
@@ -429,13 +437,9 @@ export const qlcExportResolvers = {
             createdFixtures.push(fixtureInstance);
             
             // Handle different ways the fixture ID might be stored in the XML
-            let fixtureId;
-            if (qlcFixture.$) {
-              fixtureId = qlcFixture.$.ID || qlcFixture.$.id || qlcFixture.$.Id;
-            }
-            if (!fixtureId) {
-              fixtureId = qlcFixture.ID || qlcFixture.id || qlcFixture.Id;
-            }
+            // Based on debug output, the ID is stored as an element, not an attribute
+            const fixtureId = qlcFixture.ID?.[0] || qlcFixture.id?.[0] || qlcFixture.Id?.[0] || 
+                             (qlcFixture.$ && (qlcFixture.$.ID || qlcFixture.$.id || qlcFixture.$.Id));
             if (fixtureId) {
               fixtureIdMap.set(fixtureId, fixtureInstance.id);
             } else {
@@ -463,8 +467,9 @@ export const qlcExportResolvers = {
               const sceneFixtureValues = [];
 
               for (const fv of fixtureValues) {
-                // Handle different ways the fixture ID might be stored
-                const qlcFixtureId = fv?.$.ID || fv?.ID || fv?.$.id || fv?.id || fv?.$.Id;
+                // Handle different ways the fixture ID might be stored (elements vs attributes)
+                const qlcFixtureId = fv?.ID?.[0] || fv?.id?.[0] || fv?.Id?.[0] ||
+                                   (fv?.$ && (fv.$.ID || fv.$.id || fv.$.Id));
                 const lacyFixtureId = qlcFixtureId ? fixtureIdMap.get(qlcFixtureId) : null;
                 
                 if (lacyFixtureId && fv._) {
