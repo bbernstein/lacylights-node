@@ -11,15 +11,25 @@ export class DMXService {
   private channelOverrides: Map<string, number> = new Map(); // Key: "universe:channel"
   private currentActiveSceneId: string | null = null; // Track currently active scene
   private refreshRate: number = 44; // Hz
+  private idleRate: number = 1; // Hz when no changes detected
   private intervalId?: NodeJS.Timeout;
   private socket?: dgram.Socket;
   private artNetEnabled: boolean = true;
   private broadcastAddress: string = "255.255.255.255";
   private artNetPort: number = 6454;
+  
+  // Adaptive transmission rate management
+  private lastTransmittedState: Map<number, number[]> = new Map();
+  private lastChangeTime: number = 0;
+  private currentRate: number = 44;
+  private highRateDuration: number = 2000; // Keep high rate for 2 seconds after last change
+  private isInHighRateMode: boolean = false;
 
   async initialize() {
     const universeCount = parseInt(process.env.DMX_UNIVERSE_COUNT || "4");
     const refreshRate = parseInt(process.env.DMX_REFRESH_RATE || "44");
+    const idleRate = parseInt(process.env.DMX_IDLE_RATE || "1");
+    const highRateDuration = parseInt(process.env.DMX_HIGH_RATE_DURATION || "2000");
     this.artNetEnabled = process.env.ARTNET_ENABLED !== "false";
     
     // Select network interface for Art-Net broadcast
@@ -34,6 +44,9 @@ export class DMXService {
     }
 
     this.refreshRate = refreshRate;
+    this.idleRate = idleRate;
+    this.highRateDuration = highRateDuration;
+    this.currentRate = refreshRate;
 
     // Initialize Art-Net UDP socket
     if (this.artNetEnabled) {
@@ -46,10 +59,14 @@ export class DMXService {
     // Initialize universes with 512 channels each, all set to 0
     for (let i = 1; i <= universeCount; i++) {
       this.universes.set(i, new Array(512).fill(0));
+      this.lastTransmittedState.set(i, new Array(512).fill(0));
     }
 
     console.log(
-      `🎭 DMX Service initialized with ${universeCount} universes at ${refreshRate}Hz`,
+      `🎭 DMX Service initialized with ${universeCount} universes`,
+    );
+    console.log(
+      `📡 Adaptive transmission: ${refreshRate}Hz (active) / ${idleRate}Hz (idle), ${highRateDuration}ms high-rate duration`,
     );
     if (this.artNetEnabled) {
       console.log(
@@ -64,33 +81,99 @@ export class DMXService {
   }
 
   private startOutputLoop() {
-    const intervalMs = 1000 / this.refreshRate;
+    this.scheduleNextTransmission();
+  }
 
-    this.intervalId = setInterval(() => {
-      this.outputDMX();
+  private scheduleNextTransmission() {
+    if (this.intervalId) {
+      clearTimeout(this.intervalId);
+    }
+
+    const intervalMs = 1000 / this.currentRate;
+    this.intervalId = setTimeout(() => {
+      this.processTransmission();
+      this.scheduleNextTransmission();
     }, intervalMs);
   }
 
-  private outputDMX() {
-    if (!this.artNetEnabled || !this.socket) {
-      return;
+  private processTransmission() {
+    const currentTime = Date.now();
+    let hasChanges = false;
+
+    // Check if any channels have changed since last transmission (only if Art-Net is enabled)
+    if (this.artNetEnabled && this.socket) {
+      for (const [universe] of this.universes.entries()) {
+        const outputChannels = this.getUniverseOutputChannels(universe);
+        const lastTransmitted = this.lastTransmittedState.get(universe) || [];
+        
+        // Compare current state with last transmitted state
+        if (!this.arraysEqual(outputChannels, lastTransmitted)) {
+          hasChanges = true;
+          break;
+        }
+      }
     }
 
-    // Send Art-Net packets for each universe
-    for (const [universe, channels] of this.universes.entries()) {
-      this.sendArtNetPacket(universe, channels);
+    // Update transmission rate based on changes
+    if (hasChanges) {
+      this.lastChangeTime = currentTime;
+      if (!this.isInHighRateMode) {
+        this.isInHighRateMode = true;
+        this.currentRate = this.refreshRate;
+        console.log(`📡 DMX transmission: switching to high rate (${this.refreshRate}Hz) - changes detected`);
+      }
+    } else {
+      // Check if we should switch to idle rate
+      const timeSinceLastChange = currentTime - this.lastChangeTime;
+      if (this.isInHighRateMode && timeSinceLastChange > this.highRateDuration) {
+        this.isInHighRateMode = false;
+        this.currentRate = this.idleRate;
+        console.log(`📡 DMX transmission: switching to idle rate (${this.idleRate}Hz) - no changes for ${timeSinceLastChange}ms`);
+      }
+    }
+
+    // Transmit when we have changes or when we're in idle mode (for keep-alive)
+    if (this.artNetEnabled && this.socket && (hasChanges || !this.isInHighRateMode)) {
+      this.outputDMX();
     }
   }
 
-  private sendArtNetPacket(universe: number, channels: number[]) {
-    // Apply channel overrides to the output
-    const outputChannels = [...channels];
+  private outputDMX() {
+    // Send Art-Net packets for each universe and update transmitted state
+    for (const [universe] of this.universes.entries()) {
+      const outputChannels = this.getUniverseOutputChannels(universe);
+      this.sendArtNetPacket(universe, outputChannels);
+      
+      // Update last transmitted state
+      this.lastTransmittedState.set(universe, [...outputChannels]);
+    }
+  }
+
+  private getUniverseOutputChannels(universe: number): number[] {
+    const baseChannels = this.universes.get(universe) || new Array(512).fill(0);
+    const outputChannels = [...baseChannels];
+    
+    // Apply overrides
     for (let i = 0; i < 512; i++) {
       const overrideKey = `${universe}:${i + 1}`;
       if (this.channelOverrides.has(overrideKey)) {
         outputChannels[i] = this.channelOverrides.get(overrideKey)!;
       }
     }
+    
+    return outputChannels;
+  }
+
+  private arraysEqual(a: number[], b: number[]): boolean {
+    if (a.length !== b.length) {return false;}
+    for (let i = 0; i < a.length; i++) {
+      if (a[i] !== b[i]) {return false;}
+    }
+    return true;
+  }
+
+  private sendArtNetPacket(universe: number, channels: number[]) {
+    // Channels already have overrides applied by getUniverseOutputChannels
 
     // Art-Net packet structure
     const packet = Buffer.alloc(530); // Header (18) + Data (512)
@@ -106,7 +189,7 @@ export class DMXService {
 
     // DMX data (512 channels)
     for (let i = 0; i < 512; i++) {
-      packet.writeUInt8(outputChannels[i] || 0, 18 + i);
+      packet.writeUInt8(channels[i] || 0, 18 + i);
     }
 
     // Send the packet
@@ -122,6 +205,45 @@ export class DMXService {
     if (universeData && channel >= 1 && channel <= 512) {
       const clampedValue = Math.max(0, Math.min(255, value));
       universeData[channel - 1] = clampedValue;
+      // Trigger change detection immediately for responsive fades
+      this.triggerChangeDetection();
+    }
+  }
+
+  setChannelOverride(universe: number, channel: number, value: number): void {
+    if (channel >= 1 && channel <= 512) {
+      const overrideKey = `${universe}:${channel}`;
+      const clampedValue = Math.max(0, Math.min(255, value));
+      this.channelOverrides.set(overrideKey, clampedValue);
+      // Trigger change detection for overrides
+      this.triggerChangeDetection();
+    }
+  }
+
+  clearChannelOverride(universe: number, channel: number): void {
+    const overrideKey = `${universe}:${channel}`;
+    if (this.channelOverrides.has(overrideKey)) {
+      this.channelOverrides.delete(overrideKey);
+      // Trigger change detection when removing overrides
+      this.triggerChangeDetection();
+    }
+  }
+
+  clearAllOverrides(): void {
+    if (this.channelOverrides.size > 0) {
+      this.channelOverrides.clear();
+      // Trigger change detection when clearing all overrides
+      this.triggerChangeDetection();
+    }
+  }
+
+  // Method to manually trigger high-rate transmission (useful for fades, scene changes)
+  triggerChangeDetection(): void {
+    this.lastChangeTime = Date.now();
+    if (!this.isInHighRateMode) {
+      this.isInHighRateMode = true;
+      this.currentRate = this.refreshRate;
+      console.log(`📡 DMX transmission: manual trigger to high rate (${this.refreshRate}Hz)`);
     }
   }
 
@@ -165,22 +287,6 @@ export class DMXService {
     return outputChannels;
   }
 
-  setChannelOverride(universe: number, channel: number, value: number): void {
-    if (channel >= 1 && channel <= 512) {
-      const overrideKey = `${universe}:${channel}`;
-      const clampedValue = Math.max(0, Math.min(255, value));
-      this.channelOverrides.set(overrideKey, clampedValue);
-    }
-  }
-
-  clearChannelOverride(universe: number, channel: number): void {
-    const overrideKey = `${universe}:${channel}`;
-    this.channelOverrides.delete(overrideKey);
-  }
-
-  clearAllOverrides(): void {
-    this.channelOverrides.clear();
-  }
   getAllUniverseOutputs(): UniverseOutput[] {
     const outputs: UniverseOutput[] = [];
 
@@ -196,7 +302,7 @@ export class DMXService {
 
   stop() {
     if (this.intervalId) {
-      clearInterval(this.intervalId);
+      clearTimeout(this.intervalId);
       this.intervalId = undefined;
     }
 
@@ -228,6 +334,27 @@ export class DMXService {
 
   clearActiveScene(): void {
     this.currentActiveSceneId = null;
+  }
+
+  // Transmission status methods
+  getTransmissionStatus() {
+    return {
+      currentRate: this.currentRate,
+      isInHighRateMode: this.isInHighRateMode,
+      lastChangeTime: this.lastChangeTime,
+      timeSinceLastChange: Date.now() - this.lastChangeTime,
+      refreshRate: this.refreshRate,
+      idleRate: this.idleRate,
+      highRateDuration: this.highRateDuration,
+    };
+  }
+
+  getCurrentTransmissionRate(): number {
+    return this.currentRate;
+  }
+
+  isInHighRate(): boolean {
+    return this.isInHighRateMode;
   }
 }
 
