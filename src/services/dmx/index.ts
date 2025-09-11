@@ -90,6 +90,8 @@ export class DMXService {
     }
 
     const intervalMs = 1000 / this.currentRate;
+    // Using setTimeout with recursive calls instead of setInterval allows dynamic rate changes
+    // and precise control over transmission timing. Any timing drift is negligible for DMX.
     this.intervalId = setTimeout(() => {
       this.processTransmission();
       this.scheduleNextTransmission();
@@ -165,9 +167,9 @@ export class DMXService {
   }
 
   private arraysEqual(a: number[], b: number[]): boolean {
-    if (a.length !== b.length) {return false;}
+    if (a.length !== b.length) { return false; }
     for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) {return false;}
+      if (a[i] !== b[i]) { return false; }
     }
     return true;
   }
