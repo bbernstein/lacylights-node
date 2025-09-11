@@ -305,6 +305,11 @@ export const typeDefs = gql`
     order: Int!
   }
 
+  input CueOrderInput {
+    cueId: ID!
+    cueNumber: Float!
+  }
+
   input CreateSceneInput {
     name: String!
     description: String
@@ -433,6 +438,7 @@ export const typeDefs = gql`
     createCue(input: CreateCueInput!): Cue!
     updateCue(id: ID!, input: CreateCueInput!): Cue!
     deleteCue(id: ID!): Boolean!
+    reorderCues(cueListId: ID!, cueOrders: [CueOrderInput!]!): Boolean!
 
     # Preview System
     startPreviewSession(projectId: ID!): PreviewSession!
