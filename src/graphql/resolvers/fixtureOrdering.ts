@@ -18,8 +18,8 @@ export const fixtureOrderingResolvers = {
 
         await Promise.all(updatePromises);
         return true;
-      } catch {
-        throw new Error('Failed to reorder project fixtures');
+      } catch (err) {
+        throw new Error(`Failed to reorder project fixtures: ${err instanceof Error ? err.message : String(err)}`);
       }
     },
 
@@ -42,8 +42,8 @@ export const fixtureOrderingResolvers = {
 
         await Promise.all(updatePromises);
         return true;
-      } catch {
-        throw new Error('Failed to reorder scene fixtures');
+      } catch (err) {
+        throw new Error(`Failed to reorder scene fixtures: ${err instanceof Error ? err.message : String(err)}`);
       }
     },
   },

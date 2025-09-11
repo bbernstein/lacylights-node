@@ -359,19 +359,23 @@ export const qlcExportResolvers = {
                 },
               });
 
+              // Build an index for quick lookup by manufacturer+model (case insensitive)
+              const fixtureIndex = new Map<string, typeof allFixtures[0]>();
+              for (const fixture of allFixtures) {
+                const key = `${fixture.manufacturer.toLowerCase()}|||${fixture.model.toLowerCase()}`;
+                fixtureIndex.set(key, fixture);
+              }
+
               const manufacturerLower = manufacturer.toLowerCase();
               const modelLower = model.toLowerCase();
 
               // Strategy 1: Exact manufacturer + model match (case insensitive)
               if (!fixtureDefinition) {
-                const exactMatch = allFixtures.find(fixture => {
-                  const manufacturerMatch = fixture.manufacturer.toLowerCase() === manufacturerLower;
-                  const modelMatch = fixture.model.toLowerCase() === modelLower;
-                  const hasCompatibleMode = fixture.modes.some(m => m.channelCount === channelCount);
-                  return manufacturerMatch && modelMatch && hasCompatibleMode;
-                });
+                const key = `${manufacturerLower}|||${modelLower}`;
+                const exactMatch = fixtureIndex.get(key);
+                const hasCompatibleMode = exactMatch?.modes.some(m => m.channelCount === channelCount);
                 
-                if (exactMatch) {
+                if (exactMatch && hasCompatibleMode) {
                   fixtureDefinition = exactMatch;
                   const compatibleMode = exactMatch.modes.find(m => m.channelCount === channelCount);
                   warnings.push(`Perfect match: "${manufacturer} ${model}" -> "${exactMatch.manufacturer} ${exactMatch.model}" (${compatibleMode?.name} mode)`);
@@ -380,13 +384,17 @@ export const qlcExportResolvers = {
 
               // Strategy 2: Manufacturer match + similar model with compatible channels
               if (!fixtureDefinition) {
-                const candidatesByManufacturer = allFixtures.filter(fixture => {
-                  // Check for manufacturer variations (ETC/Etc, Chauvet/Chauvet DJ, etc.)
+                // Cache manufacturer variations for faster lookup
+                const manufacturerVariations = new Set<typeof allFixtures[0]>();
+                for (const fixture of allFixtures) {
                   const fixtureManufacturerLower = fixture.manufacturer.toLowerCase();
-                  return fixtureManufacturerLower === manufacturerLower || 
-                         fixtureManufacturerLower.includes(manufacturerLower) || 
-                         manufacturerLower.includes(fixtureManufacturerLower);
-                });
+                  if (fixtureManufacturerLower === manufacturerLower || 
+                      fixtureManufacturerLower.includes(manufacturerLower) || 
+                      manufacturerLower.includes(fixtureManufacturerLower)) {
+                    manufacturerVariations.add(fixture);
+                  }
+                }
+                const candidatesByManufacturer = Array.from(manufacturerVariations);
 
                 for (const fixture of candidatesByManufacturer) {
                   const fixtureModelLower = fixture.model.toLowerCase();
