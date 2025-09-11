@@ -144,7 +144,7 @@ export const cueResolvers = {
       const cueListCueIds = new Set(cueList.cues.map(cue => cue.id));
       if (!cueOrders.every(cueOrder => cueListCueIds.has(cueOrder.cueId))) {
         const invalidCue = cueOrders.find(cueOrder => !cueListCueIds.has(cueOrder.cueId));
-        throw new Error(`Cue with ID ${invalidCue?.cueId} does not belong to cue list ${cueListId}`);
+        throw new Error(`Cue with ID ${invalidCue!.cueId} does not belong to cue list ${cueListId}`);
       }
 
       // Handle unique constraint by using a two-phase update approach
