@@ -142,29 +142,32 @@ export const cueResolvers = {
 
       // Verify all cue IDs belong to this cue list
       const cueListCueIds = new Set(cueList.cues.map(cue => cue.id));
-      for (const cueOrder of cueOrders) {
-        if (!cueListCueIds.has(cueOrder.cueId)) {
-          throw new Error(`Cue with ID ${cueOrder.cueId} does not belong to cue list ${cueListId}`);
-        }
+      if (!cueOrders.every(cueOrder => cueListCueIds.has(cueOrder.cueId))) {
+        const invalidCue = cueOrders.find(cueOrder => !cueListCueIds.has(cueOrder.cueId));
+        throw new Error(`Cue with ID ${invalidCue?.cueId} does not belong to cue list ${cueListId}`);
       }
 
       // Handle unique constraint by using a two-phase update approach
       await prisma.$transaction(async (tx) => {
         // Phase 1: Set all affected cues to temporary negative values to avoid conflicts
-        for (let i = 0; i < cueOrders.length; i++) {
-          await tx.cue.update({
-            where: { id: cueOrders[i].cueId },
-            data: { cueNumber: -(i + 1) }, // Use negative numbers as temporary values
-          });
-        }
+        await Promise.all(
+          cueOrders.map((cueOrder, i) =>
+            tx.cue.update({
+              where: { id: cueOrder.cueId },
+              data: { cueNumber: -(i + 1) }, // Use negative numbers as temporary values
+            })
+          )
+        );
 
         // Phase 2: Set the final cue numbers
-        for (const { cueId, cueNumber } of cueOrders) {
-          await tx.cue.update({
-            where: { id: cueId },
-            data: { cueNumber },
-          });
-        }
+        await Promise.all(
+          cueOrders.map(({ cueId, cueNumber }) =>
+            tx.cue.update({
+              where: { id: cueId },
+              data: { cueNumber },
+            })
+          )
+        );
       });
 
       return true;
