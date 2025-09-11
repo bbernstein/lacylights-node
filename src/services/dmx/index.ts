@@ -25,6 +25,11 @@ export class DMXService {
   private highRateDuration: number = 2000; // Keep high rate for 2 seconds after last change
   private isInHighRateMode: boolean = false;
 
+  // Performance optimization: dirty flag system
+  private isDirty: boolean = false; // Tracks if any channels have changed since last transmission
+  private dirtyUniverses: Set<number> = new Set(); // Tracks which universes have changes
+  private lastTransmissionTime: number = 0; // For timing precision tracking
+
   async initialize() {
     const universeCount = parseInt(process.env.DMX_UNIVERSE_COUNT || "4");
     const refreshRate = parseInt(process.env.DMX_REFRESH_RATE || "44");
@@ -100,21 +105,18 @@ export class DMXService {
 
   private processTransmission() {
     const currentTime = Date.now();
-    let hasChanges = false;
-
-    // Check if any channels have changed since last transmission (only if Art-Net is enabled)
-    if (this.artNetEnabled && this.socket) {
-      for (const [universe] of this.universes.entries()) {
-        const outputChannels = this.getUniverseOutputChannels(universe);
-        const lastTransmitted = this.lastTransmittedState.get(universe) || [];
-        
-        // Compare current state with last transmitted state
-        if (!this.arraysEqual(outputChannels, lastTransmitted)) {
-          hasChanges = true;
-          break;
-        }
-      }
+    
+    // Calculate actual transmission interval for timing precision tracking
+    const actualInterval = this.lastTransmissionTime > 0 ? currentTime - this.lastTransmissionTime : 0;
+    const expectedInterval = 1000 / this.currentRate;
+    
+    // Log timing drift if significant (> 5ms) for professional lighting applications
+    if (actualInterval > 0 && Math.abs(actualInterval - expectedInterval) > 5) {
+      console.warn(`⚠️  DMX timing drift: expected ${expectedInterval}ms, actual ${actualInterval}ms (drift: ${actualInterval - expectedInterval}ms)`);
     }
+
+    // Use dirty flag system for efficient change detection
+    const hasChanges = this.isDirty;
 
     // Update transmission rate based on changes
     if (hasChanges) {
@@ -137,18 +139,30 @@ export class DMXService {
     // Transmit when we have changes or when we're in idle mode (for keep-alive)
     if (this.artNetEnabled && this.socket && (hasChanges || !this.isInHighRateMode)) {
       this.outputDMX();
+      this.lastTransmissionTime = currentTime;
     }
   }
 
   private outputDMX() {
-    // Send Art-Net packets for each universe and update transmitted state
-    for (const [universe] of this.universes.entries()) {
+    // Determine which universes to transmit
+    const universesToTransmit = this.isDirty 
+      ? this.dirtyUniverses.size > 0 
+        ? Array.from(this.dirtyUniverses) 
+        : Array.from(this.universes.keys()) // If dirty but no specific universes, transmit all
+      : Array.from(this.universes.keys()); // In idle mode, transmit all for keep-alive
+
+    // Send Art-Net packets for dirty universes and update transmitted state
+    for (const universe of universesToTransmit) {
       const outputChannels = this.getUniverseOutputChannels(universe);
       this.sendArtNetPacket(universe, outputChannels);
       
       // Update last transmitted state
       this.lastTransmittedState.set(universe, [...outputChannels]);
     }
+
+    // Clear dirty flags after successful transmission
+    this.isDirty = false;
+    this.dirtyUniverses.clear();
   }
 
   private getUniverseOutputChannels(universe: number): number[] {
@@ -166,13 +180,6 @@ export class DMXService {
     return outputChannels;
   }
 
-  private arraysEqual(a: number[], b: number[]): boolean {
-    if (a.length !== b.length) { return false; }
-    for (let i = 0; i < a.length; i++) {
-      if (a[i] !== b[i]) { return false; }
-    }
-    return true;
-  }
 
   private sendArtNetPacket(universe: number, channels: number[]) {
     // Channels already have overrides applied by getUniverseOutputChannels
@@ -206,9 +213,15 @@ export class DMXService {
     const universeData = this.universes.get(universe);
     if (universeData && channel >= 1 && channel <= 512) {
       const clampedValue = Math.max(0, Math.min(255, value));
-      universeData[channel - 1] = clampedValue;
-      // Trigger change detection immediately for responsive fades
-      this.triggerChangeDetection();
+      const currentValue = universeData[channel - 1];
+      
+      // Only mark dirty if value actually changed
+      if (currentValue !== clampedValue) {
+        universeData[channel - 1] = clampedValue;
+        this.markDirty(universe);
+        // Trigger change detection immediately for responsive fades
+        this.triggerChangeDetection();
+      }
     }
   }
 
@@ -216,9 +229,15 @@ export class DMXService {
     if (channel >= 1 && channel <= 512) {
       const overrideKey = `${universe}:${channel}`;
       const clampedValue = Math.max(0, Math.min(255, value));
-      this.channelOverrides.set(overrideKey, clampedValue);
-      // Trigger change detection for overrides
-      this.triggerChangeDetection();
+      const currentValue = this.channelOverrides.get(overrideKey);
+      
+      // Only mark dirty if override value actually changed
+      if (currentValue !== clampedValue) {
+        this.channelOverrides.set(overrideKey, clampedValue);
+        this.markDirty(universe);
+        // Trigger change detection for overrides
+        this.triggerChangeDetection();
+      }
     }
   }
 
@@ -226,6 +245,7 @@ export class DMXService {
     const overrideKey = `${universe}:${channel}`;
     if (this.channelOverrides.has(overrideKey)) {
       this.channelOverrides.delete(overrideKey);
+      this.markDirty(universe);
       // Trigger change detection when removing overrides
       this.triggerChangeDetection();
     }
@@ -233,10 +253,21 @@ export class DMXService {
 
   clearAllOverrides(): void {
     if (this.channelOverrides.size > 0) {
+      // Mark all affected universes as dirty
+      for (const overrideKey of this.channelOverrides.keys()) {
+        const universe = parseInt(overrideKey.split(':')[0]);
+        this.markDirty(universe);
+      }
       this.channelOverrides.clear();
       // Trigger change detection when clearing all overrides
       this.triggerChangeDetection();
     }
+  }
+
+  // Helper method to mark a universe as dirty
+  private markDirty(universe: number): void {
+    this.isDirty = true;
+    this.dirtyUniverses.add(universe);
   }
 
   // Method to manually trigger high-rate transmission (useful for fades, scene changes)
@@ -348,6 +379,12 @@ export class DMXService {
       refreshRate: this.refreshRate,
       idleRate: this.idleRate,
       highRateDuration: this.highRateDuration,
+      // Performance optimization status
+      isDirty: this.isDirty,
+      dirtyUniverseCount: this.dirtyUniverses.size,
+      dirtyUniverses: Array.from(this.dirtyUniverses),
+      totalUniverses: this.universes.size,
+      lastTransmissionTime: this.lastTransmissionTime,
     };
   }
 
