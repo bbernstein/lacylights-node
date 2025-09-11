@@ -124,6 +124,51 @@ export const cueResolvers = {
       });
       return true;
     },
+
+    reorderCues: async (
+      _: any,
+      { cueListId, cueOrders }: { cueListId: string; cueOrders: Array<{ cueId: string; cueNumber: number }> },
+      { prisma }: Context
+    ) => {
+      // Verify the cue list exists
+      const cueList = await prisma.cueList.findUnique({
+        where: { id: cueListId },
+        include: { cues: true },
+      });
+
+      if (!cueList) {
+        throw new Error(`Cue list with ID ${cueListId} not found`);
+      }
+
+      // Verify all cue IDs belong to this cue list
+      const cueListCueIds = new Set(cueList.cues.map(cue => cue.id));
+      for (const cueOrder of cueOrders) {
+        if (!cueListCueIds.has(cueOrder.cueId)) {
+          throw new Error(`Cue with ID ${cueOrder.cueId} does not belong to cue list ${cueListId}`);
+        }
+      }
+
+      // Handle unique constraint by using a two-phase update approach
+      await prisma.$transaction(async (tx) => {
+        // Phase 1: Set all affected cues to temporary negative values to avoid conflicts
+        for (let i = 0; i < cueOrders.length; i++) {
+          await tx.cue.update({
+            where: { id: cueOrders[i].cueId },
+            data: { cueNumber: -(i + 1) }, // Use negative numbers as temporary values
+          });
+        }
+
+        // Phase 2: Set the final cue numbers
+        for (const { cueId, cueNumber } of cueOrders) {
+          await tx.cue.update({
+            where: { id: cueId },
+            data: { cueNumber },
+          });
+        }
+      });
+
+      return true;
+    },
   },
 
   Cue: {
