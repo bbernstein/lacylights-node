@@ -29,6 +29,11 @@ export class DMXService {
   private isDirty: boolean = false; // Tracks if any channels have changed since last transmission
   private dirtyUniverses: Set<number> = new Set(); // Tracks which universes have changes
   private lastTransmissionTime: number = 0; // For timing precision tracking
+  
+  // Timing drift monitoring (throttled to avoid console spam)
+  private lastDriftWarningTime: number = 0;
+  private driftWarningThrottle: number = 5000; // Only warn every 5 seconds max
+  private significantDriftThreshold: number = 50; // Only warn for drifts > 50ms
 
   async initialize() {
     const universeCount = parseInt(process.env.DMX_UNIVERSE_COUNT || "4");
@@ -36,6 +41,10 @@ export class DMXService {
     const idleRate = parseInt(process.env.DMX_IDLE_RATE || "1");
     const highRateDuration = parseInt(process.env.DMX_HIGH_RATE_DURATION || "2000");
     this.artNetEnabled = process.env.ARTNET_ENABLED !== "false";
+    
+    // Configure timing monitoring (can be disabled for production)
+    this.significantDriftThreshold = parseInt(process.env.DMX_DRIFT_THRESHOLD || "50");
+    this.driftWarningThrottle = parseInt(process.env.DMX_DRIFT_THROTTLE || "5000");
     
     // Select network interface for Art-Net broadcast
     if (this.artNetEnabled) {
@@ -80,6 +89,15 @@ export class DMXService {
     } else {
       console.log(`📡 Art-Net output disabled (simulation mode)`);
     }
+    
+    // Log timing monitoring configuration
+    if (this.significantDriftThreshold > 0) {
+      console.log(
+        `⏱️  Timing monitoring: warn if drift >${this.significantDriftThreshold}ms, throttle ${this.driftWarningThrottle}ms`,
+      );
+    } else {
+      console.log(`⏱️  Timing monitoring: disabled`);
+    }
 
     // Start the DMX output loop
     this.startOutputLoop();
@@ -110,9 +128,13 @@ export class DMXService {
     const actualInterval = this.lastTransmissionTime > 0 ? currentTime - this.lastTransmissionTime : 0;
     const expectedInterval = 1000 / this.currentRate;
     
-    // Log timing drift if significant (> 5ms) for professional lighting applications
-    if (actualInterval > 0 && Math.abs(actualInterval - expectedInterval) > 5) {
-      console.warn(`⚠️  DMX timing drift: expected ${expectedInterval}ms, actual ${actualInterval}ms (drift: ${actualInterval - expectedInterval}ms)`);
+    // Throttled timing drift monitoring (only for significant drifts, max once per 5 seconds)
+    // Set DMX_DRIFT_THRESHOLD=0 to disable timing monitoring entirely
+    if (this.significantDriftThreshold > 0 && actualInterval > 0 && Math.abs(actualInterval - expectedInterval) > this.significantDriftThreshold) {
+      if (currentTime - this.lastDriftWarningTime > this.driftWarningThrottle) {
+        console.warn(`⚠️  DMX timing drift detected: expected ${expectedInterval.toFixed(1)}ms, actual ${actualInterval}ms (drift: ${(actualInterval - expectedInterval).toFixed(1)}ms)`);
+        this.lastDriftWarningTime = currentTime;
+      }
     }
 
     // Use dirty flag system for efficient change detection
