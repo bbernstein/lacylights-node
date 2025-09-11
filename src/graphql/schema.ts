@@ -428,6 +428,11 @@ export const typeDefs = gql`
     updateScene(id: ID!, input: UpdateSceneInput!): Scene!
     duplicateScene(id: ID!): Scene!
     deleteScene(id: ID!): Boolean!
+    
+    # Safe Scene Updates (Additive)
+    addFixturesToScene(sceneId: ID!, fixtureValues: [FixtureValueInput!]!, overwriteExisting: Boolean = false): Scene!
+    removeFixturesFromScene(sceneId: ID!, fixtureIds: [ID!]!): Scene!
+    updateScenePartial(sceneId: ID!, name: String, description: String, fixtureValues: [FixtureValueInput!], mergeFixtures: Boolean = true): Scene!
 
     # Cue Lists
     createCueList(input: CreateCueListInput!): CueList!
