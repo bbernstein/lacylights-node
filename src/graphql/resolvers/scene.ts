@@ -7,9 +7,18 @@ export interface FixtureValueInput {
   sceneOrder?: number | null;
 }
 
+// Type for existing fixture values from database
+interface ExistingFixtureValue {
+  id: string;
+  fixtureId: string;
+  sceneId: string;
+  channelValues: number[];
+  sceneOrder?: number | null;
+}
+
 // Helper function to handle fixture value updates/creates with optimized queries
 async function upsertFixtureValues(
-  prisma: any,
+  prisma: Context['prisma'],
   sceneId: string,
   fixtureValues: FixtureValueInput[],
   overwrite: boolean = true
@@ -24,7 +33,7 @@ async function upsertFixtureValues(
   });
   
   // Create a Map from fixtureId to existing fixtureValue for O(1) lookups
-  const existingValueMap = new Map(existingValues.map((ev: any) => [ev.fixtureId, ev]));
+  const existingValueMap = new Map(existingValues.map((ev) => [ev.fixtureId, ev as ExistingFixtureValue]));
 
   // Batch operations for better performance
   const updates: Promise<any>[] = [];
@@ -38,7 +47,7 @@ async function upsertFixtureValues(
         // Add to update batch
         updates.push(
           prisma.fixtureValue.update({
-            where: { id: (existingValue as any).id },
+            where: { id: existingValue.id },
             data: {
               channelValues: fv.channelValues,
               sceneOrder: fv.sceneOrder,
