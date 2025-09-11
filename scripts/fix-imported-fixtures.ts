@@ -1,6 +1,6 @@
 #!/usr/bin/env tsx
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, ChannelType } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
@@ -47,7 +47,7 @@ async function fixImportedFixtures() {
       let channelsToCreate: Array<{
         offset: number;
         name: string;
-        type: any;
+        type: ChannelType;
         minValue: number;
         maxValue: number;
         defaultValue: number;

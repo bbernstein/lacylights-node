@@ -1,6 +1,10 @@
 import { Context } from '../../context';
 import * as xml2js from 'xml2js';
 import { QLCFixtureLibrary, FixtureMapping } from '../../services/qlcFixtureLibrary';
+import { ChannelType } from '@prisma/client';
+
+// Constants
+const FIXTURE_INDEX_DELIMITER = '|||';
 
 export const qlcExportResolvers = {
   Query: {
@@ -362,16 +366,40 @@ export const qlcExportResolvers = {
               // Build an index for quick lookup by manufacturer+model (case insensitive)
               const fixtureIndex = new Map<string, typeof allFixtures[0]>();
               for (const fixture of allFixtures) {
-                const key = `${fixture.manufacturer.toLowerCase()}|||${fixture.model.toLowerCase()}`;
+                const key = `${fixture.manufacturer.toLowerCase()}${FIXTURE_INDEX_DELIMITER}${fixture.model.toLowerCase()}`;
                 fixtureIndex.set(key, fixture);
               }
+
+              // Cache word arrays for performance optimization
+              const modelWordsCache = new Map<string, string[]>();
+              const getModelWords = (str: string, minLength: number = 2) => {
+                const cacheKey = `${str}|${minLength}`;
+                if (modelWordsCache.has(cacheKey)) {return modelWordsCache.get(cacheKey)!;}
+                const words = str.split(/\s+/).filter((w: string) => w.length > minLength);
+                modelWordsCache.set(cacheKey, words);
+                return words;
+              };
+
+              // Helper to count exact and partial matches efficiently
+              const countWordMatches = (wordsA: string[], wordsB: string[]) => {
+                let exact = 0, partial = 0;
+                const wordsBSet = new Set(wordsB);
+                for (const word of wordsA) {
+                  if (wordsBSet.has(word)) {
+                    exact++;
+                  } else if (wordsB.some(fw => fw.includes(word) || word.includes(fw))) {
+                    partial++;
+                  }
+                }
+                return { exact, partial };
+              };
 
               const manufacturerLower = manufacturer.toLowerCase();
               const modelLower = model.toLowerCase();
 
               // Strategy 1: Exact manufacturer + model match (case insensitive)
               if (!fixtureDefinition) {
-                const key = `${manufacturerLower}|||${modelLower}`;
+                const key = `${manufacturerLower}${FIXTURE_INDEX_DELIMITER}${modelLower}`;
                 const exactMatch = fixtureIndex.get(key);
                 const hasCompatibleMode = exactMatch?.modes.some(m => m.channelCount === channelCount);
                 
@@ -402,18 +430,11 @@ export const qlcExportResolvers = {
                   
                   if (hasCompatibleMode) {
                     // Check for model similarity - high threshold for same manufacturer
-                    const modelWords = modelLower.split(/\s+/).filter((w: string) => w.length > 2);
-                    const fixtureModelWords = fixtureModelLower.split(/\s+/).filter((w: string) => w.length > 2);
+                    const modelWords = getModelWords(modelLower, 2);
+                    const fixtureModelWords = getModelWords(fixtureModelLower, 2);
                     
-                    // Count exact word matches
-                    const exactMatches = modelWords.filter((word: string) => 
-                      fixtureModelWords.some((fw: string) => fw === word)
-                    ).length;
-                    
-                    // Count partial matches (one word contains another)
-                    const partialMatches = modelWords.filter((word: string) => 
-                      fixtureModelWords.some((fw: string) => fw.includes(word) || word.includes(fw))
-                    ).length;
+                    // Use optimized word matching
+                    const { exact: exactMatches, partial: partialMatches } = countWordMatches(modelWords, fixtureModelWords);
                     
                     // Require at least 50% of words to match for same manufacturer
                     const requiredMatches = Math.max(1, Math.ceil(modelWords.length * 0.5));
@@ -435,13 +456,11 @@ export const qlcExportResolvers = {
                   
                   if (hasCompatibleMode) {
                     // For cross-manufacturer matching, require very high similarity
-                    const modelWords = modelLower.split(/\s+/).filter((w: string) => w.length > 3); // Longer words only
-                    const fixtureModelWords = fixtureModelLower.split(/\s+/).filter((w: string) => w.length > 3);
+                    const modelWords = getModelWords(modelLower, 3); // Longer words only
+                    const fixtureModelWords = getModelWords(fixtureModelLower, 3);
                     
-                    // Require exact matches of significant words
-                    const exactMatches = modelWords.filter((word: string) => 
-                      fixtureModelWords.some((fw: string) => fw === word)
-                    ).length;
+                    // Use optimized exact matching for cross-manufacturer
+                    const { exact: exactMatches } = countWordMatches(modelWords, fixtureModelWords);
                     
                     // For cross-manufacturer, need at least 2 exact word matches or perfect model match
                     if (exactMatches >= 2 || (modelWords.length > 0 && exactMatches === modelWords.length)) {
@@ -495,7 +514,7 @@ export const qlcExportResolvers = {
             let channelsToCreate: Array<{
               offset: number;
               name: string;
-              type: any;
+              type: ChannelType;
               minValue: number;
               maxValue: number;
               defaultValue: number;
