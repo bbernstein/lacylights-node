@@ -8,6 +8,10 @@ export const sceneResolvers = {
         include: {
           project: true,
           fixtureValues: {
+            orderBy: [
+              { sceneOrder: 'asc' },
+              { id: 'asc' } // Fallback for fixtures without scene order
+            ],
             include: {
               fixture: {
                 include: {
@@ -34,12 +38,17 @@ export const sceneResolvers = {
             create: input.fixtureValues.map((fv: any) => ({
               fixtureId: fv.fixtureId,
               channelValues: fv.channelValues, // Now just a simple array of integers
+              sceneOrder: fv.sceneOrder,
             })),
           },
         },
         include: {
           project: true,
           fixtureValues: {
+            orderBy: [
+              { sceneOrder: 'asc' },
+              { id: 'asc' } // Fallback for fixtures without scene order
+            ],
             include: {
               fixture: {
                 include: {
@@ -78,6 +87,7 @@ export const sceneResolvers = {
           create: input.fixtureValues.map((fv: any) => ({
             fixtureId: fv.fixtureId,
             channelValues: fv.channelValues, // Now just a simple array of integers
+            sceneOrder: fv.sceneOrder,
           })),
         };
       }
@@ -88,6 +98,10 @@ export const sceneResolvers = {
         include: {
           project: true,
           fixtureValues: {
+            orderBy: [
+              { sceneOrder: 'asc' },
+              { id: 'asc' } // Fallback for fixtures without scene order
+            ],
             include: {
               fixture: {
                 include: {
@@ -125,12 +139,17 @@ export const sceneResolvers = {
             create: originalScene.fixtureValues.map((fv) => ({
               fixtureId: fv.fixtureId,
               channelValues: fv.channelValues, // Now just a simple array copy
+              sceneOrder: fv.sceneOrder,
             })),
           },
         },
         include: {
           project: true,
           fixtureValues: {
+            orderBy: [
+              { sceneOrder: 'asc' },
+              { id: 'asc' } // Fallback for fixtures without scene order
+            ],
             include: {
               fixture: {
                 include: {

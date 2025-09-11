@@ -70,6 +70,7 @@ export const typeDefs = gql`
     universe: Int!
     startChannel: Int!
     tags: [String!]!
+    projectOrder: Int
     createdAt: String!
     
   }
@@ -97,6 +98,7 @@ export const typeDefs = gql`
     id: ID!
     fixture: FixtureInstance!
     channelValues: [Int!]!
+    sceneOrder: Int
   }
 
   type CueList {
@@ -295,6 +297,12 @@ export const typeDefs = gql`
     universe: Int
     startChannel: Int
     tags: [String!]
+    projectOrder: Int
+  }
+
+  input FixtureOrderInput {
+    fixtureId: ID!
+    order: Int!
   }
 
   input CreateSceneInput {
@@ -313,6 +321,7 @@ export const typeDefs = gql`
   input FixtureValueInput {
     fixtureId: ID!
     channelValues: [Int!]!
+    sceneOrder: Int
   }
 
   input FixtureDefinitionFilter {
@@ -404,6 +413,10 @@ export const typeDefs = gql`
       input: UpdateFixtureInstanceInput!
     ): FixtureInstance!
     deleteFixtureInstance(id: ID!): Boolean!
+    
+    # Fixture Ordering
+    reorderProjectFixtures(projectId: ID!, fixtureOrders: [FixtureOrderInput!]!): Boolean!
+    reorderSceneFixtures(sceneId: ID!, fixtureOrders: [FixtureOrderInput!]!): Boolean!
 
     # Scenes
     createScene(input: CreateSceneInput!): Scene!

@@ -5,6 +5,7 @@ import { cueResolvers } from './cue';
 import { dmxResolvers } from './dmx';
 import { previewResolvers } from './preview';
 import { qlcExportResolvers } from './qlcExport';
+import { fixtureOrderingResolvers } from './fixtureOrdering';
 
 export const resolvers = {
   Query: {
@@ -24,6 +25,7 @@ export const resolvers = {
     ...dmxResolvers.Mutation,
     ...previewResolvers.Mutation,
     ...qlcExportResolvers.Mutation,
+    ...fixtureOrderingResolvers.Mutation,
   },
   Subscription: {
     ...dmxResolvers.Subscription,

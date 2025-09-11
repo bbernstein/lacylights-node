@@ -139,6 +139,9 @@ model FixtureInstance {
   startChannel Int          @map("start_channel")
   tags         String[]     @default([])
   
+  // Ordering
+  projectOrder Int?         @map("project_order") // Order within project fixture list
+  
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
@@ -173,6 +176,7 @@ model FixtureValue {
   sceneId       String @map("scene_id")
   fixtureId     String @map("fixture_id")
   channelValues Int[]  @default([]) // Array of 0-255 values, index = channel offset
+  sceneOrder    Int?   @map("scene_order") // Order within this scene's fixture list
 
   scene   Scene           @relation(fields: [sceneId], references: [id], onDelete: Cascade)
   fixture FixtureInstance @relation(fields: [fixtureId], references: [id], onDelete: Cascade)
