@@ -151,15 +151,15 @@ export class DMXService {
     } else {
       // Check if we should switch to idle rate
       const timeSinceLastChange = currentTime - this.lastChangeTime;
-      if (this.isInHighRateMode && timeSinceLastChange > this.highRateDuration) {
+      if (this.isInHighRateMode && this.lastChangeTime > 0 && timeSinceLastChange > this.highRateDuration) {
         this.isInHighRateMode = false;
         this.currentRate = this.idleRate;
         console.log(`📡 DMX transmission: switching to idle rate (${this.idleRate}Hz) - no changes for ${timeSinceLastChange}ms`);
       }
     }
 
-    // Transmit when we have changes or when we're in idle mode (for keep-alive)
-    if (this.artNetEnabled && this.socket && (hasChanges || !this.isInHighRateMode)) {
+    // Transmit when we have changes (in high rate mode), or always in idle mode (for keep-alive)
+    if (this.artNetEnabled && this.socket && (this.isInHighRateMode ? hasChanges : true)) {
       this.outputDMX();
       this.lastTransmissionTime = currentTime;
     }
@@ -167,13 +167,21 @@ export class DMXService {
 
   private outputDMX() {
     // Determine which universes to transmit
-    const universesToTransmit = this.isDirty 
-      ? this.dirtyUniverses.size > 0 
-        ? Array.from(this.dirtyUniverses) 
-        : Array.from(this.universes.keys()) // If dirty but no specific universes, transmit all
-      : Array.from(this.universes.keys()); // In idle mode, transmit all for keep-alive
+    let universesToTransmit: number[];
+    if (this.isDirty) {
+      if (this.dirtyUniverses.size > 0) {
+        universesToTransmit = Array.from(this.dirtyUniverses);
+      } else {
+        // This should never happen; log error and return early to catch logic bugs
+        console.error("Logical inconsistency: isDirty is true but dirtyUniverses is empty. No universes to transmit.");
+        return;
+      }
+    } else {
+      // In idle mode, transmit all for keep-alive
+      universesToTransmit = Array.from(this.universes.keys());
+    }
 
-    // Send Art-Net packets for dirty universes and update transmitted state
+    // Send Art-Net packets for universes and update transmitted state
     for (const universe of universesToTransmit) {
       const outputChannels = this.getUniverseOutputChannels(universe);
       this.sendArtNetPacket(universe, outputChannels);
@@ -203,6 +211,13 @@ export class DMXService {
   }
 
 
+  /**
+   * Sends an Art-Net packet for the given universe.
+   * 
+   * @param universe The DMX universe number.
+   * @param channels An array of 512 DMX channel values (0-255), with all channel overrides already applied.
+   *                 This should be the result of getUniverseOutputChannels().
+   */
   private sendArtNetPacket(universe: number, channels: number[]) {
     // Channels already have overrides applied by getUniverseOutputChannels
 
