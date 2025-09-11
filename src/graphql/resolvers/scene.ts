@@ -1,5 +1,76 @@
 import { Context } from '../../context';
 
+// Type definitions for fixture values
+export interface FixtureValueInput {
+  fixtureId: string;
+  channelValues: number[];
+  sceneOrder?: number | null;
+}
+
+// Helper function to handle fixture value updates/creates with optimized queries
+async function upsertFixtureValues(
+  prisma: any,
+  sceneId: string,
+  fixtureValues: FixtureValueInput[],
+  overwrite: boolean = true
+) {
+  // Fetch all existing fixture values for this scene and the given fixtureIds in one query
+  const fixtureIds = fixtureValues.map(fv => fv.fixtureId);
+  const existingValues = await prisma.fixtureValue.findMany({
+    where: {
+      sceneId: sceneId,
+      fixtureId: { in: fixtureIds },
+    },
+  });
+  
+  // Create a Map from fixtureId to existing fixtureValue for O(1) lookups
+  const existingValueMap = new Map(existingValues.map((ev: any) => [ev.fixtureId, ev]));
+
+  // Batch operations for better performance
+  const updates: Promise<any>[] = [];
+  const creates: any[] = [];
+
+  for (const fv of fixtureValues) {
+    const existingValue = existingValueMap.get(fv.fixtureId);
+
+    if (existingValue) {
+      if (overwrite) {
+        // Add to update batch
+        updates.push(
+          prisma.fixtureValue.update({
+            where: { id: (existingValue as any).id },
+            data: {
+              channelValues: fv.channelValues,
+              sceneOrder: fv.sceneOrder,
+            },
+          })
+        );
+      }
+      // If not overwriting and fixture exists, skip it (safe behavior)
+    } else {
+      // Add to create batch
+      creates.push({
+        sceneId: sceneId,
+        fixtureId: fv.fixtureId,
+        channelValues: fv.channelValues,
+        sceneOrder: fv.sceneOrder,
+      });
+    }
+  }
+
+  // Execute all updates in parallel
+  if (updates.length > 0) {
+    await Promise.all(updates);
+  }
+
+  // Batch create new values
+  if (creates.length > 0) {
+    await prisma.fixtureValue.createMany({
+      data: creates,
+    });
+  }
+}
+
 export const sceneResolvers = {
   Query: {
     scene: async (_: any, { id }: { id: string }, { prisma }: Context) => {
@@ -176,7 +247,7 @@ export const sceneResolvers = {
       _: any, 
       { sceneId, fixtureValues, overwriteExisting }: { 
         sceneId: string; 
-        fixtureValues: any[];
+        fixtureValues: FixtureValueInput[];
         overwriteExisting?: boolean;
       }, 
       { prisma }: Context
@@ -190,39 +261,8 @@ export const sceneResolvers = {
         throw new Error(`Scene with ID ${sceneId} not found`);
       }
 
-      // For each fixture value provided
-      for (const fv of fixtureValues) {
-        const existingValue = await prisma.fixtureValue.findFirst({
-          where: {
-            sceneId: sceneId,
-            fixtureId: fv.fixtureId,
-          },
-        });
-
-        if (existingValue) {
-          if (overwriteExisting) {
-            // Update existing fixture value
-            await prisma.fixtureValue.update({
-              where: { id: existingValue.id },
-              data: {
-                channelValues: fv.channelValues,
-                sceneOrder: fv.sceneOrder,
-              },
-            });
-          }
-          // If not overwriting and fixture exists, skip it (safe behavior)
-        } else {
-          // Create new fixture value
-          await prisma.fixtureValue.create({
-            data: {
-              sceneId: sceneId,
-              fixtureId: fv.fixtureId,
-              channelValues: fv.channelValues,
-              sceneOrder: fv.sceneOrder,
-            },
-          });
-        }
-      }
+      // Use optimized helper function to handle fixture updates
+      await upsertFixtureValues(prisma, sceneId, fixtureValues, overwriteExisting);
 
       // Return updated scene
       return prisma.scene.findUnique({
@@ -308,13 +348,13 @@ export const sceneResolvers = {
         sceneId: string;
         name?: string;
         description?: string;
-        fixtureValues?: any[];
+        fixtureValues?: FixtureValueInput[];
         mergeFixtures?: boolean;
       },
       { prisma }: Context
     ) => {
       // Build update data for scene metadata
-      const updateData: any = {};
+      const updateData: Record<string, any> = {};
       
       if (name !== undefined) {
         updateData.name = name;
@@ -335,36 +375,8 @@ export const sceneResolvers = {
       // Handle fixture values if provided
       if (fixtureValues && fixtureValues.length > 0) {
         if (mergeFixtures) {
-          // Safe merge behavior - use addFixturesToScene logic
-          for (const fv of fixtureValues) {
-            const existingValue = await prisma.fixtureValue.findFirst({
-              where: {
-                sceneId: sceneId,
-                fixtureId: fv.fixtureId,
-              },
-            });
-
-            if (existingValue) {
-              // Update existing fixture value
-              await prisma.fixtureValue.update({
-                where: { id: existingValue.id },
-                data: {
-                  channelValues: fv.channelValues,
-                  sceneOrder: fv.sceneOrder,
-                },
-              });
-            } else {
-              // Create new fixture value
-              await prisma.fixtureValue.create({
-                data: {
-                  sceneId: sceneId,
-                  fixtureId: fv.fixtureId,
-                  channelValues: fv.channelValues,
-                  sceneOrder: fv.sceneOrder,
-                },
-              });
-            }
-          }
+          // Safe merge behavior - use optimized helper function
+          await upsertFixtureValues(prisma, sceneId, fixtureValues, true);
         } else {
           // Dangerous replace-all behavior (explicit opt-in)
           await prisma.fixtureValue.deleteMany({
@@ -372,7 +384,7 @@ export const sceneResolvers = {
           });
           
           await prisma.fixtureValue.createMany({
-            data: fixtureValues.map((fv: any) => ({
+            data: fixtureValues.map((fv) => ({
               sceneId: sceneId,
               fixtureId: fv.fixtureId,
               channelValues: fv.channelValues,
