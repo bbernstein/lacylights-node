@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import * as readlineSync from 'readline-sync';
+import * as readline from 'readline';
 import { getNetworkInterfaces, formatInterfaceTable } from './networkInterfaces';
 
 export async function selectNetworkInterface(): Promise<string | null> {
@@ -29,25 +29,62 @@ export async function selectNetworkInterface(): Promise<string | null> {
       return '255.255.255.255';
     }
 
-    console.log(formatInterfaceTable(interfaces));
-    console.log('\n📡 Select Art-Net broadcast destination:');
-    console.log('   (This determines where DMX data will be sent)');
-    console.log('   Press Enter for default (Global Broadcast)');
-    
-    // Show development mode warning
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('\n💡 Development mode: Please wait a moment after selecting to prevent restart');
-    }
-    console.log('');
-
     const defaultIndex = interfaces.findIndex(i => i.name === 'global-broadcast');
-    const answer = readlineSync.question(`Select option [1-${interfaces.length}] (default: ${defaultIndex + 1}): `);
     
-    // Add a small delay to prevent tsx from capturing the Enter key press
-    // This is needed because tsx monitors stdin for restart commands in development
-    if (process.env.NODE_ENV !== 'production') {
-      await new Promise(resolve => setTimeout(resolve, 200));
+    // Output all interface information and ensure it's flushed before readline
+    process.stdout.write(formatInterfaceTable(interfaces) + '\n');
+    process.stdout.write('\n📡 Select Art-Net broadcast destination:\n');
+    process.stdout.write('   (This determines where DMX data will be sent)\n');
+    process.stdout.write('   Press Enter for default (Global Broadcast)\n');
+    
+    process.stdout.write('\n');
+    
+    // Force flush all output before creating readline interface
+    await new Promise(resolve => {
+      process.stdout.write('', () => {
+        // Add a small delay to ensure output is fully flushed
+        setTimeout(resolve, 10);
+      });
+    });
+    
+    // Temporarily remove all stdin listeners to prevent tsx interference
+    const originalListeners = process.stdin.listeners('data').slice();
+    const originalKeyListeners = process.stdin.listeners('keypress').slice();
+    
+    // Remove all existing stdin listeners
+    process.stdin.removeAllListeners('data');
+    process.stdin.removeAllListeners('keypress');
+    
+    // Ensure stdin is not in raw mode
+    const wasRaw = process.stdin.isRaw;
+    if (process.stdin.isTTY && process.stdin.isRaw) {
+      process.stdin.setRawMode(false);
     }
+    
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout,
+      terminal: false
+    });
+    
+    const answer = await new Promise<string>((resolve) => {
+      rl.question(`Select option [1-${interfaces.length}] (default: ${defaultIndex + 1}): `, (input) => {
+        rl.close();
+        
+        // Restore original listeners after a delay
+        setTimeout(() => {
+          originalListeners.forEach(listener => process.stdin.on('data', listener as (data: Buffer) => void));
+          originalKeyListeners.forEach(listener => process.stdin.on('keypress', listener as (str: string, key: object) => void));
+          
+          // Restore raw mode if it was enabled
+          if (process.stdin.isTTY && wasRaw) {
+            process.stdin.setRawMode(true);
+          }
+        }, 100);
+        
+        resolve(input);
+      });
+    });
     
     let selectedIndex: number;
     
