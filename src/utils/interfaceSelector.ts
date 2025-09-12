@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import * as readlineSync from 'readline-sync';
+import * as readline from 'readline';
 import { getNetworkInterfaces, formatInterfaceTable } from './networkInterfaces';
 
 export async function selectNetworkInterface(): Promise<string | null> {
@@ -41,7 +41,19 @@ export async function selectNetworkInterface(): Promise<string | null> {
     console.log('');
 
     const defaultIndex = interfaces.findIndex(i => i.name === 'global-broadcast');
-    const answer = readlineSync.question(`Select option [1-${interfaces.length}] (default: ${defaultIndex + 1}): `);
+    
+    // Use Node.js readline for better TTY handling
+    const rl = readline.createInterface({
+      input: process.stdin,
+      output: process.stdout
+    });
+    
+    const answer = await new Promise<string>((resolve) => {
+      rl.question(`Select option [1-${interfaces.length}] (default: ${defaultIndex + 1}): `, (input) => {
+        rl.close();
+        resolve(input);
+      });
+    });
     
     // Add a small delay to prevent tsx from capturing the Enter key press
     // This is needed because tsx monitors stdin for restart commands in development
