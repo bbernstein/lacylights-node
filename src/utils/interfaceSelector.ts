@@ -9,9 +9,10 @@ export async function selectNetworkInterface(): Promise<string | null> {
     return process.env.ARTNET_BROADCAST;
   }
 
-  // Check if we're in non-interactive mode
-  if (process.env.NON_INTERACTIVE === 'true' || process.env.CI === 'true') {
-    console.log('📡 Non-interactive mode detected, using default broadcast address: 255.255.255.255');
+  // Check if we're in non-interactive mode or stdout is redirected
+  if (process.env.NON_INTERACTIVE === 'true' || process.env.CI === 'true' || !process.stdout.isTTY) {
+    const reason = !process.stdout.isTTY ? 'stdout redirected' : 'non-interactive mode';
+    console.error(`📡 ${reason} detected, using default broadcast address: 255.255.255.255`);
     return '255.255.255.255';
   }
 
