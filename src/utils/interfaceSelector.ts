@@ -37,10 +37,6 @@ export async function selectNetworkInterface(): Promise<string | null> {
     process.stdout.write('   (This determines where DMX data will be sent)\n');
     process.stdout.write('   Press Enter for default (Global Broadcast)\n');
     
-    // Show development mode warning
-    if (process.env.NODE_ENV !== 'production') {
-      process.stdout.write('\n💡 Development mode: Please wait a moment after selecting to prevent restart\n');
-    }
     process.stdout.write('\n');
     
     // Force flush all output before creating readline interface
@@ -51,24 +47,31 @@ export async function selectNetworkInterface(): Promise<string | null> {
       });
     });
     
+    // Temporarily pause stdin raw mode to prevent tsx interference
+    const wasRaw = process.stdin.isRaw;
+    if (process.stdin.isTTY) {
+      process.stdin.setRawMode(false);
+    }
+    
     // Use Node.js readline for better TTY handling
     const rl = readline.createInterface({
       input: process.stdin,
-      output: process.stdout
+      output: process.stdout,
+      terminal: false  // Disable terminal-specific behavior to avoid conflicts
     });
     
     const answer = await new Promise<string>((resolve) => {
       rl.question(`Select option [1-${interfaces.length}] (default: ${defaultIndex + 1}): `, (input) => {
         rl.close();
+        
+        // Restore original stdin mode
+        if (process.stdin.isTTY && wasRaw !== undefined) {
+          process.stdin.setRawMode(wasRaw);
+        }
+        
         resolve(input);
       });
     });
-    
-    // Add a small delay to prevent tsx from capturing the Enter key press
-    // This is needed because tsx monitors stdin for restart commands in development
-    if (process.env.NODE_ENV !== 'production') {
-      await new Promise(resolve => setTimeout(resolve, 200));
-    }
     
     let selectedIndex: number;
     
