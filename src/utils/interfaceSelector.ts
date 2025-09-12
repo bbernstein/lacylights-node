@@ -9,9 +9,28 @@ export async function selectNetworkInterface(): Promise<string | null> {
     return process.env.ARTNET_BROADCAST;
   }
 
-  // Check if we're in non-interactive mode
-  if (process.env.NON_INTERACTIVE === 'true' || process.env.CI === 'true') {
-    console.log('📡 Non-interactive mode detected, using default broadcast address: 255.255.255.255');
+  // Check if we're in non-interactive mode or stdout is redirected
+  if (process.env.NON_INTERACTIVE === 'true' || process.env.CI === 'true' || !process.stdout.isTTY) {
+    let reason = '';
+    if (!process.stdout.isTTY) {
+      reason = 'stdout redirected';
+    } else if (process.env.NON_INTERACTIVE === 'true') {
+      reason = 'NON_INTERACTIVE environment variable';
+    } else if (process.env.CI === 'true') {
+      reason = 'CI environment variable';
+    } else {
+      reason = 'non-interactive mode';
+    }
+
+    // Get interfaces to use first available instead of global broadcast
+    const interfaces = getNetworkInterfaces();
+    if (interfaces.length > 0) {
+      const defaultAddress = interfaces[0].broadcast;
+      console.log(`📡 ${reason} detected, using first available interface broadcast address: ${defaultAddress}`);
+      return defaultAddress;
+    } else {
+      console.log(`📡 ${reason} detected, no network interfaces found, using default broadcast address: 255.255.255.255`);
+    }
     return '255.255.255.255';
   }
 
@@ -29,13 +48,13 @@ export async function selectNetworkInterface(): Promise<string | null> {
       return '255.255.255.255';
     }
 
-    const defaultIndex = interfaces.findIndex(i => i.name === 'global-broadcast');
+    const defaultIndex = 0; // Use first option as default
     
     // Output all interface information and ensure it's flushed before readline
     process.stdout.write(formatInterfaceTable(interfaces) + '\n');
     process.stdout.write('\n📡 Select Art-Net broadcast destination:\n');
     process.stdout.write('   (This determines where DMX data will be sent)\n');
-    process.stdout.write('   Press Enter for default (Global Broadcast)\n');
+    process.stdout.write('   Press Enter for default (first option)\n');
     
     process.stdout.write('\n');
     
