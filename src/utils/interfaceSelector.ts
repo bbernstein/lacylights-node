@@ -30,13 +30,13 @@ export async function selectNetworkInterface(): Promise<string | null> {
       return '255.255.255.255';
     }
 
-    const defaultIndex = interfaces.findIndex(i => i.name === 'global-broadcast');
+    const defaultIndex = 0; // Use first option as default
     
     // Output all interface information and ensure it's flushed before readline
     process.stdout.write(formatInterfaceTable(interfaces) + '\n');
     process.stdout.write('\n📡 Select Art-Net broadcast destination:\n');
     process.stdout.write('   (This determines where DMX data will be sent)\n');
-    process.stdout.write('   Press Enter for default (Global Broadcast)\n');
+    process.stdout.write('   Press Enter for default (first option)\n');
     
     process.stdout.write('\n');
     
