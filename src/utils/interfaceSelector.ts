@@ -11,8 +11,26 @@ export async function selectNetworkInterface(): Promise<string | null> {
 
   // Check if we're in non-interactive mode or stdout is redirected
   if (process.env.NON_INTERACTIVE === 'true' || process.env.CI === 'true' || !process.stdout.isTTY) {
-    const reason = !process.stdout.isTTY ? 'stdout redirected' : 'non-interactive mode';
-    console.error(`📡 ${reason} detected, using default broadcast address: 255.255.255.255`);
+    let reason = '';
+    if (!process.stdout.isTTY) {
+      reason = 'stdout redirected';
+    } else if (process.env.NON_INTERACTIVE === 'true') {
+      reason = 'NON_INTERACTIVE environment variable';
+    } else if (process.env.CI === 'true') {
+      reason = 'CI environment variable';
+    } else {
+      reason = 'non-interactive mode';
+    }
+
+    // Get interfaces to use first available instead of global broadcast
+    const interfaces = getNetworkInterfaces();
+    if (interfaces.length > 0) {
+      const defaultAddress = interfaces[0].broadcast;
+      console.error(`📡 ${reason} detected, using first available interface broadcast address: ${defaultAddress}`);
+      return defaultAddress;
+    } else {
+      console.error(`📡 ${reason} detected, no network interfaces found, using default broadcast address: 255.255.255.255`);
+    }
     return '255.255.255.255';
   }
 

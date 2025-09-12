@@ -9,11 +9,29 @@ export interface NetworkInterfaceOption {
   interfaceType: 'ethernet' | 'wifi' | 'other' | 'localhost' | 'global';
 }
 
+function getFallbackInterfaceType(ifaceName: string): 'ethernet' | 'wifi' | 'other' {
+  // Fallback logic based on common interface naming patterns
+  if (ifaceName === 'en0') {
+    return 'wifi'; // en0 is typically WiFi on macOS
+  } else if (ifaceName.startsWith('en') || ifaceName.startsWith('eth')) {
+    return 'ethernet';
+  } else {
+    return 'other';
+  }
+}
+
 function getInterfaceType(ifaceName: string): 'ethernet' | 'wifi' | 'other' {
   try {
+    // Sanitize interface name to prevent command injection
+    const sanitizedName = ifaceName.replace(/[^a-zA-Z0-9]/g, '');
+    if (sanitizedName !== ifaceName) {
+      // If sanitization changed the name, use fallback logic instead of shell command
+      return getFallbackInterfaceType(ifaceName);
+    }
+
     // On macOS, use networksetup to get hardware port information
     if (process.platform === 'darwin') {
-      const output = execSync(`networksetup -listallhardwareports | grep -B2 "Device: ${ifaceName}" | head -3`, 
+      const output = execSync(`networksetup -listallhardwareports | grep -B2 "Device: ${sanitizedName}" | head -3`, 
         { encoding: 'utf8', timeout: 5000 }).toLowerCase();
       
       if (output.includes('wi-fi') || output.includes('wifi') || output.includes('wireless')) {
@@ -28,23 +46,10 @@ function getInterfaceType(ifaceName: string): 'ethernet' | 'wifi' | 'other' {
     }
     
     // Fallback for other platforms or if networksetup fails
-    // en0 is typically WiFi on macOS
-    if (ifaceName === 'en0') {
-      return 'wifi';
-    } else if (ifaceName.startsWith('en') || ifaceName.startsWith('eth')) {
-      return 'ethernet';
-    } else {
-      return 'other';
-    }
+    return getFallbackInterfaceType(ifaceName);
   } catch {
     // Fallback logic if command fails
-    if (ifaceName === 'en0') {
-      return 'wifi';
-    } else if (ifaceName.startsWith('en') || ifaceName.startsWith('eth')) {
-      return 'ethernet';
-    } else {
-      return 'other';
-    }
+    return getFallbackInterfaceType(ifaceName);
   }
 }
 
