@@ -47,27 +47,40 @@ export async function selectNetworkInterface(): Promise<string | null> {
       });
     });
     
-    // Temporarily pause stdin raw mode to prevent tsx interference
+    // Temporarily remove all stdin listeners to prevent tsx interference
+    const originalListeners = process.stdin.listeners('data').slice();
+    const originalKeyListeners = process.stdin.listeners('keypress').slice();
+    
+    // Remove all existing stdin listeners
+    process.stdin.removeAllListeners('data');
+    process.stdin.removeAllListeners('keypress');
+    
+    // Ensure stdin is not in raw mode
     const wasRaw = process.stdin.isRaw;
-    if (process.stdin.isTTY) {
+    if (process.stdin.isTTY && process.stdin.isRaw) {
       process.stdin.setRawMode(false);
     }
     
-    // Use Node.js readline for better TTY handling
     const rl = readline.createInterface({
       input: process.stdin,
       output: process.stdout,
-      terminal: false  // Disable terminal-specific behavior to avoid conflicts
+      terminal: false
     });
     
     const answer = await new Promise<string>((resolve) => {
       rl.question(`Select option [1-${interfaces.length}] (default: ${defaultIndex + 1}): `, (input) => {
         rl.close();
         
-        // Restore original stdin mode
-        if (process.stdin.isTTY && wasRaw !== undefined) {
-          process.stdin.setRawMode(wasRaw);
-        }
+        // Restore original listeners after a delay
+        setTimeout(() => {
+          originalListeners.forEach(listener => process.stdin.on('data', listener as (data: Buffer) => void));
+          originalKeyListeners.forEach(listener => process.stdin.on('keypress', listener as (str: string, key: object) => void));
+          
+          // Restore raw mode if it was enabled
+          if (process.stdin.isTTY && wasRaw) {
+            process.stdin.setRawMode(true);
+          }
+        }, 100);
         
         resolve(input);
       });
