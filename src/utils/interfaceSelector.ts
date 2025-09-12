@@ -29,18 +29,27 @@ export async function selectNetworkInterface(): Promise<string | null> {
       return '255.255.255.255';
     }
 
-    console.log(formatInterfaceTable(interfaces));
-    console.log('\n📡 Select Art-Net broadcast destination:');
-    console.log('   (This determines where DMX data will be sent)');
-    console.log('   Press Enter for default (Global Broadcast)');
+    const defaultIndex = interfaces.findIndex(i => i.name === 'global-broadcast');
+    
+    // Output all interface information and ensure it's flushed before readline
+    process.stdout.write(formatInterfaceTable(interfaces) + '\n');
+    process.stdout.write('\n📡 Select Art-Net broadcast destination:\n');
+    process.stdout.write('   (This determines where DMX data will be sent)\n');
+    process.stdout.write('   Press Enter for default (Global Broadcast)\n');
     
     // Show development mode warning
     if (process.env.NODE_ENV !== 'production') {
-      console.log('\n💡 Development mode: Please wait a moment after selecting to prevent restart');
+      process.stdout.write('\n💡 Development mode: Please wait a moment after selecting to prevent restart\n');
     }
-    console.log('');
-
-    const defaultIndex = interfaces.findIndex(i => i.name === 'global-broadcast');
+    process.stdout.write('\n');
+    
+    // Force flush all output before creating readline interface
+    await new Promise(resolve => {
+      process.stdout.write('', () => {
+        // Add a small delay to ensure output is fully flushed
+        setTimeout(resolve, 10);
+      });
+    });
     
     // Use Node.js readline for better TTY handling
     const rl = readline.createInterface({
