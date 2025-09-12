@@ -22,8 +22,8 @@ function getFallbackInterfaceType(ifaceName: string): 'ethernet' | 'wifi' | 'oth
 
 function getInterfaceType(ifaceName: string): 'ethernet' | 'wifi' | 'other' {
   try {
-    // Sanitize interface name to prevent command injection
-    const sanitizedName = ifaceName.replace(/[^a-zA-Z0-9]/g, '');
+    // Sanitize interface name to prevent command injection (allow hyphens and underscores)
+    const sanitizedName = ifaceName.replace(/[^a-zA-Z0-9_-]/g, '');
     if (sanitizedName !== ifaceName) {
       // If sanitization changed the name, use fallback logic instead of shell command
       return getFallbackInterfaceType(ifaceName);
@@ -31,17 +31,30 @@ function getInterfaceType(ifaceName: string): 'ethernet' | 'wifi' | 'other' {
 
     // On macOS, use networksetup to get hardware port information
     if (process.platform === 'darwin') {
-      const output = execSync(`networksetup -listallhardwareports | grep -B2 "Device: ${sanitizedName}" | head -3`, 
+      // Run networksetup safely and parse output in JS
+      const output = execSync('networksetup -listallhardwareports', 
         { encoding: 'utf8', timeout: 5000 }).toLowerCase();
       
-      if (output.includes('wi-fi') || output.includes('wifi') || output.includes('wireless')) {
-        return 'wifi';
-      } else if (output.includes('usb') && (output.includes('lan') || output.includes('ethernet') || output.includes('100'))) {
-        return 'ethernet'; // USB Ethernet
-      } else if (output.includes('thunderbolt') || output.includes('ethernet') || output.includes('lan') || output.includes('wired')) {
-        return 'ethernet';
-      } else {
-        return 'other';
+      // Split output into blocks for each hardware port
+      const blocks = output.split(/hardware port:/).slice(1); // Remove the first empty split
+      let matchedBlock = null;
+      for (const block of blocks) {
+        if (block.includes(`device: ${sanitizedName.toLowerCase()}`)) {
+          matchedBlock = block;
+          break;
+        }
+      }
+      
+      if (matchedBlock) {
+        if (matchedBlock.includes('wi-fi') || matchedBlock.includes('wifi') || matchedBlock.includes('wireless')) {
+          return 'wifi';
+        } else if (matchedBlock.includes('usb') && (matchedBlock.includes('lan') || matchedBlock.includes('ethernet') || matchedBlock.includes('100'))) {
+          return 'ethernet'; // USB Ethernet
+        } else if (matchedBlock.includes('thunderbolt') || matchedBlock.includes('ethernet') || matchedBlock.includes('lan') || matchedBlock.includes('wired')) {
+          return 'ethernet';
+        } else {
+          return 'other';
+        }
       }
     }
     

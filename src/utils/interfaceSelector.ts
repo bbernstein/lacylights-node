@@ -26,10 +26,10 @@ export async function selectNetworkInterface(): Promise<string | null> {
     const interfaces = getNetworkInterfaces();
     if (interfaces.length > 0) {
       const defaultAddress = interfaces[0].broadcast;
-      console.error(`📡 ${reason} detected, using first available interface broadcast address: ${defaultAddress}`);
+      console.log(`📡 ${reason} detected, using first available interface broadcast address: ${defaultAddress}`);
       return defaultAddress;
     } else {
-      console.error(`📡 ${reason} detected, no network interfaces found, using default broadcast address: 255.255.255.255`);
+      console.log(`📡 ${reason} detected, no network interfaces found, using default broadcast address: 255.255.255.255`);
     }
     return '255.255.255.255';
   }
