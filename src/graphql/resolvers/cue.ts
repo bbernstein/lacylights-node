@@ -172,6 +172,56 @@ export const cueResolvers = {
 
       return true;
     },
+
+    bulkUpdateCues: async (
+      _: any,
+      { input }: { input: { cueIds: string[]; fadeInTime?: number; fadeOutTime?: number; followTime?: number; easingType?: string } },
+      { prisma }: Context
+    ) => {
+      // Verify all cues exist first
+      const existingCues = await prisma.cue.findMany({
+        where: {
+          id: {
+            in: input.cueIds,
+          },
+        },
+        include: {
+          scene: true,
+        },
+      });
+
+      if (existingCues.length !== input.cueIds.length) {
+        const foundIds = new Set(existingCues.map(cue => cue.id));
+        const missingIds = input.cueIds.filter(id => !foundIds.has(id));
+        throw new Error(`Cues not found: ${missingIds.join(', ')}`);
+      }
+
+      // Build update data - only include fields that are provided
+      const updateData: any = {};
+      if (input.fadeInTime !== undefined) {updateData.fadeInTime = input.fadeInTime;}
+      if (input.fadeOutTime !== undefined) {updateData.fadeOutTime = input.fadeOutTime;}
+      if (input.followTime !== undefined) {updateData.followTime = input.followTime;}
+      if (input.easingType !== undefined) {updateData.easingType = input.easingType;}
+
+      if (Object.keys(updateData).length === 0) {
+        throw new Error('No update fields provided');
+      }
+
+      // Perform bulk update using transaction for consistency
+      const updatedCues = await prisma.$transaction(
+        input.cueIds.map(cueId =>
+          prisma.cue.update({
+            where: { id: cueId },
+            data: updateData,
+            include: {
+              scene: true,
+            },
+          })
+        )
+      );
+
+      return updatedCues;
+    },
   },
 
   Cue: {

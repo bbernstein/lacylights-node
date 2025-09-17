@@ -355,6 +355,14 @@ export const typeDefs = gql`
     notes: String
   }
 
+  input BulkCueUpdateInput {
+    cueIds: [ID!]!
+    fadeInTime: Float
+    fadeOutTime: Float
+    followTime: Float
+    easingType: EasingType
+  }
+
   input FixtureMappingInput {
     lacyLightsKey: String!
     qlcManufacturer: String!
@@ -444,6 +452,7 @@ export const typeDefs = gql`
     updateCue(id: ID!, input: CreateCueInput!): Cue!
     deleteCue(id: ID!): Boolean!
     reorderCues(cueListId: ID!, cueOrders: [CueOrderInput!]!): Boolean!
+    bulkUpdateCues(input: BulkCueUpdateInput!): [Cue!]!
 
     # Preview System
     startPreviewSession(projectId: ID!): PreviewSession!
