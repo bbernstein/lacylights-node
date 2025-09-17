@@ -442,6 +442,12 @@ export class QLCFixtureLibrary {
       {
         lacyLightsKey: "Etc/ColorSource Spot",
         qlcManufacturer: "ETC",
+        qlcModel: "ColorSource Spot",
+        qlcMode: "3-channel (RGB)",
+      },
+      {
+        lacyLightsKey: "Etc/ColorSource PAR",
+        qlcManufacturer: "ETC",
         qlcModel: "ColorSource PAR",
         qlcMode: "3-channel (RGB)",
       },
