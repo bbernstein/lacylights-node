@@ -1,4 +1,6 @@
 import { Context } from '../../context';
+import { withFilter } from 'graphql-subscriptions';
+import { getPlaybackStateService } from '../../services/playbackStateService';
 
 export const cueResolvers = {
   Query: {
@@ -238,6 +240,36 @@ export const cueResolvers = {
               cueNumber: 'asc',
             },
           },
+        },
+      });
+    },
+  },
+
+  Subscription: {
+    cueListPlaybackUpdated: {
+      subscribe: withFilter(
+        (_: any, variables: { cueListId: string }, { pubsub }: Context) => {
+          return pubsub.asyncIterator([`CUE_LIST_PLAYBACK_UPDATED_${variables.cueListId}`]);
+        },
+        (payload: any, variables: { cueListId: string }) => {
+          return payload.cueListPlaybackUpdated.cueListId === variables.cueListId;
+        }
+      ),
+      resolve: (payload: any) => payload.cueListPlaybackUpdated,
+    },
+  },
+
+  CueListPlaybackStatus: {
+    currentCue: async (parent: any, _: any, { prisma }: Context) => {
+      if (!parent.currentCue || !parent.currentCue.id) {
+        return null;
+      }
+
+      return prisma.cue.findUnique({
+        where: { id: parent.currentCue.id },
+        include: {
+          scene: true,
+          cueList: true,
         },
       });
     },
