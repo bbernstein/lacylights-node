@@ -1,4 +1,3 @@
-import type { PrismaClient } from '@prisma/client';
 import type { PubSub } from 'graphql-subscriptions';
 
 const mockPrisma = {
@@ -19,7 +18,6 @@ jest.mock('../../context', () => ({
 }));
 
 import { playbackService } from '../playbackService';
-import { getSharedPrisma, getSharedPubSub } from '../../context';
 
 describe('PlaybackService', () => {
   beforeEach(() => {

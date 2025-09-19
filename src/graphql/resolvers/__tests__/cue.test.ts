@@ -307,8 +307,6 @@ describe('Cue Resolvers', () => {
 
   describe('Subscription.cueListPlaybackUpdated', () => {
     it('should filter by cueListId', () => {
-      const filterFn = cueResolvers.Subscription.cueListPlaybackUpdated.subscribe as any;
-
       // Extract the filter function from withFilter
       const mockPayload = {
         cueListPlaybackUpdated: { cueListId: 'list-1' },

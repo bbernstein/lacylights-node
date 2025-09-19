@@ -1,4 +1,3 @@
-import type { LogLevel } from '../logger';
 
 // Mock console methods
 const originalConsoleLog = console.log;
@@ -33,10 +32,10 @@ describe('Logger', () => {
   });
 
   describe('log levels', () => {
-    it('should respect LOG_LEVEL environment variable', () => {
+    it('should respect LOG_LEVEL environment variable', async () => {
       process.env.LOG_LEVEL = 'WARN';
 
-      const { logger: testLogger } = require('../logger');
+      const { logger: testLogger } = await import('../logger');
 
       testLogger.debug('debug message');
       testLogger.info('info message');
@@ -48,10 +47,10 @@ describe('Logger', () => {
       expect(mockConsoleError).toHaveBeenCalledTimes(1);
     });
 
-    it('should default to INFO level when no LOG_LEVEL is set', () => {
+    it('should default to INFO level when no LOG_LEVEL is set', async () => {
       delete process.env.LOG_LEVEL;
 
-      const { logger: testLogger } = require('../logger');
+      const { logger: testLogger } = await import('../logger');
 
       testLogger.debug('debug message');
       testLogger.info('info message');
@@ -65,8 +64,8 @@ describe('Logger', () => {
   });
 
   describe('log formatting', () => {
-    it('should format log messages with timestamp and level', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should format log messages with timestamp and level', async () => {
+      const { logger: testLogger } = await import('../logger');
       testLogger.info('test message');
 
       expect(mockConsoleLog).toHaveBeenCalledWith(
@@ -74,8 +73,8 @@ describe('Logger', () => {
       );
     });
 
-    it('should include metadata when provided', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should include metadata when provided', async () => {
+      const { logger: testLogger } = await import('../logger');
       const metadata = { userId: '123', action: 'login' };
       testLogger.info('user action', metadata);
 
@@ -84,8 +83,8 @@ describe('Logger', () => {
       );
     });
 
-    it('should handle complex metadata objects', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should handle complex metadata objects', async () => {
+      const { logger: testLogger } = await import('../logger');
       const metadata = {
         nested: { key: 'value' },
         array: [1, 2, 3],
@@ -104,10 +103,10 @@ describe('Logger', () => {
   });
 
   describe('debug', () => {
-    it('should log debug messages when level is DEBUG', () => {
+    it('should log debug messages when level is DEBUG', async () => {
       process.env.LOG_LEVEL = 'DEBUG';
 
-      const { logger: testLogger } = require('../logger');
+      const { logger: testLogger } = await import('../logger');
 
       testLogger.debug('debug message');
 
@@ -116,8 +115,8 @@ describe('Logger', () => {
       );
     });
 
-    it('should not log debug messages when level is INFO or higher', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should not log debug messages when level is INFO or higher', async () => {
+      const { logger: testLogger } = await import('../logger');
       testLogger.debug('debug message');
 
       expect(mockConsoleLog).not.toHaveBeenCalled();
@@ -125,8 +124,8 @@ describe('Logger', () => {
   });
 
   describe('info', () => {
-    it('should log info messages', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should log info messages', async () => {
+      const { logger: testLogger } = await import('../logger');
       testLogger.info('info message');
 
       expect(mockConsoleLog).toHaveBeenCalledWith(
@@ -136,8 +135,8 @@ describe('Logger', () => {
   });
 
   describe('warn', () => {
-    it('should log warning messages', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should log warning messages', async () => {
+      const { logger: testLogger } = await import('../logger');
       testLogger.warn('warning message');
 
       expect(mockConsoleWarn).toHaveBeenCalledWith(
@@ -147,8 +146,8 @@ describe('Logger', () => {
   });
 
   describe('error', () => {
-    it('should log error messages', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should log error messages', async () => {
+      const { logger: testLogger } = await import('../logger');
       testLogger.error('error message');
 
       expect(mockConsoleError).toHaveBeenCalledWith(
@@ -156,8 +155,8 @@ describe('Logger', () => {
       );
     });
 
-    it('should log error messages with error objects', () => {
-      const { logger: testLogger } = require('../logger');
+    it('should log error messages with error objects', async () => {
+      const { logger: testLogger } = await import('../logger');
       const error = new Error('test error');
       testLogger.error('operation failed', { error });
 

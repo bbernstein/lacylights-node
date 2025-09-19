@@ -77,27 +77,27 @@ export class DMXService {
       this.lastTransmittedState.set(i, new Array(512).fill(0));
     }
 
-    console.log(
+    logger.info(
       `🎭 DMX Service initialized with ${universeCount} universes`,
     );
-    console.log(
+    logger.info(
       `📡 Adaptive transmission: ${refreshRate}Hz (active) / ${idleRate}Hz (idle), ${highRateDuration}ms high-rate duration`,
     );
     if (this.artNetEnabled) {
-      console.log(
+      logger.info(
         `📡 Art-Net output enabled, broadcasting to ${this.broadcastAddress}:${this.artNetPort}`,
       );
     } else {
-      console.log(`📡 Art-Net output disabled (simulation mode)`);
+      logger.info(`📡 Art-Net output disabled (simulation mode)`);
     }
     
     // Log timing monitoring configuration
     if (this.significantDriftThreshold > 0) {
-      console.log(
+      logger.info(
         `⏱️  Timing monitoring: warn if drift >${this.significantDriftThreshold}ms, throttle ${this.driftWarningThrottle}ms`,
       );
     } else {
-      console.log(`⏱️  Timing monitoring: disabled`);
+      logger.info(`⏱️  Timing monitoring: disabled`);
     }
 
     // Start the DMX output loop
@@ -133,7 +133,7 @@ export class DMXService {
     // Set DMX_DRIFT_THRESHOLD=0 to disable timing monitoring entirely
     if (this.significantDriftThreshold > 0 && actualInterval > 0 && Math.abs(actualInterval - expectedInterval) > this.significantDriftThreshold) {
       if (currentTime - this.lastDriftWarningTime > this.driftWarningThrottle) {
-        console.warn(`⚠️  DMX timing drift detected: expected ${expectedInterval.toFixed(1)}ms, actual ${actualInterval}ms (drift: ${(actualInterval - expectedInterval).toFixed(1)}ms)`);
+        logger.warn(`⚠️  DMX timing drift detected: expected ${expectedInterval.toFixed(1)}ms, actual ${actualInterval}ms (drift: ${(actualInterval - expectedInterval).toFixed(1)}ms)`);
         this.lastDriftWarningTime = currentTime;
       }
     }
@@ -147,7 +147,7 @@ export class DMXService {
       if (!this.isInHighRateMode) {
         this.isInHighRateMode = true;
         this.currentRate = this.refreshRate;
-        console.log(`📡 DMX transmission: switching to high rate (${this.refreshRate}Hz) - changes detected`);
+        logger.info(`📡 DMX transmission: switching to high rate (${this.refreshRate}Hz) - changes detected`);
       }
     } else {
       // Check if we should switch to idle rate
@@ -155,7 +155,7 @@ export class DMXService {
       if (this.isInHighRateMode && this.lastChangeTime > 0 && timeSinceLastChange > this.highRateDuration) {
         this.isInHighRateMode = false;
         this.currentRate = this.idleRate;
-        console.log(`📡 DMX transmission: switching to idle rate (${this.idleRate}Hz) - no changes for ${timeSinceLastChange}ms`);
+        logger.info(`📡 DMX transmission: switching to idle rate (${this.idleRate}Hz) - no changes for ${timeSinceLastChange}ms`);
       }
     }
 
@@ -314,7 +314,7 @@ export class DMXService {
     if (!this.isInHighRateMode) {
       this.isInHighRateMode = true;
       this.currentRate = this.refreshRate;
-      console.log(`📡 DMX transmission: manual trigger to high rate (${this.refreshRate}Hz)`);
+      logger.info(`📡 DMX transmission: manual trigger to high rate (${this.refreshRate}Hz)`);
     }
   }
 
@@ -391,7 +391,7 @@ export class DMXService {
       this.socket = undefined;
     }
 
-    console.log("🎭 DMX Service stopped");
+    logger.info("🎭 DMX Service stopped");
   }
 
   // Active scene tracking methods
