@@ -2,10 +2,12 @@ import { Context } from '../../context';
 import { ChannelType, FixtureType } from '@prisma/client';
 
 // Input types for GraphQL queries and mutations
-interface FixtureDefinitionFilter {
+export interface FixtureDefinitionFilter {
   manufacturer?: string;
   model?: string;
   type?: FixtureType;
+  isBuiltIn?: boolean;
+  channelTypes?: ChannelType[];
 }
 
 // Note: Interface definitions removed as they are not used in current resolvers

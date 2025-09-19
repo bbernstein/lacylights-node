@@ -1,4 +1,6 @@
 import { Context } from '../../context';
+import { dmxService } from '../../services/dmx';
+import { fadeEngine } from '../../services/fadeEngine';
 
 // Type definitions for fixture values
 export interface FixtureValueInput {
@@ -144,9 +146,6 @@ export const sceneResolvers = {
     },
 
     updateScene: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
-      // Import dmxService to check and update active scene
-      const { dmxService } = await import('../../services/dmx');
-
       // Check if this scene is currently active
       const currentActiveSceneId = dmxService.getCurrentActiveSceneId();
       const isCurrentlyActive = currentActiveSceneId === id;
@@ -204,8 +203,6 @@ export const sceneResolvers = {
 
       // If this scene is currently active and fixture values were updated, apply the changes to DMX output
       if (isCurrentlyActive && input.fixtureValues) {
-        // Import fadeEngine for scene updates
-        const { fadeEngine } = await import('../../services/fadeEngine');
 
         // Build array of all channel values for the updated scene
         const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
