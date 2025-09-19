@@ -1,6 +1,5 @@
 import { Context } from '../../context';
 import { withFilter } from 'graphql-subscriptions';
-import { getPlaybackStateService } from '../../services/playbackStateService';
 
 export const cueResolvers = {
   Query: {

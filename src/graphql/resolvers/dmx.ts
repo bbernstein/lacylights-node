@@ -163,9 +163,7 @@ export const dmxResolvers = {
       dmxService.clearActiveScene();
 
       // Stop all playback states since we're fading to black
-      const playbackService = getPlaybackStateService();
-      // We need to stop all active cue lists, but we don't have a direct way to get all active states
-      // For now, this is handled by the fadeToBlack MCP function which calls the service directly
+      // This is handled by the fadeToBlack MCP function which calls the service directly
 
       return true;
     },
