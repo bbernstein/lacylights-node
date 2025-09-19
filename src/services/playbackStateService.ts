@@ -155,6 +155,17 @@ class PlaybackStateService {
     }
   }
 
+  // Stop all cue lists (for fadeToBlack scenarios)
+  stopAllCueLists(): void {
+    // Get all active cue list IDs
+    const cueListIds = Array.from(this.states.keys());
+
+    // Stop each cue list individually to ensure proper cleanup and notifications
+    for (const cueListId of cueListIds) {
+      this.stopCueList(cueListId);
+    }
+  }
+
   // Jump to a specific cue
   async jumpToCue(cueListId: string, cueIndex: number): Promise<void> {
     try {
@@ -280,12 +291,7 @@ let playbackStateServiceInstance: PlaybackStateService | null = null;
 
 export function getPlaybackStateService(): PlaybackStateService {
   if (!playbackStateServiceInstance) {
-    // Dynamic imports to avoid circular dependency
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PubSub } = require('graphql-subscriptions');
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaClient } = require('@prisma/client');
-
+    // Use already imported modules from top of file
     playbackStateServiceInstance = new PlaybackStateService(
       new PrismaClient(),
       new PubSub()
