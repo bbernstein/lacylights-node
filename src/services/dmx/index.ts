@@ -1,5 +1,6 @@
 import * as dgram from "dgram";
 import { selectNetworkInterface, saveInterfacePreference } from '../../utils/interfaceSelector';
+import { logger } from '../../utils/logger';
 
 export interface UniverseOutput {
   universe: number;
@@ -173,7 +174,7 @@ export class DMXService {
         universesToTransmit = Array.from(this.dirtyUniverses);
       } else {
         // This should never happen; log error and return early to catch logic bugs
-        console.error("Logical inconsistency: isDirty is true but dirtyUniverses is empty. No universes to transmit.");
+        logger.error("Logical inconsistency: isDirty is true but dirtyUniverses is empty. No universes to transmit.");
         return;
       }
     } else {
@@ -241,7 +242,7 @@ export class DMXService {
     // Send the packet
     this.socket!.send(packet, this.artNetPort, this.broadcastAddress, (err) => {
       if (err) {
-        console.error(`❌ Art-Net send error for universe ${universe}:`, err);
+        logger.error(`Art-Net send error for universe ${universe}`, { error: err, universe });
       }
     });
   }

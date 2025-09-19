@@ -6,11 +6,12 @@ import http from 'http';
 import cors from 'cors';
 import { typeDefs } from './graphql/schema';
 import { resolvers } from './graphql/resolvers';
-import { createContext } from './context';
+import { createContext, cleanup } from './context';
 import { setupWebSocketServer } from './graphql/subscriptions';
 import { dmxService } from './services/dmx';
 import { fadeEngine } from './services/fadeEngine';
 import { FixtureSetupService } from './services/fixtureSetupService';
+import { playbackService } from './services/playbackService';
 
 // Graceful shutdown timeout in milliseconds
 const GRACEFUL_SHUTDOWN_TIMEOUT = 10000;
@@ -177,6 +178,24 @@ async function gracefulShutdown() {
       console.log('✅ Fade engine stopped');
     } catch (err) {
       console.error('❌ Error stopping fade engine:', err);
+    }
+
+    // Cleanup playback service
+    console.log('🎵 Cleaning up playback service...');
+    try {
+      playbackService.cleanup();
+      console.log('✅ Playback service cleaned up');
+    } catch (err) {
+      console.error('❌ Error cleaning up playback service:', err);
+    }
+
+    // Cleanup database and PubSub connections
+    console.log('🗄️ Cleaning up database connections...');
+    try {
+      await cleanup();
+      console.log('✅ Database connections cleaned up');
+    } catch (err) {
+      console.error('❌ Error cleaning up database connections:', err);
     }
 
     console.log('✅ All services stopped successfully');

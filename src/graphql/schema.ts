@@ -124,6 +124,16 @@ export const typeDefs = gql`
     notes: String
   }
 
+  type CueListPlaybackStatus {
+    cueListId: ID!
+    isPlaying: Boolean!
+    currentCue: Cue
+    nextCue: Cue
+    previousCue: Cue
+    fadeProgress: Float
+    lastUpdated: String!
+  }
+
   type User {
     id: ID!
     email: String!
@@ -385,7 +395,8 @@ export const typeDefs = gql`
 
     # Cue Lists
     cueList(id: ID!): CueList
-    
+    cueListPlaybackStatus(cueListId: ID!): CueListPlaybackStatus
+
     # Cues
     cue(id: ID!): Cue
 
@@ -477,5 +488,6 @@ export const typeDefs = gql`
     dmxOutputChanged(universe: Int): UniverseOutput!
     projectUpdated(projectId: ID!): Project!
     previewSessionUpdated(projectId: ID!): PreviewSession!
+    cueListPlaybackUpdated(cueListId: ID!): CueListPlaybackStatus!
   }
 `;

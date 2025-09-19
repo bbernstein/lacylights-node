@@ -1,4 +1,7 @@
-import { Context } from '../../context';
+import type { Context, WebSocketContext } from '../../context';
+import { withFilter } from 'graphql-subscriptions';
+import { logger } from '../../utils/logger';
+import { playbackService } from '../../services/playbackService';
 
 export const cueResolvers = {
   Query: {
@@ -27,6 +30,10 @@ export const cueResolvers = {
           cueList: true,
         },
       });
+    },
+
+    cueListPlaybackStatus: async (_: any, { cueListId }: { cueListId: string }) => {
+      return playbackService.getPlaybackStatus(cueListId);
     },
   },
 
@@ -81,7 +88,7 @@ export const cueResolvers = {
     },
 
     createCue: async (_: any, { input }: any, { prisma }: Context) => {
-      return prisma.cue.create({
+      const newCue = await prisma.cue.create({
         data: {
           name: input.name,
           cueNumber: input.cueNumber,
@@ -97,10 +104,25 @@ export const cueResolvers = {
           scene: true,
         },
       });
+
+      // Invalidate cache since cue list structure changed
+      playbackService.invalidateCache(input.cueListId);
+
+      return newCue;
     },
 
     updateCue: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
-      return prisma.cue.update({
+      // First get the cue to find its cueListId
+      const existingCue = await prisma.cue.findUnique({
+        where: { id },
+        select: { cueListId: true },
+      });
+
+      if (!existingCue) {
+        throw new Error(`Cue with ID ${id} not found`);
+      }
+
+      const updatedCue = await prisma.cue.update({
         where: { id },
         data: {
           name: input.name,
@@ -116,12 +138,31 @@ export const cueResolvers = {
           scene: true,
         },
       });
+
+      // Invalidate cache since cue properties changed
+      playbackService.invalidateCache(existingCue.cueListId);
+
+      return updatedCue;
     },
 
     deleteCue: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+      // First get the cue to find its cueListId
+      const existingCue = await prisma.cue.findUnique({
+        where: { id },
+        select: { cueListId: true },
+      });
+
+      if (!existingCue) {
+        throw new Error(`Cue with ID ${id} not found`);
+      }
+
       await prisma.cue.delete({
         where: { id },
       });
+
+      // Invalidate cache since cue list structure changed
+      playbackService.invalidateCache(existingCue.cueListId);
+
       return true;
     },
 
@@ -169,6 +210,9 @@ export const cueResolvers = {
           )
         );
       });
+
+      // Invalidate cache since cue order changed
+      playbackService.invalidateCache(cueListId);
 
       return true;
     },
@@ -220,6 +264,12 @@ export const cueResolvers = {
         )
       );
 
+      // Invalidate cache for all affected cue lists
+      const affectedCueListIds = new Set(existingCues.map(cue => cue.cueListId));
+      for (const cueListId of affectedCueListIds) {
+        playbackService.invalidateCache(cueListId);
+      }
+
       return updatedCues;
     },
   },
@@ -240,6 +290,25 @@ export const cueResolvers = {
           },
         },
       });
+    },
+  },
+
+  Subscription: {
+    cueListPlaybackUpdated: {
+      subscribe: withFilter(
+        (_: any, __: any, { pubsub }: WebSocketContext) => {
+          return pubsub.asyncIterator(['CUE_LIST_PLAYBACK_UPDATED']);
+        },
+        (payload: any, variables: { cueListId: string }) => {
+          // Input validation for subscription
+          if (!variables.cueListId || typeof variables.cueListId !== 'string') {
+            logger.warn('Invalid cueListId in subscription filter', { cueListId: variables.cueListId });
+            return false;
+          }
+
+          return payload.cueListPlaybackUpdated.cueListId === variables.cueListId;
+        }
+      ),
     },
   },
 

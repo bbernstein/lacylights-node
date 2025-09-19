@@ -31,6 +31,7 @@ export const resolvers = {
     ...dmxResolvers.Subscription,
     ...projectResolvers.Subscription,
     ...previewResolvers.Subscription,
+    ...cueResolvers.Subscription,
   },
   // Type resolvers
   ...projectResolvers.types,
