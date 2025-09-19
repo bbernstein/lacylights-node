@@ -1,5 +1,6 @@
 import { PubSub } from 'graphql-subscriptions';
 import { PrismaClient } from '@prisma/client';
+import { prisma, pubsub } from '../context';
 
 export interface PlaybackState {
   cueListId: string;
@@ -291,10 +292,10 @@ let playbackStateServiceInstance: PlaybackStateService | null = null;
 
 export function getPlaybackStateService(): PlaybackStateService {
   if (!playbackStateServiceInstance) {
-    // Use already imported modules from top of file
+    // Use shared singleton instances from context
     playbackStateServiceInstance = new PlaybackStateService(
-      new PrismaClient(),
-      new PubSub()
+      prisma,
+      pubsub
     );
   }
   return playbackStateServiceInstance;

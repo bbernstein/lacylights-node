@@ -37,4 +37,4 @@ export async function createWebSocketContext(): Promise<WebSocketContext> {
   return { prisma, pubsub };
 }
 
-export { pubsub };
+export { prisma, pubsub };
