@@ -411,9 +411,6 @@ export const typeDefs = gql`
     # Active Scene Tracking
     currentActiveScene: Scene
 
-    # Cue List Playback Status
-    cueListPlaybackStatus(cueListId: ID!): CueListPlaybackStatus
-
     # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
   }
