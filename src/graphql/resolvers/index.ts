@@ -31,10 +31,12 @@ export const resolvers = {
     ...dmxResolvers.Subscription,
     ...projectResolvers.Subscription,
     ...previewResolvers.Subscription,
+    ...cueResolvers.Subscription,
   },
   // Type resolvers
   ...projectResolvers.types,
   ...fixtureResolvers.types,
   ...sceneResolvers.types,
   ...cueResolvers.types,
+  CueListPlaybackStatus: cueResolvers.CueListPlaybackStatus,
 };

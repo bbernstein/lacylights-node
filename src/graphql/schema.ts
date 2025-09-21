@@ -124,6 +124,15 @@ export const typeDefs = gql`
     notes: String
   }
 
+  type CueListPlaybackStatus {
+    cueListId: ID!
+    currentCueIndex: Int
+    isPlaying: Boolean!
+    currentCue: Cue
+    fadeProgress: Float
+    lastUpdated: String!
+  }
+
   type User {
     id: ID!
     email: String!
@@ -399,6 +408,9 @@ export const typeDefs = gql`
     # Active Scene Tracking
     currentActiveScene: Scene
 
+    # Cue List Playback Status
+    cueListPlaybackStatus(cueListId: ID!): CueListPlaybackStatus
+
     # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
   }
@@ -467,6 +479,13 @@ export const typeDefs = gql`
     playCue(cueId: ID!, fadeInTime: Float): Boolean!
     fadeToBlack(fadeOutTime: Float!): Boolean!
 
+    # Cue List Playback Control
+    startCueList(cueListId: ID!, startFromCue: Int): Boolean!
+    nextCue(cueListId: ID!, fadeInTime: Float): Boolean!
+    previousCue(cueListId: ID!, fadeInTime: Float): Boolean!
+    goToCue(cueListId: ID!, cueIndex: Int!, fadeInTime: Float): Boolean!
+    stopCueList(cueListId: ID!): Boolean!
+
     # QLC+ Import/Export (data-modifying operations)
     importProjectFromQLC(xmlContent: String!, originalFileName: String!): QLCImportResult!
     exportProjectToQLC(projectId: ID!, fixtureMappings: [FixtureMappingInput!]): QLCExportResult!
@@ -477,5 +496,6 @@ export const typeDefs = gql`
     dmxOutputChanged(universe: Int): UniverseOutput!
     projectUpdated(projectId: ID!): Project!
     previewSessionUpdated(projectId: ID!): PreviewSession!
+    cueListPlaybackUpdated(cueListId: ID!): CueListPlaybackStatus!
   }
 `;

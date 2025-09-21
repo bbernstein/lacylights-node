@@ -1,6 +1,7 @@
 import { Context } from '../../context';
 import { dmxService } from '../../services/dmx';
 import { fadeEngine, EasingType } from '../../services/fadeEngine';
+import { getPlaybackStateService } from '../../services/playbackStateService';
 
 export const dmxResolvers = {
   Query: {
@@ -88,7 +89,7 @@ export const dmxResolvers = {
     },
 
     playCue: async (_: any, { cueId, fadeInTime }: { cueId: string; fadeInTime?: number }, { prisma }: Context) => {
-      // Get the cue with its scene
+      // Get the cue with its scene and cue list
       const cue = await prisma.cue.findUnique({
         where: { id: cueId },
         include: {
@@ -98,6 +99,13 @@ export const dmxResolvers = {
                 include: {
                   fixture: true,
                 },
+              },
+            },
+          },
+          cueList: {
+            include: {
+              cues: {
+                orderBy: { cueNumber: 'asc' },
               },
             },
           },
@@ -113,15 +121,15 @@ export const dmxResolvers = {
 
       // Build array of all channel values for the scene
       const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
-      
+
       for (const fixtureValue of cue.scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
-        
+
         // Iterate through channelValues array by index
         for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
           const value = fixtureValue.channelValues[channelIndex];
           const dmxChannel = fixture.startChannel + channelIndex;
-          
+
           sceneChannels.push({
             universe: fixture.universe,
             channel: dmxChannel,
@@ -136,16 +144,28 @@ export const dmxResolvers = {
       // Track the currently active scene (from the cue)
       dmxService.setActiveScene(cue.scene.id);
 
+      // Update playback state service to track cue execution
+      const playbackService = getPlaybackStateService();
+      const cueIndex = cue.cueList.cues.findIndex(c => c.id === cueId);
+
+      if (cueIndex !== -1) {
+        await playbackService.startCue(cue.cueList.id, cueIndex, cue);
+      }
+
       return true;
     },
 
     fadeToBlack: async (_: any, { fadeOutTime }: { fadeOutTime: number }) => {
       // Use fade engine to fade all channels to black
       fadeEngine.fadeToBlack(fadeOutTime);
-      
+
       // Clear the currently active scene since we're fading to black
       dmxService.clearActiveScene();
-      
+
+      // Stop all playback states since we're fading to black
+      const playbackService = getPlaybackStateService();
+      playbackService.stopAllCueLists();
+
       return true;
     },
   },
