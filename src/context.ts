@@ -75,5 +75,6 @@ export async function cleanup(): Promise<void> {
   sharedPubSub = null;
 }
 
-// Export the shared PubSub for services that need to publish events
+// Export the shared instances for services that need them
+export const prisma = getSharedPrisma();
 export const pubsub = getSharedPubSub();

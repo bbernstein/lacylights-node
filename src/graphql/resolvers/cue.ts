@@ -2,6 +2,7 @@ import type { Context, WebSocketContext } from '../../context';
 import { withFilter } from 'graphql-subscriptions';
 import { logger } from '../../utils/logger';
 import { playbackService } from '../../services/playbackService';
+import { getPlaybackStateService } from '../../services/playbackStateService';
 import type { EasingType } from '@prisma/client';
 
 // Input types for GraphQL mutations
@@ -54,6 +55,11 @@ export interface BulkUpdateCuesInput {
 
 export const cueResolvers = {
   Query: {
+    cueListPlaybackStatus: async (_: unknown, { cueListId }: { cueListId: string }) => {
+      const playbackStateService = getPlaybackStateService();
+      return playbackStateService.getFormattedStatus(cueListId);
+    },
+
     cueList: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
       return prisma.cueList.findUnique({
         where: { id },
@@ -79,10 +85,6 @@ export const cueResolvers = {
           cueList: true,
         },
       });
-    },
-
-    cueListPlaybackStatus: async (_: unknown, { cueListId }: { cueListId: string }) => {
-      return playbackService.getPlaybackStatus(cueListId);
     },
   },
 
@@ -266,6 +268,137 @@ export const cueResolvers = {
       return true;
     },
 
+    startCueList: async (_: unknown, { cueListId, startFromCue }: { cueListId: string; startFromCue?: number }, { prisma }: Context) => {
+      const playbackStateService = getPlaybackStateService();
+
+      // Get the cue list with cues
+      const cueList = await prisma.cueList.findUnique({
+        where: { id: cueListId },
+        include: {
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: 'asc' }
+          }
+        }
+      });
+
+      if (!cueList || cueList.cues.length === 0) {
+        throw new Error('Cue list not found or empty');
+      }
+
+      const startIndex = startFromCue !== undefined ? startFromCue : 0;
+      if (startIndex < 0 || startIndex >= cueList.cues.length) {
+        throw new Error('Invalid cue index');
+      }
+
+      await playbackStateService.startCue(cueListId, startIndex, cueList.cues[startIndex]);
+      return true;
+    },
+
+    nextCue: async (_: unknown, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+      const playbackStateService = getPlaybackStateService();
+      const currentState = playbackStateService.getPlaybackState(cueListId);
+
+      if (!currentState || currentState.currentCueIndex === null) {
+        throw new Error('No active playback for this cue list');
+      }
+
+      const nextIndex = currentState.currentCueIndex + 1;
+
+      // Get the cue list to check bounds and get next cue
+      const cueList = await prisma.cueList.findUnique({
+        where: { id: cueListId },
+        include: {
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: 'asc' }
+          }
+        }
+      });
+
+      if (!cueList || nextIndex >= cueList.cues.length) {
+        throw new Error('Already at last cue');
+      }
+
+      const nextCue = cueList.cues[nextIndex];
+
+      // Use the existing playCue logic from dmx resolver
+      const { dmxResolvers } = await import('./dmx');
+      await dmxResolvers.Mutation.playCue(null, { cueId: nextCue.id, fadeInTime }, { prisma, pubsub } as Context);
+
+      return true;
+    },
+
+    previousCue: async (_: unknown, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+      const playbackStateService = getPlaybackStateService();
+      const currentState = playbackStateService.getPlaybackState(cueListId);
+
+      if (!currentState || currentState.currentCueIndex === null) {
+        throw new Error('No active playback for this cue list');
+      }
+
+      const previousIndex = currentState.currentCueIndex - 1;
+
+      if (previousIndex < 0) {
+        throw new Error('Already at first cue');
+      }
+
+      // Get the cue list to get previous cue
+      const cueList = await prisma.cueList.findUnique({
+        where: { id: cueListId },
+        include: {
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: 'asc' }
+          }
+        }
+      });
+
+      if (!cueList) {
+        throw new Error('Cue list not found');
+      }
+
+      const previousCue = cueList.cues[previousIndex];
+
+      // Use the existing playCue logic from dmx resolver
+      const { dmxResolvers } = await import('./dmx');
+      await dmxResolvers.Mutation.playCue(null, { cueId: previousCue.id, fadeInTime }, { prisma, pubsub } as Context);
+
+      return true;
+    },
+
+    goToCue: async (_: unknown, { cueListId, cueIndex, fadeInTime }: { cueListId: string; cueIndex: number; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+
+      // Get the cue list
+      const cueList = await prisma.cueList.findUnique({
+        where: { id: cueListId },
+        include: {
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: 'asc' }
+          }
+        }
+      });
+
+      if (!cueList || cueIndex < 0 || cueIndex >= cueList.cues.length) {
+        throw new Error('Invalid cue index');
+      }
+
+      const targetCue = cueList.cues[cueIndex];
+
+      // Use the existing playCue logic from dmx resolver
+      const { dmxResolvers } = await import('./dmx');
+      await dmxResolvers.Mutation.playCue(null, { cueId: targetCue.id, fadeInTime }, { prisma, pubsub } as Context);
+
+      return true;
+    },
+
+    stopCueList: async (_: unknown, { cueListId }: { cueListId: string }) => {
+      const playbackStateService = getPlaybackStateService();
+      playbackStateService.stopCueList(cueListId);
+      return true;
+    },
+
     bulkUpdateCues: async (
       _: unknown,
       { input }: { input: BulkUpdateCuesInput },
@@ -342,11 +475,27 @@ export const cueResolvers = {
     },
   },
 
+  CueListPlaybackStatus: {
+    currentCue: async (parent: any, _: unknown, { prisma }: Context) => {
+      if (!parent.currentCue || !parent.currentCue.id) {
+        return null;
+      }
+
+      return prisma.cue.findUnique({
+        where: { id: parent.currentCue.id },
+        include: {
+          scene: true,
+          cueList: true,
+        },
+      });
+    },
+  },
+
   Subscription: {
     cueListPlaybackUpdated: {
       subscribe: withFilter(
-        (_: unknown, __: unknown, { pubsub }: WebSocketContext) => {
-          return pubsub.asyncIterator(['CUE_LIST_PLAYBACK_UPDATED']);
+        (_: unknown, variables: { cueListId: string }, { pubsub }: WebSocketContext) => {
+          return pubsub.asyncIterator([`CUE_LIST_PLAYBACK_UPDATED_${variables.cueListId}`]);
         },
         (payload: { cueListPlaybackUpdated: { cueListId: string } }, variables: { cueListId: string }) => {
           // Input validation for subscription
@@ -358,6 +507,7 @@ export const cueResolvers = {
           return payload.cueListPlaybackUpdated.cueListId === variables.cueListId;
         }
       ),
+      resolve: (payload: any) => payload.cueListPlaybackUpdated,
     },
   },
 

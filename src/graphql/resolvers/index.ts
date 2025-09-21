@@ -38,4 +38,5 @@ export const resolvers = {
   ...fixtureResolvers.types,
   ...sceneResolvers.types,
   ...cueResolvers.types,
+  CueListPlaybackStatus: cueResolvers.CueListPlaybackStatus,
 };
