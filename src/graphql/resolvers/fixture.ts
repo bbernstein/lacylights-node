@@ -214,11 +214,26 @@ export const fixtureResolvers = {
     updateFixtureInstance: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
       // Only include fields that are provided in the input
       const updateData: any = {};
-      if (input.name !== undefined) {updateData.name = input.name;}
-      if (input.description !== undefined) {updateData.description = input.description;}
-      if (input.universe !== undefined) {updateData.universe = input.universe;}
-      if (input.startChannel !== undefined) {updateData.startChannel = input.startChannel;}
-      if (input.tags !== undefined) {updateData.tags = input.tags;}
+
+      if (input.name !== undefined) {
+        updateData.name = input.name;
+      }
+
+      if (input.description !== undefined) {
+        updateData.description = input.description;
+      }
+
+      if (input.universe !== undefined) {
+        updateData.universe = input.universe;
+      }
+
+      if (input.startChannel !== undefined) {
+        updateData.startChannel = input.startChannel;
+      }
+
+      if (input.tags !== undefined) {
+        updateData.tags = input.tags;
+      }
 
       // If definitionId or modeId is changed, update flattened fields
       if (input.definitionId !== undefined || input.modeId !== undefined) {

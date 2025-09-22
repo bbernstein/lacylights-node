@@ -495,7 +495,7 @@ export const cueResolvers = {
     cueListPlaybackUpdated: {
       subscribe: withFilter(
         (_: unknown, variables: { cueListId: string }, { pubsub }: WebSocketContext) => {
-          return pubsub.asyncIterator([`CUE_LIST_PLAYBACK_UPDATED_${variables.cueListId}`]);
+          return pubsub.asyncIterator(['CUE_LIST_PLAYBACK_UPDATED']);
         },
         (payload: { cueListPlaybackUpdated: { cueListId: string } }, variables: { cueListId: string }) => {
           // Input validation for subscription

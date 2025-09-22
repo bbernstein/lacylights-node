@@ -35,6 +35,15 @@ class PlaybackService {
   }
 
   /**
+   * Validate cueListId input
+   */
+  private validateCueListId(cueListId: string): void {
+    if (!cueListId || typeof cueListId !== 'string') {
+      throw new Error('Invalid cueListId: must be a non-empty string');
+    }
+  }
+
+  /**
    * Get cached cues for a cue list, with automatic cache invalidation
    */
   private async getCachedCueList(cueListId: string): Promise<CueWithScene[]> {
@@ -79,9 +88,7 @@ class PlaybackService {
    */
   async getPlaybackStatus(cueListId: string): Promise<CueListPlaybackStatus> {
     // Input validation
-    if (!cueListId || typeof cueListId !== 'string') {
-      throw new Error('Invalid cueListId: must be a non-empty string');
-    }
+    this.validateCueListId(cueListId);
 
     // Check if we have cached state
     const cachedState = this.playbackStates.get(cueListId);
@@ -148,6 +155,7 @@ class PlaybackService {
    * Start playing a cue list
    */
   async startPlayback(cueListId: string): Promise<void> {
+    this.validateCueListId(cueListId);
     const cues = await this.getCachedCueList(cueListId);
     if (cues.length === 0) {
       throw new Error('Cannot start playback: cue list is empty');
@@ -166,6 +174,7 @@ class PlaybackService {
    * Stop playing a cue list
    */
   async stopPlayback(cueListId: string): Promise<void> {
+    this.validateCueListId(cueListId);
     await this.updatePlaybackStatus(cueListId, {
       isPlaying: false,
       fadeProgress: 0,
@@ -176,6 +185,7 @@ class PlaybackService {
    * Jump to a specific cue by index
    */
   async jumpToCue(cueListId: string, cueIndex: number): Promise<void> {
+    this.validateCueListId(cueListId);
     const cues = await this.getCachedCueList(cueListId);
 
     if (cueIndex < 0 || cueIndex >= cues.length) {
