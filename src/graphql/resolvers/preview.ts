@@ -97,7 +97,9 @@ export const previewResolvers = {
 // Helper function to get DMX output for a session
 async function getDMXOutput(sessionId: string) {
   const session = await previewService.getPreviewSession(sessionId);
-  if (!session) {return [];}
+  if (!session) {
+    return [];
+  }
 
   const universesUsed = new Set<number>();
   for (const channelKey of session.channelOverrides.keys()) {

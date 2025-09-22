@@ -1,4 +1,3 @@
-
 // Mock console methods
 const originalConsoleLog = console.log;
 const originalConsoleWarn = console.warn;
