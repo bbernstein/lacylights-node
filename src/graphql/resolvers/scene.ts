@@ -463,35 +463,29 @@ export const sceneResolvers = {
       });
 
       // If this scene is currently active and fixture values were updated, apply the changes to DMX output
-      if (fixtureValues && fixtureValues.length > 0) {
-        // Check if this scene is currently active
-        const currentActiveSceneId = dmxService.getCurrentActiveSceneId();
-        const isCurrentlyActive = currentActiveSceneId === sceneId;
+      if (fixtureValues && fixtureValues.length > 0 && dmxService.getCurrentActiveSceneId() === sceneId && updatedScene) {
+        // Build array of all channel values for the updated scene
+        const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
 
-        if (isCurrentlyActive && updatedScene) {
-          // Build array of all channel values for the updated scene
-          const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
+        for (const fixtureValue of updatedScene.fixtureValues) {
+          const fixture = fixtureValue.fixture;
 
-          for (const fixtureValue of updatedScene.fixtureValues) {
-            const fixture = fixtureValue.fixture;
+          // Iterate through channelValues array by index
+          for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+            const value = fixtureValue.channelValues[channelIndex];
+            const dmxChannel = fixture.startChannel + channelIndex;
 
-            // Iterate through channelValues array by index
-            for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
-              const value = fixtureValue.channelValues[channelIndex];
-              const dmxChannel = fixture.startChannel + channelIndex;
-
-              sceneChannels.push({
-                universe: fixture.universe,
-                channel: dmxChannel,
-                value: value,
-              });
-            }
+            sceneChannels.push({
+              universe: fixture.universe,
+              channel: dmxChannel,
+              value,
+            });
           }
-
-          // Apply the updated scene values immediately to DMX output
-          // Use instant fade (0 seconds) since we want immediate live updates during editing
-          fadeEngine.fadeToScene(sceneChannels, 0, `scene-${sceneId}-partial-update`);
         }
+
+        // Apply the updated scene values immediately to DMX output
+        // Use instant fade (0 seconds) since we want immediate live updates during editing
+        fadeEngine.fadeToScene(sceneChannels, 0, `scene-${sceneId}-partial-update`);
       }
 
       return updatedScene;
