@@ -215,12 +215,12 @@ async function gracefulShutdown() {
 }
 
 // Setup signal handlers for graceful shutdown
-process.on('SIGINT', (signalName: string) => {
-  logger.info(`\n📡 Received ${signalName} signal`);
+process.on('SIGINT', () => {
+  logger.info('\n📡 Received SIGINT signal');
   gracefulShutdown();
 });
-process.on('SIGTERM', (signalName: string) => {
-  logger.info(`\n📡 Received ${signalName} signal`);
+process.on('SIGTERM', () => {
+  logger.info('\n📡 Received SIGTERM signal');
   gracefulShutdown();
 });
 

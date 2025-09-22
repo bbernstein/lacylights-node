@@ -4,21 +4,41 @@
 
 export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
+const LOG_LEVELS: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
+
 class Logger {
   private logLevel: LogLevel;
 
   constructor() {
     const envLevel = process.env.LOG_LEVEL;
-    const levels: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
-    const level: LogLevel = envLevel && levels.includes(envLevel as LogLevel) ? (envLevel as LogLevel) : 'INFO';
+    const level: LogLevel = envLevel && LOG_LEVELS.includes(envLevel as LogLevel) ? (envLevel as LogLevel) : 'INFO';
     this.logLevel = level;
   }
 
   private shouldLog(level: LogLevel): boolean {
-    const levels: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
-    const currentLevelIndex = levels.indexOf(this.logLevel);
-    const messageLevelIndex = levels.indexOf(level);
+    const currentLevelIndex = LOG_LEVELS.indexOf(this.logLevel);
+    const messageLevelIndex = LOG_LEVELS.indexOf(level);
     return messageLevelIndex >= currentLevelIndex;
+  }
+
+  private serializeMeta(meta: Record<string, unknown>): Record<string, unknown> {
+    const serialized: Record<string, unknown> = {};
+
+    for (const [key, value] of Object.entries(meta)) {
+      if (value instanceof Error) {
+        // Convert Error objects to plain objects with all relevant properties
+        serialized[key] = {
+          name: value.name,
+          message: value.message,
+          stack: value.stack,
+          ...Object.getOwnPropertyDescriptor(value, 'cause') && { cause: value.cause },
+        };
+      } else {
+        serialized[key] = value;
+      }
+    }
+
+    return serialized;
   }
 
   private formatMessage(level: LogLevel, message: string, meta?: Record<string, unknown>): string {
@@ -26,7 +46,8 @@ class Logger {
     const baseMessage = `[${timestamp}] ${level}: ${message}`;
 
     if (meta) {
-      return `${baseMessage} ${JSON.stringify(meta)}`;
+      const serializedMeta = this.serializeMeta(meta);
+      return `${baseMessage} ${JSON.stringify(serializedMeta)}`;
     }
 
     return baseMessage;
