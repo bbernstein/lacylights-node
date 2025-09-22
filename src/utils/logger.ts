@@ -31,7 +31,7 @@ class Logger {
           name: value.name,
           message: value.message,
           stack: value.stack,
-          ...Object.getOwnPropertyDescriptor(value, 'cause') && { cause: value.cause },
+          ...(Object.prototype.hasOwnProperty.call(value, 'cause') ? { cause: value.cause } : {}),
         };
       } else {
         serialized[key] = value;
