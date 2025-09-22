@@ -1,5 +1,6 @@
 import { cueResolvers } from '../cue';
 import { playbackService } from '../../../services/playbackService';
+import { getPlaybackStateService } from '../../../services/playbackStateService';
 import type { Context } from '../../../context';
 
 // Mock the playback service
@@ -8,6 +9,11 @@ jest.mock('../../../services/playbackService', () => ({
     getPlaybackStatus: jest.fn(),
     invalidateCache: jest.fn(),
   },
+}));
+
+// Mock the playback state service
+jest.mock('../../../services/playbackStateService', () => ({
+  getPlaybackStateService: jest.fn(),
 }));
 
 const mockContext: Context = {
@@ -48,9 +54,14 @@ describe('Cue Resolvers', () => {
         previousCue: null,
         fadeProgress: 0,
         lastUpdated: '2023-01-01T00:00:00.000Z',
+        currentCueIndex: null,
       };
 
-      (playbackService.getPlaybackStatus as jest.Mock).mockResolvedValue(mockStatus);
+      const mockPlaybackStateService = {
+        getFormattedStatus: jest.fn().mockReturnValue(mockStatus),
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
 
       const result = await cueResolvers.Query.cueListPlaybackStatus(
         {},
@@ -58,7 +69,8 @@ describe('Cue Resolvers', () => {
       );
 
       expect(result).toEqual(mockStatus);
-      expect(playbackService.getPlaybackStatus).toHaveBeenCalledWith('test-id');
+      expect(getPlaybackStateService).toHaveBeenCalled();
+      expect(mockPlaybackStateService.getFormattedStatus).toHaveBeenCalledWith('test-id');
     });
   });
 
@@ -128,8 +140,8 @@ describe('Cue Resolvers', () => {
         sceneId: 'scene-1',
         fadeInTime: 3.0,
         fadeOutTime: 3.0,
-        followTime: null,
-        easingType: 'linear',
+        followTime: undefined,
+        easingType: 'LINEAR' as const,
         notes: 'Test notes',
       };
 
@@ -165,7 +177,7 @@ describe('Cue Resolvers', () => {
         fadeInTime: 5.0,
         fadeOutTime: 5.0,
         followTime: 2.0,
-        easingType: 'ease-in',
+        easingType: 'EASE_IN_OUT_CUBIC' as const,
         notes: 'Updated notes',
       };
 
