@@ -129,6 +129,8 @@ export const typeDefs = gql`
     currentCueIndex: Int
     isPlaying: Boolean!
     currentCue: Cue
+    nextCue: Cue
+    previousCue: Cue
     fadeProgress: Float
     lastUpdated: String!
   }
@@ -394,7 +396,8 @@ export const typeDefs = gql`
 
     # Cue Lists
     cueList(id: ID!): CueList
-    
+    cueListPlaybackStatus(cueListId: ID!): CueListPlaybackStatus
+
     # Cues
     cue(id: ID!): Cue
 
@@ -407,9 +410,6 @@ export const typeDefs = gql`
     
     # Active Scene Tracking
     currentActiveScene: Scene
-
-    # Cue List Playback Status
-    cueListPlaybackStatus(cueListId: ID!): CueListPlaybackStatus
 
     # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!

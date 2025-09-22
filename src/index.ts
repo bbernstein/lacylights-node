@@ -6,11 +6,13 @@ import http from 'http';
 import cors from 'cors';
 import { typeDefs } from './graphql/schema';
 import { resolvers } from './graphql/resolvers';
-import { createContext } from './context';
+import { createContext, cleanup } from './context';
 import { setupWebSocketServer } from './graphql/subscriptions';
 import { dmxService } from './services/dmx';
 import { fadeEngine } from './services/fadeEngine';
 import { FixtureSetupService } from './services/fixtureSetupService';
+import { playbackService } from './services/playbackService';
+import { logger } from './utils/logger';
 
 // Graceful shutdown timeout in milliseconds
 const GRACEFUL_SHUTDOWN_TIMEOUT = 10000;
@@ -74,8 +76,8 @@ async function startServer() {
 
   const PORT = process.env.PORT || 4000;
   const httpListener = httpServer.listen(PORT, () => {
-    console.log(`🚀 Server ready at http://localhost:${PORT}/graphql`);
-    console.log(`🔌 Subscriptions ready at ws://localhost:${PORT}/graphql`);
+    logger.info(`🚀 Server ready at http://localhost:${PORT}/graphql`);
+    logger.info(`🔌 Subscriptions ready at ws://localhost:${PORT}/graphql`);
   });
 
   // Return server instance for graceful shutdown
@@ -94,17 +96,17 @@ let isShuttingDown = false;
 async function gracefulShutdown() {
   // Prevent multiple concurrent shutdown attempts
   if (isShuttingDown) {
-    console.log('⚠️ Shutdown already in progress...');
+    logger.warn('⚠️ Shutdown already in progress...');
     return;
   }
   isShuttingDown = true;
   
-  console.log('🔄 Graceful shutdown initiated...');
+  logger.info('🔄 Graceful shutdown initiated...');
 
   try {
     // Close WebSocket server first to avoid "server is not running" errors
     if (serverInstances?.wsServer) {
-      console.log('🔌 Closing WebSocket server...');
+      logger.info('🔌 Closing WebSocket server...');
       try {
         // Set a timeout for WebSocket disposal to prevent hanging
         const webSocketTimeout = new Promise((_, reject) => 
@@ -115,24 +117,24 @@ async function gracefulShutdown() {
           serverInstances.wsServer.dispose(),
           webSocketTimeout
         ]);
-        console.log('✅ WebSocket server closed');
-      } catch (err: any) {
+        logger.info('✅ WebSocket server closed');
+      } catch (err: unknown) {
         // Suppress expected WebSocket disposal errors during shutdown, log unexpected ones
-        if (err && typeof err.message === 'string' && (
+        if (err && typeof err === 'object' && 'message' in err && typeof err.message === 'string' && (
           err.message.includes('server is not running') ||
           err.message.includes('WebSocket server is already closed') ||
           err.message.includes('WebSocket disposal timeout')
         )) {
-          console.log('✅ WebSocket server closed (with expected cleanup warnings)');
+          logger.info('✅ WebSocket server closed (with expected cleanup warnings)');
         } else {
-          console.error('❌ Unexpected error closing WebSocket server:', err);
+          logger.error('❌ Unexpected error closing WebSocket server:', { error: err });
         }
       }
     }
 
     // Close HTTP server after WebSocket server
     if (serverInstances?.server) {
-      console.log('🌐 Closing HTTP server...');
+      logger.info('🌐 Closing HTTP server...');
       const httpServerInstance = serverInstances.server;
       try {
         const httpTimeout = new Promise<void>((_, reject) =>
@@ -142,65 +144,83 @@ async function gracefulShutdown() {
         const httpClose = new Promise<void>((resolve, reject) => {
           httpServerInstance.close((err) => {
             if (err) {
-              console.error('❌ Error closing HTTP server:', err);
+              logger.error('❌ Error closing HTTP server:', { error: err });
               reject(err);
             } else {
-              console.log('✅ HTTP server closed');
+              logger.info('✅ HTTP server closed');
               resolve();
             }
           });
         });
 
         await Promise.race([httpClose, httpTimeout]);
-      } catch (err: any) {
-        if (err && err.message === 'HTTP server close timeout') {
-          console.log('✅ HTTP server closed (timeout - likely closed)');
+      } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'message' in err && err.message === 'HTTP server close timeout') {
+          logger.info('✅ HTTP server closed (timeout - likely closed)');
         } else {
-          console.error('❌ Error closing HTTP server:', err);
+          logger.error('❌ Error closing HTTP server:', { error: err });
         }
       }
     }
 
     // Stop services in reverse order of initialization
     // Note: These stop() methods are currently synchronous, but we wrap them in try-catch for safety
-    console.log('🎭 Stopping DMX service...');
+    logger.info('🎭 Stopping DMX service...');
     try {
       dmxService.stop();
-      console.log('✅ DMX service stopped');
+      logger.info('✅ DMX service stopped');
     } catch (err) {
-      console.error('❌ Error stopping DMX service:', err);
+      logger.error('❌ Error stopping DMX service:', { error: err });
     }
 
-    console.log('🎬 Stopping fade engine...');
+    logger.info('🎬 Stopping fade engine...');
     try {
       fadeEngine.stop();
-      console.log('✅ Fade engine stopped');
+      logger.info('✅ Fade engine stopped');
     } catch (err) {
-      console.error('❌ Error stopping fade engine:', err);
+      logger.error('❌ Error stopping fade engine:', { error: err });
     }
 
-    console.log('✅ All services stopped successfully');
+    // Cleanup playback service
+    logger.info('🎵 Cleaning up playback service...');
+    try {
+      playbackService.cleanup();
+      logger.info('✅ Playback service cleaned up');
+    } catch (err) {
+      logger.error('❌ Error cleaning up playback service:', { error: err });
+    }
+
+    // Cleanup database and PubSub connections
+    logger.info('🗄️ Cleaning up database connections...');
+    try {
+      await cleanup();
+      logger.info('✅ Database connections cleaned up');
+    } catch (err) {
+      logger.error('❌ Error cleaning up database connections:', { error: err });
+    }
+
+    logger.info('✅ All services stopped successfully');
   } catch (error) {
-    console.error('❌ Error during service cleanup:', error);
+    logger.error('❌ Error during service cleanup:', { error });
   }
 
   // Exit process
-  console.log('👋 Server shutdown complete');
+  logger.info('👋 Server shutdown complete');
   
   // Allow process to exit naturally. As a fallback, force exit after timeout.
   setTimeout(() => {
-    console.warn('⏳ Force exiting process after graceful shutdown timeout');
+    logger.warn('⏳ Force exiting process after graceful shutdown timeout');
     process.exit(1); // Exit with error code to indicate abnormal termination
   }, GRACEFUL_SHUTDOWN_TIMEOUT).unref();
 }
 
 // Setup signal handlers for graceful shutdown
 process.on('SIGINT', (signalName: string) => {
-  console.log(`\n📡 Received ${signalName} signal`);
+  logger.info(`\n📡 Received ${signalName} signal`);
   gracefulShutdown();
 });
 process.on('SIGTERM', (signalName: string) => {
-  console.log(`\n📡 Received ${signalName} signal`);
+  logger.info(`\n📡 Received ${signalName} signal`);
   gracefulShutdown();
 });
 
@@ -209,7 +229,7 @@ process.on('SIGTERM', (signalName: string) => {
 // critical errors are logged before the process exits. This helps with debugging
 // production issues. The immediate exit prevents the app from continuing in a corrupted state.
 process.on('uncaughtException', (error) => {
-  console.error('💥 Uncaught exception:', error);
+  logger.error('💥 Uncaught exception:', { error });
   // Don't attempt graceful shutdown on uncaught exceptions as the app state is corrupted
   process.exit(1);
 });
@@ -220,7 +240,7 @@ process.on('unhandledRejection', (reason, promise) => {
   const isWebSocketShutdownError = isShuttingDown && 
     reason instanceof Error && (
       // Check for error code if available (more reliable than message)
-      (reason as any).code === 'ERR_SERVER_NOT_RUNNING' ||
+      (reason as NodeJS.ErrnoException).code === 'ERR_SERVER_NOT_RUNNING' ||
       // Fallback to message content check for common WebSocket errors
       reason.message.includes('server is not running') ||
       reason.message.includes('WebSocket server is already closed')
@@ -228,11 +248,11 @@ process.on('unhandledRejection', (reason, promise) => {
   
   if (isWebSocketShutdownError) {
     // WebSocket cleanup errors during shutdown are expected, just log as debug
-    console.log('🔌 WebSocket cleanup completed (suppressing expected error)');
+    logger.info('🔌 WebSocket cleanup completed (suppressing expected error)');
     return;
   }
   
-  console.error('💥 Unhandled rejection at:', promise, 'reason:', reason);
+  logger.error('💥 Unhandled rejection at:', { promise, reason });
   // Unhandled rejections are less likely to corrupt app state, so attempt graceful shutdown
   // Check if not already shutting down to prevent race conditions
   if (!isShuttingDown) {
@@ -245,6 +265,6 @@ startServer()
     serverInstances = instances;
   })
   .catch((error) => {
-    console.error('Failed to start server:', error);
+    logger.error('Failed to start server:', { error });
     process.exit(1);
   });

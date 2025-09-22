@@ -3,7 +3,7 @@ import { previewService } from '../../services/previewService';
 
 export const previewResolvers = {
   Query: {
-    previewSession: async (_: any, { sessionId }: { sessionId: string }, context: Context) => {
+    previewSession: async (_: unknown, { sessionId }: { sessionId: string }, context: Context) => {
       const session = await previewService.getPreviewSession(sessionId);
       if (!session) {
         throw new Error('Preview session not found');
@@ -25,7 +25,7 @@ export const previewResolvers = {
   },
 
   Mutation: {
-    startPreviewSession: async (_: any, { projectId }: { projectId: string }, context: Context) => {
+    startPreviewSession: async (_: unknown, { projectId }: { projectId: string }, context: Context) => {
       // Verify project exists
       const project = await context.prisma.project.findUnique({
         where: { id: projectId },
@@ -47,31 +47,31 @@ export const previewResolvers = {
       };
     },
 
-    commitPreviewSession: async (_: any, { sessionId }: { sessionId: string }, context: Context) => {
+    commitPreviewSession: async (_: unknown, { sessionId }: { sessionId: string }, _context: Context) => {
       return await previewService.commitPreviewSession(sessionId);
     },
 
-    cancelPreviewSession: async (_: any, { sessionId }: { sessionId: string }, context: Context) => {
+    cancelPreviewSession: async (_: unknown, { sessionId }: { sessionId: string }, _context: Context) => {
       return await previewService.cancelPreviewSession(sessionId);
     },
 
     updatePreviewChannel: async (
-      _: any,
+      _: unknown,
       { sessionId, fixtureId, channelIndex, value }: {
         sessionId: string;
         fixtureId: string;
         channelIndex: number;
         value: number;
       },
-      context: Context
+      _context: Context
     ) => {
       return await previewService.updateChannelValue(sessionId, fixtureId, channelIndex, value);
     },
 
     initializePreviewWithScene: async (
-      _: any,
+      _: unknown,
       { sessionId, sceneId }: { sessionId: string; sceneId: string },
-      context: Context
+      _context: Context
     ) => {
       return await previewService.initializeWithScene(sessionId, sceneId);
     },
@@ -79,13 +79,13 @@ export const previewResolvers = {
 
   Subscription: {
     previewSessionUpdated: {
-      subscribe: (_: any, { projectId }: { projectId: string }, context: Context) => {
+      subscribe: (_: unknown, { projectId: _projectId }: { projectId: string }, context: Context) => {
         return context.pubsub.asyncIterator(['PREVIEW_SESSION_UPDATED']);
       },
     },
 
     dmxOutputChanged: {
-      subscribe: (_: any, { universe }: { universe?: number }, context: Context) => {
+      subscribe: (_: unknown, { universe: _universe }: { universe?: number }, context: Context) => {
         return context.pubsub.asyncIterator(['DMX_OUTPUT_CHANGED']);
       },
     },
@@ -97,7 +97,9 @@ export const previewResolvers = {
 // Helper function to get DMX output for a session
 async function getDMXOutput(sessionId: string) {
   const session = await previewService.getPreviewSession(sessionId);
-  if (!session) return [];
+  if (!session) {
+    return [];
+  }
 
   const universesUsed = new Set<number>();
   for (const channelKey of session.channelOverrides.keys()) {

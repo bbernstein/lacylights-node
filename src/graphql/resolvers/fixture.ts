@@ -1,10 +1,22 @@
 import { Context } from '../../context';
-import { ChannelType } from '@prisma/client';
+import { ChannelType, FixtureType } from '@prisma/client';
+
+// Input types for GraphQL queries and mutations
+export interface FixtureDefinitionFilter {
+  manufacturer?: string;
+  model?: string;
+  type?: FixtureType;
+  isBuiltIn?: boolean;
+  channelTypes?: ChannelType[];
+}
+
+// Note: Interface definitions removed as they are not used in current resolvers
+// They would be needed when implementing create/update mutations
 
 export const fixtureResolvers = {
   Query: {
-    fixtureDefinitions: async (_: any, { filter }: { filter?: any }, { prisma }: Context) => {
-      const where: any = {};
+    fixtureDefinitions: async (_: unknown, { filter }: { filter?: FixtureDefinitionFilter }, { prisma }: Context) => {
+      const where: Record<string, unknown> = {};
       
       if (filter) {
         if (filter.manufacturer) {
@@ -202,11 +214,11 @@ export const fixtureResolvers = {
     updateFixtureInstance: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
       // Only include fields that are provided in the input
       const updateData: any = {};
-      if (input.name !== undefined) updateData.name = input.name;
-      if (input.description !== undefined) updateData.description = input.description;
-      if (input.universe !== undefined) updateData.universe = input.universe;
-      if (input.startChannel !== undefined) updateData.startChannel = input.startChannel;
-      if (input.tags !== undefined) updateData.tags = input.tags;
+      if (input.name !== undefined) {updateData.name = input.name;}
+      if (input.description !== undefined) {updateData.description = input.description;}
+      if (input.universe !== undefined) {updateData.universe = input.universe;}
+      if (input.startChannel !== undefined) {updateData.startChannel = input.startChannel;}
+      if (input.tags !== undefined) {updateData.tags = input.tags;}
 
       // If definitionId or modeId is changed, update flattened fields
       if (input.definitionId !== undefined || input.modeId !== undefined) {

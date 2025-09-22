@@ -1,15 +1,66 @@
-import { Context } from '../../context';
+import type { Context, WebSocketContext } from '../../context';
 import { withFilter } from 'graphql-subscriptions';
+import { logger } from '../../utils/logger';
+import { playbackService } from '../../services/playbackService';
 import { getPlaybackStateService } from '../../services/playbackStateService';
+import type { EasingType } from '@prisma/client';
+
+// Input types for GraphQL mutations
+export interface CreateCueListInput {
+  name: string;
+  description?: string;
+  projectId: string;
+}
+
+export interface UpdateCueListInput {
+  name?: string;
+  description?: string;
+}
+
+export interface CreateCueInput {
+  name: string;
+  cueNumber: number;
+  cueListId: string;
+  sceneId: string;
+  fadeInTime?: number;
+  fadeOutTime?: number;
+  followTime?: number;
+  easingType?: EasingType;
+  notes?: string;
+}
+
+export interface UpdateCueInput {
+  name?: string;
+  cueNumber?: number;
+  sceneId?: string;
+  fadeInTime?: number;
+  fadeOutTime?: number;
+  followTime?: number;
+  easingType?: EasingType;
+  notes?: string;
+}
+
+export interface CueOrder {
+  cueId: string;
+  cueNumber: number;
+}
+
+export interface BulkUpdateCuesInput {
+  cueIds: string[];
+  fadeInTime?: number;
+  fadeOutTime?: number;
+  followTime?: number;
+  easingType?: EasingType;
+}
 
 export const cueResolvers = {
   Query: {
-    cueListPlaybackStatus: async (_: any, { cueListId }: { cueListId: string }) => {
-      const playbackService = getPlaybackStateService();
-      return playbackService.getFormattedStatus(cueListId);
+    cueListPlaybackStatus: async (_: unknown, { cueListId }: { cueListId: string }) => {
+      const playbackStateService = getPlaybackStateService();
+      return playbackStateService.getFormattedStatus(cueListId);
     },
 
-    cueList: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    cueList: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
       return prisma.cueList.findUnique({
         where: { id },
         include: {
@@ -26,7 +77,7 @@ export const cueResolvers = {
       });
     },
 
-    cue: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    cue: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
       return prisma.cue.findUnique({
         where: { id },
         include: {
@@ -38,7 +89,7 @@ export const cueResolvers = {
   },
 
   Mutation: {
-    createCueList: async (_: any, { input }: any, { prisma }: Context) => {
+    createCueList: async (_: unknown, { input }: { input: CreateCueListInput }, { prisma }: Context) => {
       return prisma.cueList.create({
         data: {
           name: input.name,
@@ -59,7 +110,7 @@ export const cueResolvers = {
       });
     },
 
-    updateCueList: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
+    updateCueList: async (_: unknown, { id, input }: { id: string; input: UpdateCueListInput }, { prisma }: Context) => {
       return prisma.cueList.update({
         where: { id },
         data: {
@@ -80,15 +131,15 @@ export const cueResolvers = {
       });
     },
 
-    deleteCueList: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    deleteCueList: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
       await prisma.cueList.delete({
         where: { id },
       });
       return true;
     },
 
-    createCue: async (_: any, { input }: any, { prisma }: Context) => {
-      return prisma.cue.create({
+    createCue: async (_: unknown, { input }: { input: CreateCueInput }, { prisma }: Context) => {
+      const newCue = await prisma.cue.create({
         data: {
           name: input.name,
           cueNumber: input.cueNumber,
@@ -104,10 +155,25 @@ export const cueResolvers = {
           scene: true,
         },
       });
+
+      // Invalidate cache since cue list structure changed
+      playbackService.invalidateCache(input.cueListId);
+
+      return newCue;
     },
 
-    updateCue: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
-      return prisma.cue.update({
+    updateCue: async (_: unknown, { id, input }: { id: string; input: UpdateCueInput }, { prisma }: Context) => {
+      // First get the cue to find its cueListId
+      const existingCue = await prisma.cue.findUnique({
+        where: { id },
+        select: { cueListId: true },
+      });
+
+      if (!existingCue) {
+        throw new Error(`Cue with ID ${id} not found`);
+      }
+
+      const updatedCue = await prisma.cue.update({
         where: { id },
         data: {
           name: input.name,
@@ -123,18 +189,37 @@ export const cueResolvers = {
           scene: true,
         },
       });
+
+      // Invalidate cache since cue properties changed
+      playbackService.invalidateCache(existingCue.cueListId);
+
+      return updatedCue;
     },
 
-    deleteCue: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    deleteCue: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
+      // First get the cue to find its cueListId
+      const existingCue = await prisma.cue.findUnique({
+        where: { id },
+        select: { cueListId: true },
+      });
+
+      if (!existingCue) {
+        throw new Error(`Cue with ID ${id} not found`);
+      }
+
       await prisma.cue.delete({
         where: { id },
       });
+
+      // Invalidate cache since cue list structure changed
+      playbackService.invalidateCache(existingCue.cueListId);
+
       return true;
     },
 
     reorderCues: async (
-      _: any,
-      { cueListId, cueOrders }: { cueListId: string; cueOrders: Array<{ cueId: string; cueNumber: number }> },
+      _: unknown,
+      { cueListId, cueOrders }: { cueListId: string; cueOrders: CueOrder[] },
       { prisma }: Context
     ) => {
       // Verify the cue list exists
@@ -177,11 +262,14 @@ export const cueResolvers = {
         );
       });
 
+      // Invalidate cache since cue order changed
+      playbackService.invalidateCache(cueListId);
+
       return true;
     },
 
-    startCueList: async (_: any, { cueListId, startFromCue }: { cueListId: string; startFromCue?: number }, { prisma }: Context) => {
-      const playbackService = getPlaybackStateService();
+    startCueList: async (_: unknown, { cueListId, startFromCue }: { cueListId: string; startFromCue?: number }, { prisma }: Context) => {
+      const playbackStateService = getPlaybackStateService();
 
       // Get the cue list with cues
       const cueList = await prisma.cueList.findUnique({
@@ -203,13 +291,13 @@ export const cueResolvers = {
         throw new Error('Invalid cue index');
       }
 
-      await playbackService.startCue(cueListId, startIndex, cueList.cues[startIndex]);
+      await playbackStateService.startCue(cueListId, startIndex, cueList.cues[startIndex]);
       return true;
     },
 
-    nextCue: async (_: any, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
-      const playbackService = getPlaybackStateService();
-      const currentState = playbackService.getPlaybackState(cueListId);
+    nextCue: async (_: unknown, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+      const playbackStateService = getPlaybackStateService();
+      const currentState = playbackStateService.getPlaybackState(cueListId);
 
       if (!currentState || currentState.currentCueIndex === null) {
         throw new Error('No active playback for this cue list');
@@ -241,9 +329,9 @@ export const cueResolvers = {
       return true;
     },
 
-    previousCue: async (_: any, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
-      const playbackService = getPlaybackStateService();
-      const currentState = playbackService.getPlaybackState(cueListId);
+    previousCue: async (_: unknown, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+      const playbackStateService = getPlaybackStateService();
+      const currentState = playbackStateService.getPlaybackState(cueListId);
 
       if (!currentState || currentState.currentCueIndex === null) {
         throw new Error('No active playback for this cue list');
@@ -279,7 +367,7 @@ export const cueResolvers = {
       return true;
     },
 
-    goToCue: async (_: any, { cueListId, cueIndex, fadeInTime }: { cueListId: string; cueIndex: number; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+    goToCue: async (_: unknown, { cueListId, cueIndex, fadeInTime }: { cueListId: string; cueIndex: number; fadeInTime?: number }, { prisma, pubsub }: Context) => {
 
       // Get the cue list
       const cueList = await prisma.cueList.findUnique({
@@ -305,15 +393,15 @@ export const cueResolvers = {
       return true;
     },
 
-    stopCueList: async (_: any, { cueListId }: { cueListId: string }) => {
-      const playbackService = getPlaybackStateService();
-      playbackService.stopCueList(cueListId);
+    stopCueList: async (_: unknown, { cueListId }: { cueListId: string }) => {
+      const playbackStateService = getPlaybackStateService();
+      playbackStateService.stopCueList(cueListId);
       return true;
     },
 
     bulkUpdateCues: async (
-      _: any,
-      { input }: { input: { cueIds: string[]; fadeInTime?: number; fadeOutTime?: number; followTime?: number; easingType?: string } },
+      _: unknown,
+      { input }: { input: BulkUpdateCuesInput },
       { prisma }: Context
     ) => {
       // Verify all cues exist first
@@ -335,7 +423,7 @@ export const cueResolvers = {
       }
 
       // Build update data - only include fields that are provided
-      const updateData: any = {};
+      const updateData: Partial<Pick<BulkUpdateCuesInput, 'fadeInTime' | 'fadeOutTime' | 'followTime' | 'easingType'>> = {};
       if (input.fadeInTime !== undefined) {updateData.fadeInTime = input.fadeInTime;}
       if (input.fadeOutTime !== undefined) {updateData.fadeOutTime = input.fadeOutTime;}
       if (input.followTime !== undefined) {updateData.followTime = input.followTime;}
@@ -358,12 +446,18 @@ export const cueResolvers = {
         )
       );
 
+      // Invalidate cache for all affected cue lists
+      const affectedCueListIds = new Set(existingCues.map(cue => cue.cueListId));
+      for (const cueListId of affectedCueListIds) {
+        playbackService.invalidateCache(cueListId);
+      }
+
       return updatedCues;
     },
   },
 
   Cue: {
-    cueList: async (parent: any, _: any, { prisma }: Context) => {
+    cueList: async (parent: { cueListId: string }, _: unknown, { prisma }: Context) => {
       return prisma.cueList.findUnique({
         where: { id: parent.cueListId },
         include: {
@@ -381,22 +475,8 @@ export const cueResolvers = {
     },
   },
 
-  Subscription: {
-    cueListPlaybackUpdated: {
-      subscribe: withFilter(
-        (_: any, variables: { cueListId: string }, { pubsub }: Context) => {
-          return pubsub.asyncIterator([`CUE_LIST_PLAYBACK_UPDATED_${variables.cueListId}`]);
-        },
-        (payload: any, variables: { cueListId: string }) => {
-          return payload.cueListPlaybackUpdated.cueListId === variables.cueListId;
-        }
-      ),
-      resolve: (payload: any) => payload.cueListPlaybackUpdated,
-    },
-  },
-
   CueListPlaybackStatus: {
-    currentCue: async (parent: any, _: any, { prisma }: Context) => {
+    currentCue: async (parent: any, _: unknown, { prisma }: Context) => {
       if (!parent.currentCue || !parent.currentCue.id) {
         return null;
       }
@@ -408,6 +488,26 @@ export const cueResolvers = {
           cueList: true,
         },
       });
+    },
+  },
+
+  Subscription: {
+    cueListPlaybackUpdated: {
+      subscribe: withFilter(
+        (_: unknown, variables: { cueListId: string }, { pubsub }: WebSocketContext) => {
+          return pubsub.asyncIterator([`CUE_LIST_PLAYBACK_UPDATED_${variables.cueListId}`]);
+        },
+        (payload: { cueListPlaybackUpdated: { cueListId: string } }, variables: { cueListId: string }) => {
+          // Input validation for subscription
+          if (!variables.cueListId || typeof variables.cueListId !== 'string') {
+            logger.warn('Invalid cueListId in subscription filter', { cueListId: variables.cueListId });
+            return false;
+          }
+
+          return payload.cueListPlaybackUpdated.cueListId === variables.cueListId;
+        }
+      ),
+      resolve: (payload: any) => payload.cueListPlaybackUpdated,
     },
   },
 

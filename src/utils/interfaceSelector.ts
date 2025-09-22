@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import * as readline from 'readline';
 import { getNetworkInterfaces, formatInterfaceTable } from './networkInterfaces';
+import { logger } from './logger';
 
 export async function selectNetworkInterface(): Promise<string | null> {
   // Check if ARTNET_BROADCAST is already set
@@ -124,7 +125,7 @@ export async function selectNetworkInterface(): Promise<string | null> {
     
     return selected.broadcast;
   } catch (error) {
-    console.error('❌ Error during interface selection:', error);
+    logger.error('Error during interface selection', { error });
     console.log('   Using default broadcast address: 255.255.255.255');
     return '255.255.255.255';
   }

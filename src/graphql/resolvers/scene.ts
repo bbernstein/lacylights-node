@@ -1,4 +1,6 @@
 import { Context } from '../../context';
+import { dmxService } from '../../services/dmx';
+import { fadeEngine } from '../../services/fadeEngine';
 
 // Type definitions for fixture values
 export interface FixtureValueInput {
@@ -144,24 +146,28 @@ export const sceneResolvers = {
     },
 
     updateScene: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
+      // Check if this scene is currently active
+      const currentActiveSceneId = dmxService.getCurrentActiveSceneId();
+      const isCurrentlyActive = currentActiveSceneId === id;
+
       // Build update data object dynamically based on what's provided
       const updateData: any = {};
-      
+
       if (input.name !== undefined) {
         updateData.name = input.name;
       }
-      
+
       if (input.description !== undefined) {
         updateData.description = input.description;
       }
-      
+
       // If fixtureValues are provided, we need to replace all existing values
       if (input.fixtureValues) {
         // First, delete all existing fixture values for this scene
         await prisma.fixtureValue.deleteMany({
           where: { sceneId: id },
         });
-        
+
         // Then create new fixture values
         updateData.fixtureValues = {
           create: input.fixtureValues.map((fv: any) => ({
@@ -171,8 +177,8 @@ export const sceneResolvers = {
           })),
         };
       }
-      
-      return prisma.scene.update({
+
+      const updatedScene = await prisma.scene.update({
         where: { id },
         data: updateData,
         include: {
@@ -194,6 +200,35 @@ export const sceneResolvers = {
           },
         },
       });
+
+      // If this scene is currently active and fixture values were updated, apply the changes to DMX output
+      if (isCurrentlyActive && input.fixtureValues) {
+
+        // Build array of all channel values for the updated scene
+        const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
+
+        for (const fixtureValue of updatedScene.fixtureValues) {
+          const fixture = fixtureValue.fixture;
+
+          // Iterate through channelValues array by index
+          for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+            const value = fixtureValue.channelValues[channelIndex];
+            const dmxChannel = fixture.startChannel + channelIndex;
+
+            sceneChannels.push({
+              universe: fixture.universe,
+              channel: dmxChannel,
+              value: value,
+            });
+          }
+        }
+
+        // Apply the updated scene values immediately to DMX output
+        // Use instant fade (0 seconds) since we want immediate live updates during editing
+        fadeEngine.fadeToScene(sceneChannels, 0, `scene-${id}-update`);
+      }
+
+      return updatedScene;
     },
 
     duplicateScene: async (_: any, { id }: { id: string }, { prisma }: Context) => {
