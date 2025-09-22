@@ -8,7 +8,9 @@ class Logger {
   private logLevel: LogLevel;
 
   constructor() {
-    const level = process.env.LOG_LEVEL as LogLevel || 'INFO';
+    const envLevel = process.env.LOG_LEVEL;
+    const levels: LogLevel[] = ['DEBUG', 'INFO', 'WARN', 'ERROR'];
+    const level: LogLevel = envLevel && levels.includes(envLevel as LogLevel) ? (envLevel as LogLevel) : 'INFO';
     this.logLevel = level;
   }
 
