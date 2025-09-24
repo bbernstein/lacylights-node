@@ -17,9 +17,9 @@ beforeAll(async () => {
     prisma = new PrismaClient({
       datasources: {
         db: {
-          url: process.env.DATABASE_URL
-        }
-      }
+          url: process.env.DATABASE_URL,
+        },
+      },
     });
 
     // Connect to database with a short timeout
@@ -59,7 +59,7 @@ beforeEach(async () => {
     } catch (error) {
       // If database cleanup fails, just warn - don't fail the test
       // eslint-disable-next-line no-console
-      console.warn('Database cleanup failed:', error instanceof Error ? error.message : String(error));
+      console.warn('Database cleanup failed:', error);
     }
   }
 });
