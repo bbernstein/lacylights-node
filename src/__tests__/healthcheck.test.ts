@@ -1,8 +1,14 @@
-import http from "http";
+// Mock the http module before any imports
+const mockRequest = {
+  on: jest.fn(),
+  end: jest.fn(),
+  destroy: jest.fn(),
+};
 
-// Mock the http module
+const mockHttpRequest = jest.fn().mockReturnValue(mockRequest);
+
 jest.mock("http", () => ({
-  request: jest.fn(),
+  request: mockHttpRequest,
 }));
 
 // Track exit codes
@@ -18,45 +24,34 @@ const mockProcessExit = jest
   });
 
 describe("healthcheck", () => {
-  let mockRequest: any;
-
   beforeEach(() => {
     jest.clearAllMocks();
     mockProcessExit.mockClear();
+    mockRequest.on.mockClear();
+    mockRequest.end.mockClear();
+    mockRequest.destroy.mockClear();
+    mockHttpRequest.mockClear();
+
     // Reset the exit code tracker
     capturedExitCode = null;
-
-    mockRequest = {
-      on: jest.fn(),
-      end: jest.fn(),
-      destroy: jest.fn(),
-    };
-
-    (http.request as jest.Mock).mockReturnValue(mockRequest);
   });
-
-  const dynamicImport = async () => {
-    // Clear module cache and import healthcheck
-    jest.resetModules();
-    await import("../healthcheck");
-  };
 
   it("should exit with code 0 when health check returns status 200", async () => {
     const mockResponse = { statusCode: 200 };
 
-    // Mock the request callback to be called with successful response
-    (http.request as jest.Mock).mockImplementation((_options, callback) => {
-      // Call the callback immediately with successful response
+    // Configure mock to call callback immediately with successful response
+    mockHttpRequest.mockImplementation((_options, callback) => {
       callback(mockResponse);
       return mockRequest;
     });
 
-    await dynamicImport();
+    // Import the healthcheck module to trigger execution
+    await import("../healthcheck");
 
     expect(mockProcessExit).toHaveBeenCalledWith(0);
     expect(capturedExitCode).toBe(0);
 
-    expect(http.request).toHaveBeenCalledWith(
+    expect(mockHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         hostname: "localhost",
         port: process.env.PORT || 4000,
@@ -66,31 +61,32 @@ describe("healthcheck", () => {
       }),
       expect.any(Function),
     );
+    expect(mockRequest.end).toHaveBeenCalled();
   });
 
   it("should exit with code 1 when health check returns non-200 status", async () => {
     const mockResponse = { statusCode: 500 };
 
-    // Mock the request callback to be called with error response
-    (http.request as jest.Mock).mockImplementation((_options, callback) => {
+    // Configure mock to call callback with error response
+    mockHttpRequest.mockImplementation((_options, callback) => {
       callback(mockResponse);
       return mockRequest;
     });
 
-    await dynamicImport();
+    await import("../healthcheck");
 
     expect(mockProcessExit).toHaveBeenCalledWith(1);
     expect(capturedExitCode).toBe(1);
   });
 
   it("should exit with code 1 on request error", async () => {
-    (http.request as jest.Mock).mockImplementation((_options, _callback) => {
-      return mockRequest;
-    });
+    // Configure mock to return request object without calling callback
+    mockHttpRequest.mockImplementation(() => mockRequest);
 
-    await dynamicImport();
+    await import("../healthcheck");
 
-    // Simulate error event
+    // Find and trigger the error callback
+    expect(mockRequest.on).toHaveBeenCalledWith("error", expect.any(Function));
     const errorCallback = mockRequest.on.mock.calls.find(
       (call: any[]) => call[0] === "error",
     )[1];
@@ -102,13 +98,13 @@ describe("healthcheck", () => {
   });
 
   it("should exit with code 1 on request timeout", async () => {
-    (http.request as jest.Mock).mockImplementation((_options, _callback) => {
-      return mockRequest;
-    });
+    // Configure mock to return request object
+    mockHttpRequest.mockImplementation(() => mockRequest);
 
-    await dynamicImport();
+    await import("../healthcheck");
 
-    // Simulate timeout event
+    // Find and trigger the timeout callback
+    expect(mockRequest.on).toHaveBeenCalledWith("timeout", expect.any(Function));
     const timeoutCallback = mockRequest.on.mock.calls.find(
       (call: any[]) => call[0] === "timeout",
     )[1];
@@ -124,11 +120,11 @@ describe("healthcheck", () => {
     const originalPort = process.env.PORT;
     process.env.PORT = "8080";
 
-    (http.request as jest.Mock).mockReturnValue(mockRequest);
+    mockHttpRequest.mockReturnValue(mockRequest);
 
-    await dynamicImport();
+    await import("../healthcheck");
 
-    expect(http.request).toHaveBeenCalledWith(
+    expect(mockHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
         port: "8080",
       }),
@@ -144,9 +140,9 @@ describe("healthcheck", () => {
   });
 
   it("should call request.end() to send the request", async () => {
-    (http.request as jest.Mock).mockReturnValue(mockRequest);
+    mockHttpRequest.mockReturnValue(mockRequest);
 
-    await dynamicImport();
+    await import("../healthcheck");
 
     expect(mockRequest.end).toHaveBeenCalled();
   });
