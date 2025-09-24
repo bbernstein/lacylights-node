@@ -1,9 +1,9 @@
-import { ApolloServer } from '@apollo/server';
-import { typeDefs } from '../schema';
-import { resolvers } from '../resolvers';
-import { PrismaClient } from '@prisma/client';
-import { PubSub } from 'graphql-subscriptions';
-import { Context } from '../../context';
+import { ApolloServer } from "@apollo/server";
+import { typeDefs } from "../schema";
+import { resolvers } from "../resolvers";
+import { PrismaClient } from "@prisma/client";
+import { PubSub } from "graphql-subscriptions";
+import { Context } from "../../context";
 
 // Types for GraphQL responses
 interface Project {
@@ -20,7 +20,7 @@ interface CreateProjectData {
   createProject?: Project;
 }
 
-describe('Project GraphQL Resolvers', () => {
+describe("Project GraphQL Resolvers", () => {
   let server: ApolloServer<Context>;
   let prisma: PrismaClient;
   let pubsub: PubSub;
@@ -45,9 +45,9 @@ describe('Project GraphQL Resolvers', () => {
     await prisma.projectUser.deleteMany();
     await prisma.project.deleteMany();
     await prisma.user.deleteMany();
-    
+
     // Wait a bit to avoid race conditions
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   const createTestContext = (): Context => ({
@@ -57,8 +57,8 @@ describe('Project GraphQL Resolvers', () => {
     res: {} as any,
   });
 
-  describe('Query.projects', () => {
-    it('should return empty array when no projects exist', async () => {
+  describe("Query.projects", () => {
+    it("should return empty array when no projects exist", async () => {
       const response = await server.executeOperation(
         {
           query: `
@@ -73,22 +73,22 @@ describe('Project GraphQL Resolvers', () => {
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.projects).toEqual([]);
       }
     });
 
-    it('should return projects when they exist', async () => {
+    it("should return projects when they exist", async () => {
       // Create test project
       const testProject = await prisma.project.create({
         data: {
-          name: 'Test Project',
-          description: 'A test project',
+          name: "Test Project",
+          description: "A test project",
         },
       });
 
@@ -106,29 +106,29 @@ describe('Project GraphQL Resolvers', () => {
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.projects).toHaveLength(1);
         const data = response.body.singleResult.data as ProjectsQueryData;
         expect(data?.projects?.[0]).toMatchObject({
           id: testProject.id,
-          name: 'Test Project',
-          description: 'A test project',
+          name: "Test Project",
+          description: "A test project",
         });
       }
     });
   });
 
-  describe('Query.project', () => {
-    it('should return project by id', async () => {
+  describe("Query.project", () => {
+    it("should return project by id", async () => {
       const testProject = await prisma.project.create({
         data: {
-          name: 'Test Project',
-          description: 'A test project',
+          name: "Test Project",
+          description: "A test project",
         },
       });
 
@@ -147,21 +147,21 @@ describe('Project GraphQL Resolvers', () => {
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.project).toMatchObject({
           id: testProject.id,
-          name: 'Test Project',
-          description: 'A test project',
+          name: "Test Project",
+          description: "A test project",
         });
       }
     });
 
-    it('should return null for non-existent project', async () => {
+    it("should return null for non-existent project", async () => {
       const response = await server.executeOperation(
         {
           query: `
@@ -172,23 +172,23 @@ describe('Project GraphQL Resolvers', () => {
               }
             }
           `,
-          variables: { id: 'non-existent-id' },
+          variables: { id: "non-existent-id" },
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.project).toBeNull();
       }
     });
   });
 
-  describe('Mutation.createProject', () => {
-    it('should create a new project', async () => {
+  describe("Mutation.createProject", () => {
+    it("should create a new project", async () => {
       const response = await server.executeOperation(
         {
           query: `
@@ -202,23 +202,23 @@ describe('Project GraphQL Resolvers', () => {
           `,
           variables: {
             input: {
-              name: 'New Project',
-              description: 'A new test project',
+              name: "New Project",
+              description: "A new test project",
             },
           },
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         const data = response.body.singleResult.data as CreateProjectData;
         expect(data?.createProject).toMatchObject({
-          name: 'New Project',
-          description: 'A new test project',
+          name: "New Project",
+          description: "A new test project",
         });
         expect(data?.createProject?.id).toBeDefined();
       }
@@ -226,10 +226,10 @@ describe('Project GraphQL Resolvers', () => {
       // Verify project was created in database
       const projects = await prisma.project.findMany();
       expect(projects).toHaveLength(1);
-      expect(projects[0].name).toBe('New Project');
+      expect(projects[0].name).toBe("New Project");
     });
 
-    it('should create project without description', async () => {
+    it("should create project without description", async () => {
       const response = await server.executeOperation(
         {
           query: `
@@ -243,32 +243,32 @@ describe('Project GraphQL Resolvers', () => {
           `,
           variables: {
             input: {
-              name: 'Project Without Description',
+              name: "Project Without Description",
             },
           },
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.createProject).toMatchObject({
-          name: 'Project Without Description',
+          name: "Project Without Description",
           description: null,
         });
       }
     });
   });
 
-  describe('Mutation.updateProject', () => {
-    it('should update existing project', async () => {
+  describe("Mutation.updateProject", () => {
+    it("should update existing project", async () => {
       const testProject = await prisma.project.create({
         data: {
-          name: 'Original Name',
-          description: 'Original description',
+          name: "Original Name",
+          description: "Original description",
         },
       });
 
@@ -286,34 +286,34 @@ describe('Project GraphQL Resolvers', () => {
           variables: {
             id: testProject.id,
             input: {
-              name: 'Updated Name',
-              description: 'Updated description',
+              name: "Updated Name",
+              description: "Updated description",
             },
           },
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.updateProject).toMatchObject({
           id: testProject.id,
-          name: 'Updated Name',
-          description: 'Updated description',
+          name: "Updated Name",
+          description: "Updated description",
         });
       }
     });
   });
 
-  describe('Mutation.deleteProject', () => {
-    it('should delete existing project', async () => {
+  describe("Mutation.deleteProject", () => {
+    it("should delete existing project", async () => {
       const testProject = await prisma.project.create({
         data: {
-          name: 'Project to Delete',
-          description: 'This project will be deleted',
+          name: "Project to Delete",
+          description: "This project will be deleted",
         },
       });
 
@@ -328,11 +328,11 @@ describe('Project GraphQL Resolvers', () => {
         },
         {
           contextValue: createTestContext(),
-        }
+        },
       );
 
-      expect(response.body.kind).toBe('single');
-      if (response.body.kind === 'single') {
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
         expect(response.body.singleResult.errors).toBeUndefined();
         expect(response.body.singleResult.data?.deleteProject).toBe(true);
       }

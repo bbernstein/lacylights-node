@@ -1,4 +1,4 @@
-import { Context } from '../../context';
+import { Context } from "../../context";
 
 export const projectResolvers = {
   Query: {
@@ -73,7 +73,11 @@ export const projectResolvers = {
       });
     },
 
-    deleteProject: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    deleteProject: async (
+      _: any,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       await prisma.project.delete({ where: { id } });
       return true;
     },
@@ -93,12 +97,12 @@ export const projectResolvers = {
         return prisma.fixtureInstance.findMany({
           where: { projectId: parent.id },
           orderBy: [
-            { projectOrder: 'asc' },
-            { createdAt: 'asc' } // Fallback for fixtures without order
+            { projectOrder: "asc" },
+            { createdAt: "asc" }, // Fallback for fixtures without order
           ],
           include: {
             channels: {
-              orderBy: { offset: 'asc' },
+              orderBy: { offset: "asc" },
             },
             // Include legacy fields for backward compatibility
             definition: {
@@ -147,7 +151,7 @@ export const projectResolvers = {
                 scene: true,
               },
               orderBy: {
-                cueNumber: 'asc',
+                cueNumber: "asc",
               },
             },
           },

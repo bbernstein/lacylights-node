@@ -18,13 +18,15 @@ module.exports = {
   coverageDirectory: 'coverage',
   coverageReporters: [
     'text',
+    'text-summary',
     'lcov',
     'html'
   ],
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
   testTimeout: 30000,
-  verbose: true,
+  verbose: false,
   forceExit: true,
+  detectOpenHandles: false,
   clearMocks: true,
   restoreMocks: true,
   resetMocks: true,

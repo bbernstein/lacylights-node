@@ -1,5 +1,5 @@
-import { Context } from '../../context';
-import { ChannelType, FixtureType } from '@prisma/client';
+import { Context } from "../../context";
+import { ChannelType, FixtureType } from "@prisma/client";
 
 // Input types for GraphQL queries and mutations
 export interface FixtureDefinitionFilter {
@@ -15,32 +15,36 @@ export interface FixtureDefinitionFilter {
 
 export const fixtureResolvers = {
   Query: {
-    fixtureDefinitions: async (_: unknown, { filter }: { filter?: FixtureDefinitionFilter }, { prisma }: Context) => {
+    fixtureDefinitions: async (
+      _: unknown,
+      { filter }: { filter?: FixtureDefinitionFilter },
+      { prisma }: Context,
+    ) => {
       const where: Record<string, unknown> = {};
-      
+
       if (filter) {
         if (filter.manufacturer) {
           where.manufacturer = {
             contains: filter.manufacturer,
-            mode: 'insensitive',
+            mode: "insensitive",
           };
         }
-        
+
         if (filter.model) {
           where.model = {
             contains: filter.model,
-            mode: 'insensitive',
+            mode: "insensitive",
           };
         }
-        
+
         if (filter.type !== undefined) {
           where.type = filter.type;
         }
-        
+
         if (filter.isBuiltIn !== undefined) {
           where.isBuiltIn = filter.isBuiltIn;
         }
-        
+
         if (filter.channelTypes && filter.channelTypes.length > 0) {
           where.channels = {
             some: {
@@ -63,7 +67,7 @@ export const fixtureResolvers = {
                   channel: true,
                 },
                 orderBy: {
-                  offset: 'asc',
+                  offset: "asc",
                 },
               },
             },
@@ -72,7 +76,11 @@ export const fixtureResolvers = {
       });
     },
 
-    fixtureDefinition: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    fixtureDefinition: async (
+      _: any,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       return prisma.fixtureDefinition.findUnique({
         where: { id },
         include: {
@@ -84,7 +92,7 @@ export const fixtureResolvers = {
                   channel: true,
                 },
                 orderBy: {
-                  offset: 'asc',
+                  offset: "asc",
                 },
               },
             },
@@ -95,7 +103,11 @@ export const fixtureResolvers = {
   },
 
   Mutation: {
-    createFixtureDefinition: async (_: any, { input }: any, { prisma }: Context) => {
+    createFixtureDefinition: async (
+      _: any,
+      { input }: any,
+      { prisma }: Context,
+    ) => {
       return prisma.fixtureDefinition.create({
         data: {
           manufacturer: input.manufacturer,
@@ -111,15 +123,19 @@ export const fixtureResolvers = {
       });
     },
 
-    createFixtureInstance: async (_: any, { input }: any, { prisma }: Context) => {
+    createFixtureInstance: async (
+      _: any,
+      { input }: any,
+      { prisma }: Context,
+    ) => {
       // First, get the definition and mode to determine channels
       const definition = await prisma.fixtureDefinition.findUnique({
         where: { id: input.definitionId },
         include: { channels: true },
       });
-      
+
       if (!definition) {
-        throw new Error('Fixture definition not found');
+        throw new Error("Fixture definition not found");
       }
 
       let mode = null;
@@ -131,18 +147,18 @@ export const fixtureResolvers = {
         maxValue: number;
         defaultValue: number;
       }> = [];
-      
+
       if (input.modeId) {
         mode = await prisma.fixtureMode.findUnique({
           where: { id: input.modeId },
           include: {
             modeChannels: {
               include: { channel: true },
-              orderBy: { offset: 'asc' },
+              orderBy: { offset: "asc" },
             },
           },
         });
-        
+
         if (mode) {
           channelsToCreate = mode.modeChannels.map((mc: any) => ({
             offset: mc.offset,
@@ -154,7 +170,7 @@ export const fixtureResolvers = {
           }));
         }
       }
-      
+
       // If no mode channels, use definition channels
       if (channelsToCreate.length === 0) {
         channelsToCreate = definition.channels
@@ -182,7 +198,7 @@ export const fixtureResolvers = {
           manufacturer: definition.manufacturer,
           model: definition.model,
           type: definition.type,
-          modeName: mode?.name || 'Default',
+          modeName: mode?.name || "Default",
           channelCount: mode?.channelCount || definition.channels.length,
           channels: {
             create: channelsToCreate,
@@ -190,7 +206,7 @@ export const fixtureResolvers = {
         },
         include: {
           channels: {
-            orderBy: { offset: 'asc' },
+            orderBy: { offset: "asc" },
           },
           definition: {
             include: {
@@ -211,7 +227,11 @@ export const fixtureResolvers = {
       });
     },
 
-    updateFixtureInstance: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
+    updateFixtureInstance: async (
+      _: any,
+      { id, input }: { id: string; input: any },
+      { prisma }: Context,
+    ) => {
       // Only include fields that are provided in the input
       const updateData: any = {};
 
@@ -247,7 +267,8 @@ export const fixtureResolvers = {
         });
 
         const definitionId = input.definitionId || currentFixture?.definitionId;
-        const modeId = input.modeId !== undefined ? input.modeId : currentFixture?.modeId;
+        const modeId =
+          input.modeId !== undefined ? input.modeId : currentFixture?.modeId;
 
         if (definitionId) {
           // Get the new definition
@@ -257,7 +278,7 @@ export const fixtureResolvers = {
           });
 
           if (!definition) {
-            throw new Error('Fixture definition not found');
+            throw new Error("Fixture definition not found");
           }
 
           // Update flattened definition fields
@@ -283,7 +304,7 @@ export const fixtureResolvers = {
               include: {
                 modeChannels: {
                   include: { channel: true },
-                  orderBy: { offset: 'asc' },
+                  orderBy: { offset: "asc" },
                 },
               },
             });
@@ -292,7 +313,7 @@ export const fixtureResolvers = {
               updateData.modeId = modeId;
               updateData.modeName = mode.name;
               updateData.channelCount = mode.channelCount;
-              
+
               channelsToUpdate = mode.modeChannels.map((mc: any) => ({
                 offset: mc.offset,
                 name: mc.channel.name,
@@ -305,7 +326,7 @@ export const fixtureResolvers = {
           } else {
             // No mode specified, clear modeId and use definition channels
             updateData.modeId = null;
-            updateData.modeName = 'Default';
+            updateData.modeName = "Default";
             updateData.channelCount = definition.channels.length;
           }
 
@@ -340,7 +361,7 @@ export const fixtureResolvers = {
         data: updateData,
         include: {
           channels: {
-            orderBy: { offset: 'asc' },
+            orderBy: { offset: "asc" },
           },
           definition: {
             include: {
@@ -361,7 +382,11 @@ export const fixtureResolvers = {
       });
     },
 
-    deleteFixtureInstance: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    deleteFixtureInstance: async (
+      _: any,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       await prisma.fixtureInstance.delete({
         where: { id },
       });
@@ -374,7 +399,7 @@ export const fixtureResolvers = {
       channels: (parent: any, _: any, { prisma }: Context) => {
         return prisma.instanceChannel.findMany({
           where: { fixtureId: parent.id },
-          orderBy: { offset: 'asc' },
+          orderBy: { offset: "asc" },
         });
       },
     },
@@ -390,6 +415,5 @@ export const fixtureResolvers = {
         return parent.channel;
       },
     },
-
   },
 };

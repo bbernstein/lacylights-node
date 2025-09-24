@@ -10,6 +10,8 @@
     "stop": "pkill -f 'node dist/index.js' || echo 'Server not running'",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage --forceExit && node scripts/show-coverage.js",
+    "test:coverage:summary": "jest --coverage --coverageReporters=text-summary --forceExit --silent",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "check": "npm run lint && npm run build",

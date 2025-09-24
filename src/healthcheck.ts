@@ -1,10 +1,10 @@
-import http from 'http';
+import http from "http";
 
 const options = {
-  hostname: 'localhost',
+  hostname: "localhost",
   port: process.env.PORT || 4000,
-  path: '/health',
-  method: 'GET',
+  path: "/health",
+  method: "GET",
   timeout: 2000,
 };
 
@@ -16,11 +16,11 @@ const request = http.request(options, (res) => {
   }
 });
 
-request.on('error', () => {
+request.on("error", () => {
   process.exit(1);
 });
 
-request.on('timeout', () => {
+request.on("timeout", () => {
   request.destroy();
   process.exit(1);
 });

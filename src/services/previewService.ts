@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import { PubSub } from 'graphql-subscriptions';
-import { dmxService } from './dmx';
+import { PrismaClient } from "@prisma/client";
+import { PubSub } from "graphql-subscriptions";
+import { dmxService } from "./dmx";
 
 export interface PreviewSession {
   id: string;
@@ -18,15 +18,18 @@ export class PreviewService {
 
   constructor(
     private prisma: PrismaClient,
-    private pubsub: PubSub
+    private pubsub: PubSub,
   ) {}
 
-  async startPreviewSession(projectId: string, userId?: string): Promise<PreviewSession> {
+  async startPreviewSession(
+    projectId: string,
+    userId?: string,
+  ): Promise<PreviewSession> {
     // Cancel any existing session for this project
     await this.cancelExistingProjectSessions(projectId);
 
     const sessionId = `preview_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
     const session: PreviewSession = {
       id: sessionId,
       projectId,
@@ -44,7 +47,7 @@ export class PreviewService {
     this.sessions.set(sessionId, session);
 
     // Notify subscribers
-    await this.pubsub.publish('PREVIEW_SESSION_UPDATED', {
+    await this.pubsub.publish("PREVIEW_SESSION_UPDATED", {
       previewSessionUpdated: {
         id: sessionId,
         projectId,
@@ -57,7 +60,12 @@ export class PreviewService {
     return session;
   }
 
-  async updateChannelValue(sessionId: string, fixtureId: string, channelIndex: number, value: number): Promise<boolean> {
+  async updateChannelValue(
+    sessionId: string,
+    fixtureId: string,
+    channelIndex: number,
+    value: number,
+  ): Promise<boolean> {
     const session = this.sessions.get(sessionId);
     if (!session || !session.isActive) {
       return false;
@@ -75,7 +83,7 @@ export class PreviewService {
 
     const absoluteChannel = fixture.startChannel + channelIndex;
     const channelKey = `${fixture.universe}:${absoluteChannel}`;
-    
+
     // Update the channel override
     session.channelOverrides.set(channelKey, Math.max(0, Math.min(255, value)));
 
@@ -83,7 +91,7 @@ export class PreviewService {
     await this.applyPreviewOverlay(session);
 
     // Notify subscribers of channel changes
-    await this.pubsub.publish('DMX_OUTPUT_CHANGED', {
+    await this.pubsub.publish("DMX_OUTPUT_CHANGED", {
       dmxOutputChanged: {
         universe: fixture.universe,
         channels: await this.getUniverseChannels(fixture.universe, sessionId),
@@ -111,12 +119,15 @@ export class PreviewService {
     // The preview changes are already live in DMX output
     // For now, we just clean up the session
     // Future: Could save preview state as a new scene
-    
+
     await this.cancelPreviewSession(sessionId);
     return true;
   }
 
-  async initializeWithScene(sessionId: string, sceneId: string): Promise<boolean> {
+  async initializeWithScene(
+    sessionId: string,
+    sceneId: string,
+  ): Promise<boolean> {
     const session = this.sessions.get(sessionId);
     if (!session || !session.isActive) {
       return false;
@@ -142,16 +153,24 @@ export class PreviewService {
       // Apply all fixture values from the scene to the preview session
       for (const fixtureValue of scene.fixtureValues) {
         const channelValues = fixtureValue.channelValues || [];
-        
-        for (let channelIndex = 0; channelIndex < channelValues.length; channelIndex++) {
+
+        for (
+          let channelIndex = 0;
+          channelIndex < channelValues.length;
+          channelIndex++
+        ) {
           const value = channelValues[channelIndex];
           if (value !== null && value !== undefined) {
             // Calculate absolute DMX channel
-            const absoluteChannel = fixtureValue.fixture.startChannel + channelIndex;
+            const absoluteChannel =
+              fixtureValue.fixture.startChannel + channelIndex;
             const channelKey = `${fixtureValue.fixture.universe}:${absoluteChannel}`;
-            
+
             // Update the channel override
-            session.channelOverrides.set(channelKey, Math.max(0, Math.min(255, value)));
+            session.channelOverrides.set(
+              channelKey,
+              Math.max(0, Math.min(255, value)),
+            );
           }
         }
       }
@@ -162,12 +181,12 @@ export class PreviewService {
       // Notify subscribers of the bulk update
       const universesUsed = new Set<number>();
       for (const channelKey of session.channelOverrides.keys()) {
-        const [universe] = channelKey.split(':').map(Number);
+        const [universe] = channelKey.split(":").map(Number);
         universesUsed.add(universe);
       }
 
       for (const universe of universesUsed) {
-        await this.pubsub.publish('DMX_OUTPUT_CHANGED', {
+        await this.pubsub.publish("DMX_OUTPUT_CHANGED", {
           dmxOutputChanged: {
             universe,
             channels: await this.getUniverseChannels(universe, sessionId),
@@ -179,7 +198,7 @@ export class PreviewService {
     } catch (error) {
       // TODO: Replace with proper logging
       // eslint-disable-next-line no-console
-      console.error('Error initializing preview with scene:', error);
+      console.error("Error initializing preview with scene:", error);
       return false;
     }
   }
@@ -197,7 +216,7 @@ export class PreviewService {
 
     // Remove channel overrides from DMX output
     for (const [channelKey] of session.channelOverrides) {
-      const [universe, channel] = channelKey.split(':').map(Number);
+      const [universe, channel] = channelKey.split(":").map(Number);
       dmxService.clearChannelOverride(universe, channel);
     }
 
@@ -206,7 +225,7 @@ export class PreviewService {
     this.sessions.delete(sessionId);
 
     // Notify subscribers
-    await this.pubsub.publish('PREVIEW_SESSION_UPDATED', {
+    await this.pubsub.publish("PREVIEW_SESSION_UPDATED", {
       previewSessionUpdated: {
         id: sessionId,
         projectId: session.projectId,
@@ -223,7 +242,9 @@ export class PreviewService {
     return this.sessions.get(sessionId) || null;
   }
 
-  private async cancelExistingProjectSessions(projectId: string): Promise<void> {
+  private async cancelExistingProjectSessions(
+    projectId: string,
+  ): Promise<void> {
     for (const [sessionId, session] of this.sessions) {
       if (session.projectId === projectId && session.isActive) {
         await this.cancelPreviewSession(sessionId);
@@ -233,18 +254,22 @@ export class PreviewService {
 
   private async applyPreviewOverlay(session: PreviewSession): Promise<void> {
     for (const [channelKey, value] of session.channelOverrides) {
-      const [universe, channel] = channelKey.split(':').map(Number);
+      const [universe, channel] = channelKey.split(":").map(Number);
       dmxService.setChannelOverride(universe, channel, value);
     }
   }
 
-  private async getCurrentDMXOutput(sessionId: string): Promise<Array<{ universe: number; channels: number[] }>> {
+  private async getCurrentDMXOutput(
+    sessionId: string,
+  ): Promise<Array<{ universe: number; channels: number[] }>> {
     const session = this.sessions.get(sessionId);
-    if (!session) { return []; }
+    if (!session) {
+      return [];
+    }
 
     const universesUsed = new Set<number>();
     for (const channelKey of session.channelOverrides.keys()) {
-      const [universe] = channelKey.split(':').map(Number);
+      const [universe] = channelKey.split(":").map(Number);
       universesUsed.add(universe);
     }
 
@@ -259,9 +284,12 @@ export class PreviewService {
     return output;
   }
 
-  private async getUniverseChannels(universe: number, sessionId?: string): Promise<number[]> {
+  private async getUniverseChannels(
+    universe: number,
+    sessionId?: string,
+  ): Promise<number[]> {
     const channels = new Array(512).fill(0);
-    
+
     // Get current DMX state
     const currentChannels = dmxService.getUniverseChannels(universe);
     if (currentChannels) {
@@ -273,7 +301,7 @@ export class PreviewService {
       const session = this.sessions.get(sessionId);
       if (session) {
         for (const [channelKey, value] of session.channelOverrides) {
-          const [channelUniverse, channel] = channelKey.split(':').map(Number);
+          const [channelUniverse, channel] = channelKey.split(":").map(Number);
           if (channelUniverse === universe && channel >= 1 && channel <= 512) {
             channels[channel - 1] = value;
           }
@@ -292,13 +320,13 @@ export function getPreviewService(): PreviewService {
   if (!previewServiceInstance) {
     // Dynamic imports to avoid circular dependency
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PubSub } = require('graphql-subscriptions');
+    const { PubSub } = require("graphql-subscriptions");
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaClient } = require('@prisma/client');
-    
+    const { PrismaClient } = require("@prisma/client");
+
     previewServiceInstance = new PreviewService(
       new PrismaClient(),
-      new PubSub()
+      new PubSub(),
     );
   }
   return previewServiceInstance;

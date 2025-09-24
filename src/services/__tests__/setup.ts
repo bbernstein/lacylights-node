@@ -8,9 +8,9 @@ global.console = {
 };
 
 // Simple test to validate the setup works
-describe('Service Test Setup', () => {
-  it('should mock console methods', () => {
-    console.log('test message');
-    expect(console.log).toHaveBeenCalledWith('test message');
+describe("Service Test Setup", () => {
+  it("should mock console methods", () => {
+    console.log("test message");
+    expect(console.log).toHaveBeenCalledWith("test message");
   });
 });

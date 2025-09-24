@@ -1,4 +1,4 @@
-import type { Request, Response } from 'express';
+import type { Request, Response } from "express";
 
 // Create mock functions that will be captured by the mock
 const mockDisconnect = jest.fn();
@@ -11,11 +11,11 @@ const MockPrismaClient = jest.fn().mockImplementation(() => ({
 }));
 
 // Mock Prisma and PubSub before importing context
-jest.mock('@prisma/client', () => ({
+jest.mock("@prisma/client", () => ({
   PrismaClient: MockPrismaClient,
 }));
 
-jest.mock('graphql-subscriptions', () => ({
+jest.mock("graphql-subscriptions", () => ({
   PubSub: jest.fn().mockImplementation(() => ({
     publish: mockPublish,
     asyncIterator: mockAsyncIterator,
@@ -28,10 +28,10 @@ import {
   createWebSocketContext,
   getSharedPrisma,
   getSharedPubSub,
-  cleanup
-} from '../context';
+  cleanup,
+} from "../context";
 
-describe('Context', () => {
+describe("Context", () => {
   let mockRequest: Partial<Request>;
   let mockResponse: Partial<Response>;
 
@@ -52,8 +52,8 @@ describe('Context', () => {
     }
   });
 
-  describe('getSharedPrisma', () => {
-    it('should return the same PrismaClient instance on multiple calls', () => {
+  describe("getSharedPrisma", () => {
+    it("should return the same PrismaClient instance on multiple calls", () => {
       const prisma1 = getSharedPrisma();
       const prisma2 = getSharedPrisma();
 
@@ -61,8 +61,8 @@ describe('Context', () => {
     });
   });
 
-  describe('getSharedPubSub', () => {
-    it('should return the same PubSub instance on multiple calls', () => {
+  describe("getSharedPubSub", () => {
+    it("should return the same PubSub instance on multiple calls", () => {
       const pubsub1 = getSharedPubSub();
       const pubsub2 = getSharedPubSub();
 
@@ -70,21 +70,21 @@ describe('Context', () => {
     });
   });
 
-  describe('createContext', () => {
-    it('should create context with shared instances', async () => {
+  describe("createContext", () => {
+    it("should create context with shared instances", async () => {
       const context = await createContext({
         req: mockRequest as Request,
         res: mockResponse as Response,
       });
 
-      expect(context).toHaveProperty('prisma');
-      expect(context).toHaveProperty('pubsub');
-      expect(context).toHaveProperty('req', mockRequest);
-      expect(context).toHaveProperty('res', mockResponse);
+      expect(context).toHaveProperty("prisma");
+      expect(context).toHaveProperty("pubsub");
+      expect(context).toHaveProperty("req", mockRequest);
+      expect(context).toHaveProperty("res", mockResponse);
       expect(context.user).toBeUndefined();
     });
 
-    it('should use the same shared instances across multiple contexts', async () => {
+    it("should use the same shared instances across multiple contexts", async () => {
       const context1 = await createContext({
         req: mockRequest as Request,
         res: mockResponse as Response,
@@ -100,18 +100,18 @@ describe('Context', () => {
     });
   });
 
-  describe('createWebSocketContext', () => {
-    it('should create websocket context with shared instances', async () => {
+  describe("createWebSocketContext", () => {
+    it("should create websocket context with shared instances", async () => {
       const context = await createWebSocketContext();
 
-      expect(context).toHaveProperty('prisma');
-      expect(context).toHaveProperty('pubsub');
-      expect(context).not.toHaveProperty('req');
-      expect(context).not.toHaveProperty('res');
+      expect(context).toHaveProperty("prisma");
+      expect(context).toHaveProperty("pubsub");
+      expect(context).not.toHaveProperty("req");
+      expect(context).not.toHaveProperty("res");
       expect(context.user).toBeUndefined();
     });
 
-    it('should use the same shared instances as HTTP context', async () => {
+    it("should use the same shared instances as HTTP context", async () => {
       const httpContext = await createContext({
         req: mockRequest as Request,
         res: mockResponse as Response,
@@ -124,8 +124,8 @@ describe('Context', () => {
     });
   });
 
-  describe('cleanup', () => {
-    it('should disconnect prisma and clear cached instances', async () => {
+  describe("cleanup", () => {
+    it("should disconnect prisma and clear cached instances", async () => {
       const prisma = getSharedPrisma();
       const pubsub = getSharedPubSub();
 
@@ -149,7 +149,7 @@ describe('Context', () => {
       expect(newPubsub).not.toBe(pubsub);
     });
 
-    it('should handle multiple cleanup calls gracefully', async () => {
+    it("should handle multiple cleanup calls gracefully", async () => {
       const prisma = getSharedPrisma();
 
       // Manually add the $disconnect method to the prisma mock
