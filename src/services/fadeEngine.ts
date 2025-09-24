@@ -38,7 +38,9 @@ class FadeEngine {
   }
 
   start() {
-    if (this.isRunning) { return; }
+    if (this.isRunning) {
+      return;
+    }
 
     this.isRunning = true;
     // Run at 40Hz (25ms intervals) for smooth fading
@@ -74,7 +76,9 @@ class FadeEngine {
         });
 
         completedFades.push(fadeId);
-        if (fade.onComplete) { fade.onComplete(); }
+        if (fade.onComplete) {
+          fade.onComplete();
+        }
       } else {
         // Interpolate values
         fade.channels.forEach((channel) => {

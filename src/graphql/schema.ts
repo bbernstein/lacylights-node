@@ -53,18 +53,18 @@ export const typeDefs = gql`
     id: ID!
     name: String!
     description: String
-    
+
     # Fixture Definition Info (flattened)
     definitionId: ID!
     manufacturer: String!
     model: String!
     type: FixtureType!
-    
+
     # Mode Info (flattened)
     modeName: String!
     channelCount: Int!
     channels: [InstanceChannel!]!
-    
+
     # DMX Configuration
     project: Project!
     universe: Int!
@@ -72,7 +72,6 @@ export const typeDefs = gql`
     tags: [String!]!
     projectOrder: Int
     createdAt: String!
-    
   }
 
   type InstanceChannel {
@@ -407,7 +406,7 @@ export const typeDefs = gql`
 
     # Preview System
     previewSession(sessionId: ID!): PreviewSession
-    
+
     # Active Scene Tracking
     currentActiveScene: Scene
 
@@ -438,21 +437,37 @@ export const typeDefs = gql`
       input: UpdateFixtureInstanceInput!
     ): FixtureInstance!
     deleteFixtureInstance(id: ID!): Boolean!
-    
+
     # Fixture Ordering
-    reorderProjectFixtures(projectId: ID!, fixtureOrders: [FixtureOrderInput!]!): Boolean!
-    reorderSceneFixtures(sceneId: ID!, fixtureOrders: [FixtureOrderInput!]!): Boolean!
+    reorderProjectFixtures(
+      projectId: ID!
+      fixtureOrders: [FixtureOrderInput!]!
+    ): Boolean!
+    reorderSceneFixtures(
+      sceneId: ID!
+      fixtureOrders: [FixtureOrderInput!]!
+    ): Boolean!
 
     # Scenes
     createScene(input: CreateSceneInput!): Scene!
     updateScene(id: ID!, input: UpdateSceneInput!): Scene!
     duplicateScene(id: ID!): Scene!
     deleteScene(id: ID!): Boolean!
-    
+
     # Safe Scene Updates (Additive)
-    addFixturesToScene(sceneId: ID!, fixtureValues: [FixtureValueInput!]!, overwriteExisting: Boolean = false): Scene!
+    addFixturesToScene(
+      sceneId: ID!
+      fixtureValues: [FixtureValueInput!]!
+      overwriteExisting: Boolean = false
+    ): Scene!
     removeFixturesFromScene(sceneId: ID!, fixtureIds: [ID!]!): Scene!
-    updateScenePartial(sceneId: ID!, name: String, description: String, fixtureValues: [FixtureValueInput!], mergeFixtures: Boolean = true): Scene!
+    updateScenePartial(
+      sceneId: ID!
+      name: String
+      description: String
+      fixtureValues: [FixtureValueInput!]
+      mergeFixtures: Boolean = true
+    ): Scene!
 
     # Cue Lists
     createCueList(input: CreateCueListInput!): CueList!
@@ -470,7 +485,12 @@ export const typeDefs = gql`
     startPreviewSession(projectId: ID!): PreviewSession!
     commitPreviewSession(sessionId: ID!): Boolean!
     cancelPreviewSession(sessionId: ID!): Boolean!
-    updatePreviewChannel(sessionId: ID!, fixtureId: ID!, channelIndex: Int!, value: Int!): Boolean!
+    updatePreviewChannel(
+      sessionId: ID!
+      fixtureId: ID!
+      channelIndex: Int!
+      value: Int!
+    ): Boolean!
     initializePreviewWithScene(sessionId: ID!, sceneId: ID!): Boolean!
 
     # DMX Control
@@ -487,8 +507,14 @@ export const typeDefs = gql`
     stopCueList(cueListId: ID!): Boolean!
 
     # QLC+ Import/Export (data-modifying operations)
-    importProjectFromQLC(xmlContent: String!, originalFileName: String!): QLCImportResult!
-    exportProjectToQLC(projectId: ID!, fixtureMappings: [FixtureMappingInput!]): QLCExportResult!
+    importProjectFromQLC(
+      xmlContent: String!
+      originalFileName: String!
+    ): QLCImportResult!
+    exportProjectToQLC(
+      projectId: ID!
+      fixtureMappings: [FixtureMappingInput!]
+    ): QLCExportResult!
   }
 
   # Subscriptions

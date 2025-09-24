@@ -1,6 +1,6 @@
-import { Context } from '../../context';
-import { dmxService } from '../../services/dmx';
-import { fadeEngine } from '../../services/fadeEngine';
+import { Context } from "../../context";
+import { dmxService } from "../../services/dmx";
+import { fadeEngine } from "../../services/fadeEngine";
 
 // Type definitions for fixture values
 export interface FixtureValueInput {
@@ -20,22 +20,24 @@ interface ExistingFixtureValue {
 
 // Helper function to handle fixture value updates/creates with optimized queries
 async function upsertFixtureValues(
-  prisma: Context['prisma'],
+  prisma: Context["prisma"],
   sceneId: string,
   fixtureValues: FixtureValueInput[],
-  overwrite: boolean = true
+  overwrite: boolean = true,
 ) {
   // Fetch all existing fixture values for this scene and the given fixtureIds in one query
-  const fixtureIds = fixtureValues.map(fv => fv.fixtureId);
+  const fixtureIds = fixtureValues.map((fv) => fv.fixtureId);
   const existingValues = await prisma.fixtureValue.findMany({
     where: {
       sceneId: sceneId,
       fixtureId: { in: fixtureIds },
     },
   });
-  
+
   // Create a Map from fixtureId to existing fixtureValue for O(1) lookups
-  const existingValueMap = new Map(existingValues.map((ev) => [ev.fixtureId, ev as ExistingFixtureValue]));
+  const existingValueMap = new Map(
+    existingValues.map((ev) => [ev.fixtureId, ev as ExistingFixtureValue]),
+  );
 
   // Batch operations for better performance
   const updates: Promise<any>[] = [];
@@ -54,7 +56,7 @@ async function upsertFixtureValues(
               channelValues: fv.channelValues,
               sceneOrder: fv.sceneOrder,
             },
-          })
+          }),
         );
       }
       // If not overwriting and fixture exists, skip it (safe behavior)
@@ -91,14 +93,14 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             orderBy: [
-              { sceneOrder: 'asc' },
-              { id: 'asc' } // Fallback for fixtures without scene order
+              { sceneOrder: "asc" },
+              { id: "asc" }, // Fallback for fixtures without scene order
             ],
             include: {
               fixture: {
                 include: {
                   channels: {
-                    orderBy: { offset: 'asc' },
+                    orderBy: { offset: "asc" },
                   },
                 },
               },
@@ -128,14 +130,14 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             orderBy: [
-              { sceneOrder: 'asc' },
-              { id: 'asc' } // Fallback for fixtures without scene order
+              { sceneOrder: "asc" },
+              { id: "asc" }, // Fallback for fixtures without scene order
             ],
             include: {
               fixture: {
                 include: {
                   channels: {
-                    orderBy: { offset: 'asc' },
+                    orderBy: { offset: "asc" },
                   },
                 },
               },
@@ -145,7 +147,11 @@ export const sceneResolvers = {
       });
     },
 
-    updateScene: async (_: any, { id, input }: { id: string; input: any }, { prisma }: Context) => {
+    updateScene: async (
+      _: any,
+      { id, input }: { id: string; input: any },
+      { prisma }: Context,
+    ) => {
       // Build update data object dynamically based on what's provided
       const updateData: any = {};
 
@@ -181,14 +187,14 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             orderBy: [
-              { sceneOrder: 'asc' },
-              { id: 'asc' } // Fallback for fixtures without scene order
+              { sceneOrder: "asc" },
+              { id: "asc" }, // Fallback for fixtures without scene order
             ],
             include: {
               fixture: {
                 include: {
                   channels: {
-                    orderBy: { offset: 'asc' },
+                    orderBy: { offset: "asc" },
                   },
                 },
               },
@@ -205,13 +211,21 @@ export const sceneResolvers = {
 
         if (isCurrentlyActive) {
           // Build array of all channel values for the updated scene
-          const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
+          const sceneChannels: Array<{
+            universe: number;
+            channel: number;
+            value: number;
+          }> = [];
 
           for (const fixtureValue of updatedScene.fixtureValues) {
             const fixture = fixtureValue.fixture;
 
             // Iterate through channelValues array by index
-            for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+            for (
+              let channelIndex = 0;
+              channelIndex < fixtureValue.channelValues.length;
+              channelIndex++
+            ) {
               const value = fixtureValue.channelValues[channelIndex];
               const dmxChannel = fixture.startChannel + channelIndex;
 
@@ -232,7 +246,11 @@ export const sceneResolvers = {
       return updatedScene;
     },
 
-    duplicateScene: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    duplicateScene: async (
+      _: any,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       // First, get the original scene with all its data
       const originalScene = await prisma.scene.findUnique({
         where: { id },
@@ -242,7 +260,7 @@ export const sceneResolvers = {
       });
 
       if (!originalScene) {
-        throw new Error('Scene not found');
+        throw new Error("Scene not found");
       }
 
       // Create the duplicate scene
@@ -263,14 +281,14 @@ export const sceneResolvers = {
           project: true,
           fixtureValues: {
             orderBy: [
-              { sceneOrder: 'asc' },
-              { id: 'asc' } // Fallback for fixtures without scene order
+              { sceneOrder: "asc" },
+              { id: "asc" }, // Fallback for fixtures without scene order
             ],
             include: {
               fixture: {
                 include: {
                   channels: {
-                    orderBy: { offset: 'asc' },
+                    orderBy: { offset: "asc" },
                   },
                 },
               },
@@ -280,7 +298,11 @@ export const sceneResolvers = {
       });
     },
 
-    deleteScene: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    deleteScene: async (
+      _: any,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       await prisma.scene.delete({
         where: { id },
       });
@@ -289,13 +311,17 @@ export const sceneResolvers = {
 
     // 🛡️ SAFE ADDITIVE SCENE UPDATES
     addFixturesToScene: async (
-      _: any, 
-      { sceneId, fixtureValues, overwriteExisting }: { 
-        sceneId: string; 
+      _: any,
+      {
+        sceneId,
+        fixtureValues,
+        overwriteExisting,
+      }: {
+        sceneId: string;
         fixtureValues: FixtureValueInput[];
         overwriteExisting?: boolean;
-      }, 
-      { prisma }: Context
+      },
+      { prisma }: Context,
     ) => {
       // Verify scene exists
       const scene = await prisma.scene.findUnique({
@@ -307,7 +333,12 @@ export const sceneResolvers = {
       }
 
       // Use optimized helper function to handle fixture updates
-      await upsertFixtureValues(prisma, sceneId, fixtureValues, overwriteExisting);
+      await upsertFixtureValues(
+        prisma,
+        sceneId,
+        fixtureValues,
+        overwriteExisting,
+      );
 
       // Return updated scene
       return prisma.scene.findUnique({
@@ -315,15 +346,12 @@ export const sceneResolvers = {
         include: {
           project: true,
           fixtureValues: {
-            orderBy: [
-              { sceneOrder: 'asc' },
-              { id: 'asc' },
-            ],
+            orderBy: [{ sceneOrder: "asc" }, { id: "asc" }],
             include: {
               fixture: {
                 include: {
                   channels: {
-                    orderBy: { offset: 'asc' },
+                    orderBy: { offset: "asc" },
                   },
                 },
               },
@@ -336,7 +364,7 @@ export const sceneResolvers = {
     removeFixturesFromScene: async (
       _: any,
       { sceneId, fixtureIds }: { sceneId: string; fixtureIds: string[] },
-      { prisma }: Context
+      { prisma }: Context,
     ) => {
       // Verify scene exists
       const scene = await prisma.scene.findUnique({
@@ -363,15 +391,12 @@ export const sceneResolvers = {
         include: {
           project: true,
           fixtureValues: {
-            orderBy: [
-              { sceneOrder: 'asc' },
-              { id: 'asc' },
-            ],
+            orderBy: [{ sceneOrder: "asc" }, { id: "asc" }],
             include: {
               fixture: {
                 include: {
                   channels: {
-                    orderBy: { offset: 'asc' },
+                    orderBy: { offset: "asc" },
                   },
                 },
               },
@@ -383,28 +408,28 @@ export const sceneResolvers = {
 
     updateScenePartial: async (
       _: any,
-      { 
-        sceneId, 
-        name, 
-        description, 
-        fixtureValues, 
-        mergeFixtures = true 
-      }: { 
+      {
+        sceneId,
+        name,
+        description,
+        fixtureValues,
+        mergeFixtures = true,
+      }: {
         sceneId: string;
         name?: string;
         description?: string;
         fixtureValues?: FixtureValueInput[];
         mergeFixtures?: boolean;
       },
-      { prisma }: Context
+      { prisma }: Context,
     ) => {
       // Build update data for scene metadata
       const updateData: Record<string, any> = {};
-      
+
       if (name !== undefined) {
         updateData.name = name;
       }
-      
+
       if (description !== undefined) {
         updateData.description = description;
       }
@@ -427,7 +452,7 @@ export const sceneResolvers = {
           await prisma.fixtureValue.deleteMany({
             where: { sceneId: sceneId },
           });
-          
+
           await prisma.fixtureValue.createMany({
             data: fixtureValues.map((fv) => ({
               sceneId: sceneId,
@@ -445,15 +470,12 @@ export const sceneResolvers = {
         include: {
           project: true,
           fixtureValues: {
-            orderBy: [
-              { sceneOrder: 'asc' },
-              { id: 'asc' },
-            ],
+            orderBy: [{ sceneOrder: "asc" }, { id: "asc" }],
             include: {
               fixture: {
                 include: {
                   channels: {
-                    orderBy: { offset: 'asc' },
+                    orderBy: { offset: "asc" },
                   },
                 },
               },
@@ -463,15 +485,28 @@ export const sceneResolvers = {
       });
 
       // If this scene is currently active and fixture values were updated, apply the changes to DMX output
-      if (fixtureValues && fixtureValues.length > 0 && dmxService.getCurrentActiveSceneId() === sceneId && updatedScene) {
+      if (
+        fixtureValues &&
+        fixtureValues.length > 0 &&
+        dmxService.getCurrentActiveSceneId() === sceneId &&
+        updatedScene
+      ) {
         // Build array of all channel values for the updated scene
-        const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
+        const sceneChannels: Array<{
+          universe: number;
+          channel: number;
+          value: number;
+        }> = [];
 
         for (const fixtureValue of updatedScene.fixtureValues) {
           const fixture = fixtureValue.fixture;
 
           // Iterate through channelValues array by index
-          for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+          for (
+            let channelIndex = 0;
+            channelIndex < fixtureValue.channelValues.length;
+            channelIndex++
+          ) {
             const value = fixtureValue.channelValues[channelIndex];
             const dmxChannel = fixture.startChannel + channelIndex;
 
@@ -485,7 +520,11 @@ export const sceneResolvers = {
 
         // Apply the updated scene values immediately to DMX output
         // Use instant fade (0 seconds) since we want immediate live updates during editing
-        fadeEngine.fadeToScene(sceneChannels, 0, `scene-${sceneId}-partial-update`);
+        fadeEngine.fadeToScene(
+          sceneChannels,
+          0,
+          `scene-${sceneId}-partial-update`,
+        );
       }
 
       return updatedScene;

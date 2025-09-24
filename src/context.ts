@@ -1,6 +1,6 @@
-import { PrismaClient } from '@prisma/client';
-import type { Request, Response } from 'express';
-import { PubSub } from 'graphql-subscriptions';
+import { PrismaClient } from "@prisma/client";
+import type { Request, Response } from "express";
+import { PubSub } from "graphql-subscriptions";
 
 export interface Context {
   prisma: PrismaClient;
@@ -45,13 +45,19 @@ export function getSharedPubSub(): PubSub {
   return sharedPubSub;
 }
 
-export async function createContext({ req, res }: { req: Request; res: Response }): Promise<Context> {
+export async function createContext({
+  req,
+  res,
+}: {
+  req: Request;
+  res: Response;
+}): Promise<Context> {
   // TODO: Implement authentication logic here
   return {
     prisma: getSharedPrisma(),
     req,
     res,
-    pubsub: getSharedPubSub()
+    pubsub: getSharedPubSub(),
   };
 }
 
@@ -59,7 +65,7 @@ export async function createWebSocketContext(): Promise<WebSocketContext> {
   // TODO: Implement WebSocket authentication logic here
   return {
     prisma: getSharedPrisma(),
-    pubsub: getSharedPubSub()
+    pubsub: getSharedPubSub(),
   };
 }
 

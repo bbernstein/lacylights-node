@@ -1,7 +1,7 @@
-import type { PrismaClient, Cue, Scene } from '@prisma/client';
-import type { PubSub } from 'graphql-subscriptions';
-import { getSharedPrisma, getSharedPubSub } from '../context';
-import { logger } from '../utils/logger';
+import type { PrismaClient, Cue, Scene } from "@prisma/client";
+import type { PubSub } from "graphql-subscriptions";
+import { getSharedPrisma, getSharedPubSub } from "../context";
+import { logger } from "../utils/logger";
 
 type CueWithScene = Cue & { scene: Scene };
 
@@ -38,8 +38,8 @@ class PlaybackService {
    * Validate cueListId input
    */
   private validateCueListId(cueListId: string): void {
-    if (!cueListId || typeof cueListId !== 'string') {
-      throw new Error('Invalid cueListId: must be a non-empty string');
+    if (!cueListId || typeof cueListId !== "string") {
+      throw new Error("Invalid cueListId: must be a non-empty string");
     }
   }
 
@@ -56,7 +56,7 @@ class PlaybackService {
     }
 
     // Cache miss or expired - fetch from database
-    logger.debug('Fetching cue list from database', { cueListId });
+    logger.debug("Fetching cue list from database", { cueListId });
 
     const cueList = await this.prisma.cueList.findUnique({
       where: { id: cueListId },
@@ -66,7 +66,7 @@ class PlaybackService {
             scene: true,
           },
           orderBy: {
-            cueNumber: 'asc',
+            cueNumber: "asc",
           },
         },
       },
@@ -118,7 +118,7 @@ class PlaybackService {
    */
   async updatePlaybackStatus(
     cueListId: string,
-    updates: Partial<Omit<CueListPlaybackStatus, 'cueListId' | 'lastUpdated'>>
+    updates: Partial<Omit<CueListPlaybackStatus, "cueListId" | "lastUpdated">>,
   ): Promise<void> {
     const currentState = await this.getPlaybackStatus(cueListId);
 
@@ -139,14 +139,14 @@ class PlaybackService {
       this.lastEmissionTime.set(cueListId, now);
 
       // Emit subscription event
-      this.pubsub.publish('CUE_LIST_PLAYBACK_UPDATED', {
+      this.pubsub.publish("CUE_LIST_PLAYBACK_UPDATED", {
         cueListPlaybackUpdated: newState,
       });
 
-      logger.debug('Published cue list playback update', {
+      logger.debug("Published cue list playback update", {
         cueListId,
         isPlaying: newState.isPlaying,
-        fadeProgress: newState.fadeProgress
+        fadeProgress: newState.fadeProgress,
       });
     }
   }
@@ -158,7 +158,7 @@ class PlaybackService {
     this.validateCueListId(cueListId);
     const cues = await this.getCachedCueList(cueListId);
     if (cues.length === 0) {
-      throw new Error('Cannot start playback: cue list is empty');
+      throw new Error("Cannot start playback: cue list is empty");
     }
 
     await this.updatePlaybackStatus(cueListId, {
@@ -189,7 +189,9 @@ class PlaybackService {
     const cues = await this.getCachedCueList(cueListId);
 
     if (cueIndex < 0 || cueIndex >= cues.length) {
-      throw new Error(`Invalid cue index: ${cueIndex}. Cue list has ${cues.length} cues.`);
+      throw new Error(
+        `Invalid cue index: ${cueIndex}. Cue list has ${cues.length} cues.`,
+      );
     }
 
     const currentCue = cues[cueIndex];
@@ -222,7 +224,7 @@ class PlaybackService {
   invalidateCache(cueListId: string): void {
     this.cueListCache.delete(cueListId);
     this.cacheExpiry.delete(cueListId);
-    logger.debug('Invalidated cache for cue list', { cueListId });
+    logger.debug("Invalidated cache for cue list", { cueListId });
   }
 
   /**

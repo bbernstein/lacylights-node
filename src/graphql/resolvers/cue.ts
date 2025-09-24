@@ -1,9 +1,9 @@
-import type { Context, WebSocketContext } from '../../context';
-import { withFilter } from 'graphql-subscriptions';
-import { logger } from '../../utils/logger';
-import { playbackService } from '../../services/playbackService';
-import { getPlaybackStateService } from '../../services/playbackStateService';
-import type { EasingType } from '@prisma/client';
+import type { Context, WebSocketContext } from "../../context";
+import { withFilter } from "graphql-subscriptions";
+import { logger } from "../../utils/logger";
+import { playbackService } from "../../services/playbackService";
+import { getPlaybackStateService } from "../../services/playbackStateService";
+import type { EasingType } from "@prisma/client";
 
 // Input types for GraphQL mutations
 export interface CreateCueListInput {
@@ -55,12 +55,19 @@ export interface BulkUpdateCuesInput {
 
 export const cueResolvers = {
   Query: {
-    cueListPlaybackStatus: async (_: unknown, { cueListId }: { cueListId: string }) => {
+    cueListPlaybackStatus: async (
+      _: unknown,
+      { cueListId }: { cueListId: string },
+    ) => {
       const playbackStateService = getPlaybackStateService();
       return playbackStateService.getFormattedStatus(cueListId);
     },
 
-    cueList: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
+    cueList: async (
+      _: unknown,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       return prisma.cueList.findUnique({
         where: { id },
         include: {
@@ -70,7 +77,7 @@ export const cueResolvers = {
               scene: true,
             },
             orderBy: {
-              cueNumber: 'asc',
+              cueNumber: "asc",
             },
           },
         },
@@ -89,7 +96,11 @@ export const cueResolvers = {
   },
 
   Mutation: {
-    createCueList: async (_: unknown, { input }: { input: CreateCueListInput }, { prisma }: Context) => {
+    createCueList: async (
+      _: unknown,
+      { input }: { input: CreateCueListInput },
+      { prisma }: Context,
+    ) => {
       return prisma.cueList.create({
         data: {
           name: input.name,
@@ -103,14 +114,18 @@ export const cueResolvers = {
               scene: true,
             },
             orderBy: {
-              cueNumber: 'asc',
+              cueNumber: "asc",
             },
           },
         },
       });
     },
 
-    updateCueList: async (_: unknown, { id, input }: { id: string; input: UpdateCueListInput }, { prisma }: Context) => {
+    updateCueList: async (
+      _: unknown,
+      { id, input }: { id: string; input: UpdateCueListInput },
+      { prisma }: Context,
+    ) => {
       return prisma.cueList.update({
         where: { id },
         data: {
@@ -124,21 +139,29 @@ export const cueResolvers = {
               scene: true,
             },
             orderBy: {
-              cueNumber: 'asc',
+              cueNumber: "asc",
             },
           },
         },
       });
     },
 
-    deleteCueList: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
+    deleteCueList: async (
+      _: unknown,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       await prisma.cueList.delete({
         where: { id },
       });
       return true;
     },
 
-    createCue: async (_: unknown, { input }: { input: CreateCueInput }, { prisma }: Context) => {
+    createCue: async (
+      _: unknown,
+      { input }: { input: CreateCueInput },
+      { prisma }: Context,
+    ) => {
       const newCue = await prisma.cue.create({
         data: {
           name: input.name,
@@ -162,7 +185,11 @@ export const cueResolvers = {
       return newCue;
     },
 
-    updateCue: async (_: unknown, { id, input }: { id: string; input: UpdateCueInput }, { prisma }: Context) => {
+    updateCue: async (
+      _: unknown,
+      { id, input }: { id: string; input: UpdateCueInput },
+      { prisma }: Context,
+    ) => {
       // First get the cue to find its cueListId
       const existingCue = await prisma.cue.findUnique({
         where: { id },
@@ -196,7 +223,11 @@ export const cueResolvers = {
       return updatedCue;
     },
 
-    deleteCue: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
+    deleteCue: async (
+      _: unknown,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
       // First get the cue to find its cueListId
       const existingCue = await prisma.cue.findUnique({
         where: { id },
@@ -220,7 +251,7 @@ export const cueResolvers = {
     reorderCues: async (
       _: unknown,
       { cueListId, cueOrders }: { cueListId: string; cueOrders: CueOrder[] },
-      { prisma }: Context
+      { prisma }: Context,
     ) => {
       // Verify the cue list exists
       const cueList = await prisma.cueList.findUnique({
@@ -233,10 +264,14 @@ export const cueResolvers = {
       }
 
       // Verify all cue IDs belong to this cue list
-      const cueListCueIds = new Set(cueList.cues.map(cue => cue.id));
-      if (!cueOrders.every(cueOrder => cueListCueIds.has(cueOrder.cueId))) {
-        const invalidCue = cueOrders.find(cueOrder => !cueListCueIds.has(cueOrder.cueId));
-        throw new Error(`Cue with ID ${invalidCue!.cueId} does not belong to cue list ${cueListId}`);
+      const cueListCueIds = new Set(cueList.cues.map((cue) => cue.id));
+      if (!cueOrders.every((cueOrder) => cueListCueIds.has(cueOrder.cueId))) {
+        const invalidCue = cueOrders.find(
+          (cueOrder) => !cueListCueIds.has(cueOrder.cueId),
+        );
+        throw new Error(
+          `Cue with ID ${invalidCue!.cueId} does not belong to cue list ${cueListId}`,
+        );
       }
 
       // Handle unique constraint by using a two-phase update approach
@@ -247,8 +282,8 @@ export const cueResolvers = {
             tx.cue.update({
               where: { id: cueOrder.cueId },
               data: { cueNumber: -(i + 1) }, // Use negative numbers as temporary values
-            })
-          )
+            }),
+          ),
         );
 
         // Phase 2: Set the final cue numbers
@@ -257,8 +292,8 @@ export const cueResolvers = {
             tx.cue.update({
               where: { id: cueId },
               data: { cueNumber },
-            })
-          )
+            }),
+          ),
         );
       });
 
@@ -268,7 +303,11 @@ export const cueResolvers = {
       return true;
     },
 
-    startCueList: async (_: unknown, { cueListId, startFromCue }: { cueListId: string; startFromCue?: number }, { prisma }: Context) => {
+    startCueList: async (
+      _: unknown,
+      { cueListId, startFromCue }: { cueListId: string; startFromCue?: number },
+      { prisma }: Context,
+    ) => {
       const playbackStateService = getPlaybackStateService();
 
       // Get the cue list with cues
@@ -277,30 +316,38 @@ export const cueResolvers = {
         include: {
           cues: {
             include: { scene: true },
-            orderBy: { cueNumber: 'asc' }
-          }
-        }
+            orderBy: { cueNumber: "asc" },
+          },
+        },
       });
 
       if (!cueList || cueList.cues.length === 0) {
-        throw new Error('Cue list not found or empty');
+        throw new Error("Cue list not found or empty");
       }
 
       const startIndex = startFromCue !== undefined ? startFromCue : 0;
       if (startIndex < 0 || startIndex >= cueList.cues.length) {
-        throw new Error('Invalid cue index');
+        throw new Error("Invalid cue index");
       }
 
-      await playbackStateService.startCue(cueListId, startIndex, cueList.cues[startIndex]);
+      await playbackStateService.startCue(
+        cueListId,
+        startIndex,
+        cueList.cues[startIndex],
+      );
       return true;
     },
 
-    nextCue: async (_: unknown, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+    nextCue: async (
+      _: unknown,
+      { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number },
+      { prisma, pubsub }: Context,
+    ) => {
       const playbackStateService = getPlaybackStateService();
       const currentState = playbackStateService.getPlaybackState(cueListId);
 
       if (!currentState || currentState.currentCueIndex === null) {
-        throw new Error('No active playback for this cue list');
+        throw new Error("No active playback for this cue list");
       }
 
       const nextIndex = currentState.currentCueIndex + 1;
@@ -311,37 +358,45 @@ export const cueResolvers = {
         include: {
           cues: {
             include: { scene: true },
-            orderBy: { cueNumber: 'asc' }
-          }
-        }
+            orderBy: { cueNumber: "asc" },
+          },
+        },
       });
 
       if (!cueList || nextIndex >= cueList.cues.length) {
-        throw new Error('Already at last cue');
+        throw new Error("Already at last cue");
       }
 
       const nextCue = cueList.cues[nextIndex];
 
       // Use the existing playCue logic from dmx resolver
       // This will both send DMX output AND update the playback state
-      const { dmxResolvers } = await import('./dmx');
-      await dmxResolvers.Mutation.playCue(null, { cueId: nextCue.id, fadeInTime }, { prisma, pubsub } as Context);
+      const { dmxResolvers } = await import("./dmx");
+      await dmxResolvers.Mutation.playCue(
+        null,
+        { cueId: nextCue.id, fadeInTime },
+        { prisma, pubsub } as Context,
+      );
 
       return true;
     },
 
-    previousCue: async (_: unknown, { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number }, { prisma, pubsub }: Context) => {
+    previousCue: async (
+      _: unknown,
+      { cueListId, fadeInTime }: { cueListId: string; fadeInTime?: number },
+      { prisma, pubsub }: Context,
+    ) => {
       const playbackStateService = getPlaybackStateService();
       const currentState = playbackStateService.getPlaybackState(cueListId);
 
       if (!currentState || currentState.currentCueIndex === null) {
-        throw new Error('No active playback for this cue list');
+        throw new Error("No active playback for this cue list");
       }
 
       const previousIndex = currentState.currentCueIndex - 1;
 
       if (previousIndex < 0) {
-        throw new Error('Already at first cue');
+        throw new Error("Already at first cue");
       }
 
       // Get the cue list to get previous cue
@@ -350,48 +405,63 @@ export const cueResolvers = {
         include: {
           cues: {
             include: { scene: true },
-            orderBy: { cueNumber: 'asc' }
-          }
-        }
+            orderBy: { cueNumber: "asc" },
+          },
+        },
       });
 
       if (!cueList) {
-        throw new Error('Cue list not found');
+        throw new Error("Cue list not found");
       }
 
       const previousCue = cueList.cues[previousIndex];
 
       // Use the existing playCue logic from dmx resolver
       // This will both send DMX output AND update the playback state
-      const { dmxResolvers } = await import('./dmx');
-      await dmxResolvers.Mutation.playCue(null, { cueId: previousCue.id, fadeInTime }, { prisma, pubsub } as Context);
+      const { dmxResolvers } = await import("./dmx");
+      await dmxResolvers.Mutation.playCue(
+        null,
+        { cueId: previousCue.id, fadeInTime },
+        { prisma, pubsub } as Context,
+      );
 
       return true;
     },
 
-    goToCue: async (_: unknown, { cueListId, cueIndex, fadeInTime }: { cueListId: string; cueIndex: number; fadeInTime?: number }, { prisma, pubsub }: Context) => {
-
+    goToCue: async (
+      _: unknown,
+      {
+        cueListId,
+        cueIndex,
+        fadeInTime,
+      }: { cueListId: string; cueIndex: number; fadeInTime?: number },
+      { prisma, pubsub }: Context,
+    ) => {
       // Get the cue list
       const cueList = await prisma.cueList.findUnique({
         where: { id: cueListId },
         include: {
           cues: {
             include: { scene: true },
-            orderBy: { cueNumber: 'asc' }
-          }
-        }
+            orderBy: { cueNumber: "asc" },
+          },
+        },
       });
 
       if (!cueList || cueIndex < 0 || cueIndex >= cueList.cues.length) {
-        throw new Error('Invalid cue index');
+        throw new Error("Invalid cue index");
       }
 
       const targetCue = cueList.cues[cueIndex];
 
       // Use the existing playCue logic from dmx resolver
       // This will both send DMX output AND update the playback state
-      const { dmxResolvers } = await import('./dmx');
-      await dmxResolvers.Mutation.playCue(null, { cueId: targetCue.id, fadeInTime }, { prisma, pubsub } as Context);
+      const { dmxResolvers } = await import("./dmx");
+      await dmxResolvers.Mutation.playCue(
+        null,
+        { cueId: targetCue.id, fadeInTime },
+        { prisma, pubsub } as Context,
+      );
 
       return true;
     },
@@ -405,7 +475,7 @@ export const cueResolvers = {
     bulkUpdateCues: async (
       _: unknown,
       { input }: { input: BulkUpdateCuesInput },
-      { prisma }: Context
+      { prisma }: Context,
     ) => {
       // Verify all cues exist first
       const existingCues = await prisma.cue.findMany({
@@ -420,37 +490,52 @@ export const cueResolvers = {
       });
 
       if (existingCues.length !== input.cueIds.length) {
-        const foundIds = new Set(existingCues.map(cue => cue.id));
-        const missingIds = input.cueIds.filter(id => !foundIds.has(id));
-        throw new Error(`Cues not found: ${missingIds.join(', ')}`);
+        const foundIds = new Set(existingCues.map((cue) => cue.id));
+        const missingIds = input.cueIds.filter((id) => !foundIds.has(id));
+        throw new Error(`Cues not found: ${missingIds.join(", ")}`);
       }
 
       // Build update data - only include fields that are provided
-      const updateData: Partial<Pick<BulkUpdateCuesInput, 'fadeInTime' | 'fadeOutTime' | 'followTime' | 'easingType'>> = {};
-      if (input.fadeInTime !== undefined) {updateData.fadeInTime = input.fadeInTime;}
-      if (input.fadeOutTime !== undefined) {updateData.fadeOutTime = input.fadeOutTime;}
-      if (input.followTime !== undefined) {updateData.followTime = input.followTime;}
-      if (input.easingType !== undefined) {updateData.easingType = input.easingType;}
+      const updateData: Partial<
+        Pick<
+          BulkUpdateCuesInput,
+          "fadeInTime" | "fadeOutTime" | "followTime" | "easingType"
+        >
+      > = {};
+      if (input.fadeInTime !== undefined) {
+        updateData.fadeInTime = input.fadeInTime;
+      }
+      if (input.fadeOutTime !== undefined) {
+        updateData.fadeOutTime = input.fadeOutTime;
+      }
+      if (input.followTime !== undefined) {
+        updateData.followTime = input.followTime;
+      }
+      if (input.easingType !== undefined) {
+        updateData.easingType = input.easingType;
+      }
 
       if (Object.keys(updateData).length === 0) {
-        throw new Error('No update fields provided');
+        throw new Error("No update fields provided");
       }
 
       // Perform bulk update using transaction for consistency
       const updatedCues = await prisma.$transaction(
-        input.cueIds.map(cueId =>
+        input.cueIds.map((cueId) =>
           prisma.cue.update({
             where: { id: cueId },
             data: updateData,
             include: {
               scene: true,
             },
-          })
-        )
+          }),
+        ),
       );
 
       // Invalidate cache for all affected cue lists
-      const affectedCueListIds = new Set(existingCues.map(cue => cue.cueListId));
+      const affectedCueListIds = new Set(
+        existingCues.map((cue) => cue.cueListId),
+      );
       for (const cueListId of affectedCueListIds) {
         playbackService.invalidateCache(cueListId);
       }
@@ -460,7 +545,11 @@ export const cueResolvers = {
   },
 
   Cue: {
-    cueList: async (parent: { cueListId: string }, _: unknown, { prisma }: Context) => {
+    cueList: async (
+      parent: { cueListId: string },
+      _: unknown,
+      { prisma }: Context,
+    ) => {
       return prisma.cueList.findUnique({
         where: { id: parent.cueListId },
         include: {
@@ -470,7 +559,7 @@ export const cueResolvers = {
               scene: true,
             },
             orderBy: {
-              cueNumber: 'asc',
+              cueNumber: "asc",
             },
           },
         },
@@ -497,18 +586,29 @@ export const cueResolvers = {
   Subscription: {
     cueListPlaybackUpdated: {
       subscribe: withFilter(
-        (_: unknown, variables: { cueListId: string }, { pubsub }: WebSocketContext) => {
-          return pubsub.asyncIterator(['CUE_LIST_PLAYBACK_UPDATED']);
+        (
+          _: unknown,
+          variables: { cueListId: string },
+          { pubsub }: WebSocketContext,
+        ) => {
+          return pubsub.asyncIterator(["CUE_LIST_PLAYBACK_UPDATED"]);
         },
-        (payload: { cueListPlaybackUpdated: { cueListId: string } }, variables: { cueListId: string }) => {
+        (
+          payload: { cueListPlaybackUpdated: { cueListId: string } },
+          variables: { cueListId: string },
+        ) => {
           // Input validation for subscription
-          if (!variables.cueListId || typeof variables.cueListId !== 'string') {
-            logger.warn('Invalid cueListId in subscription filter', { cueListId: variables.cueListId });
+          if (!variables.cueListId || typeof variables.cueListId !== "string") {
+            logger.warn("Invalid cueListId in subscription filter", {
+              cueListId: variables.cueListId,
+            });
             return false;
           }
 
-          return payload.cueListPlaybackUpdated.cueListId === variables.cueListId;
-        }
+          return (
+            payload.cueListPlaybackUpdated.cueListId === variables.cueListId
+          );
+        },
       ),
       resolve: (payload: any) => payload.cueListPlaybackUpdated,
     },

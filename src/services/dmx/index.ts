@@ -1,6 +1,9 @@
 import * as dgram from "dgram";
-import { selectNetworkInterface, saveInterfacePreference } from '../../utils/interfaceSelector';
-import { logger } from '../../utils/logger';
+import {
+  selectNetworkInterface,
+  saveInterfacePreference,
+} from "../../utils/interfaceSelector";
+import { logger } from "../../utils/logger";
 
 export interface UniverseOutput {
   universe: number;
@@ -18,7 +21,7 @@ export class DMXService {
   private artNetEnabled: boolean = true;
   private broadcastAddress: string = "255.255.255.255";
   private artNetPort: number = 6454;
-  
+
   // Adaptive transmission rate management
   private lastTransmittedState: Map<number, number[]> = new Map();
   private lastChangeTime: number = 0;
@@ -30,7 +33,7 @@ export class DMXService {
   private isDirty: boolean = false; // Tracks if any channels have changed since last transmission
   private dirtyUniverses: Set<number> = new Set(); // Tracks which universes have changes
   private lastTransmissionTime: number = 0; // For timing precision tracking
-  
+
   // Timing drift monitoring (throttled to avoid console spam)
   private lastDriftWarningTime: number = 0;
   private driftWarningThrottle: number = 5000; // Only warn every 5 seconds max
@@ -40,13 +43,19 @@ export class DMXService {
     const universeCount = parseInt(process.env.DMX_UNIVERSE_COUNT || "4");
     const refreshRate = parseInt(process.env.DMX_REFRESH_RATE || "44");
     const idleRate = parseInt(process.env.DMX_IDLE_RATE || "1");
-    const highRateDuration = parseInt(process.env.DMX_HIGH_RATE_DURATION || "2000");
+    const highRateDuration = parseInt(
+      process.env.DMX_HIGH_RATE_DURATION || "2000",
+    );
     this.artNetEnabled = process.env.ARTNET_ENABLED !== "false";
-    
+
     // Configure timing monitoring (can be disabled for production)
-    this.significantDriftThreshold = parseInt(process.env.DMX_DRIFT_THRESHOLD || "50");
-    this.driftWarningThrottle = parseInt(process.env.DMX_DRIFT_THROTTLE || "5000");
-    
+    this.significantDriftThreshold = parseInt(
+      process.env.DMX_DRIFT_THRESHOLD || "50",
+    );
+    this.driftWarningThrottle = parseInt(
+      process.env.DMX_DRIFT_THROTTLE || "5000",
+    );
+
     // Select network interface for Art-Net broadcast
     if (this.artNetEnabled) {
       const selectedInterface = await selectNetworkInterface();
@@ -77,9 +86,7 @@ export class DMXService {
       this.lastTransmittedState.set(i, new Array(512).fill(0));
     }
 
-    logger.info(
-      `🎭 DMX Service initialized with ${universeCount} universes`,
-    );
+    logger.info(`🎭 DMX Service initialized with ${universeCount} universes`);
     logger.info(
       `📡 Adaptive transmission: ${refreshRate}Hz (active) / ${idleRate}Hz (idle), ${highRateDuration}ms high-rate duration`,
     );
@@ -90,7 +97,7 @@ export class DMXService {
     } else {
       logger.info(`📡 Art-Net output disabled (simulation mode)`);
     }
-    
+
     // Log timing monitoring configuration
     if (this.significantDriftThreshold > 0) {
       logger.info(
@@ -124,16 +131,26 @@ export class DMXService {
 
   private processTransmission() {
     const currentTime = Date.now();
-    
+
     // Calculate actual transmission interval for timing precision tracking
-    const actualInterval = this.lastTransmissionTime > 0 ? currentTime - this.lastTransmissionTime : 0;
+    const actualInterval =
+      this.lastTransmissionTime > 0
+        ? currentTime - this.lastTransmissionTime
+        : 0;
     const expectedInterval = 1000 / this.currentRate;
-    
+
     // Throttled timing drift monitoring (only for significant drifts, max once per 5 seconds)
     // Set DMX_DRIFT_THRESHOLD=0 to disable timing monitoring entirely
-    if (this.significantDriftThreshold > 0 && actualInterval > 0 && Math.abs(actualInterval - expectedInterval) > this.significantDriftThreshold) {
+    if (
+      this.significantDriftThreshold > 0 &&
+      actualInterval > 0 &&
+      Math.abs(actualInterval - expectedInterval) >
+        this.significantDriftThreshold
+    ) {
       if (currentTime - this.lastDriftWarningTime > this.driftWarningThrottle) {
-        logger.warn(`⚠️  DMX timing drift detected: expected ${expectedInterval.toFixed(1)}ms, actual ${actualInterval}ms (drift: ${(actualInterval - expectedInterval).toFixed(1)}ms)`);
+        logger.warn(
+          `⚠️  DMX timing drift detected: expected ${expectedInterval.toFixed(1)}ms, actual ${actualInterval}ms (drift: ${(actualInterval - expectedInterval).toFixed(1)}ms)`,
+        );
         this.lastDriftWarningTime = currentTime;
       }
     }
@@ -147,20 +164,32 @@ export class DMXService {
       if (!this.isInHighRateMode) {
         this.isInHighRateMode = true;
         this.currentRate = this.refreshRate;
-        logger.info(`📡 DMX transmission: switching to high rate (${this.refreshRate}Hz) - changes detected`);
+        logger.info(
+          `📡 DMX transmission: switching to high rate (${this.refreshRate}Hz) - changes detected`,
+        );
       }
     } else {
       // Check if we should switch to idle rate
       const timeSinceLastChange = currentTime - this.lastChangeTime;
-      if (this.isInHighRateMode && this.lastChangeTime > 0 && timeSinceLastChange > this.highRateDuration) {
+      if (
+        this.isInHighRateMode &&
+        this.lastChangeTime > 0 &&
+        timeSinceLastChange > this.highRateDuration
+      ) {
         this.isInHighRateMode = false;
         this.currentRate = this.idleRate;
-        logger.info(`📡 DMX transmission: switching to idle rate (${this.idleRate}Hz) - no changes for ${timeSinceLastChange}ms`);
+        logger.info(
+          `📡 DMX transmission: switching to idle rate (${this.idleRate}Hz) - no changes for ${timeSinceLastChange}ms`,
+        );
       }
     }
 
     // Transmit when we have changes (in high rate mode), or always in idle mode (for keep-alive)
-    if (this.artNetEnabled && this.socket && (this.isInHighRateMode ? hasChanges : true)) {
+    if (
+      this.artNetEnabled &&
+      this.socket &&
+      (this.isInHighRateMode ? hasChanges : true)
+    ) {
       this.outputDMX();
       this.lastTransmissionTime = currentTime;
     }
@@ -174,7 +203,9 @@ export class DMXService {
         universesToTransmit = Array.from(this.dirtyUniverses);
       } else {
         // This should never happen; log error and return early to catch logic bugs
-        logger.error("Logical inconsistency: isDirty is true but dirtyUniverses is empty. No universes to transmit.");
+        logger.error(
+          "Logical inconsistency: isDirty is true but dirtyUniverses is empty. No universes to transmit.",
+        );
         return;
       }
     } else {
@@ -186,7 +217,7 @@ export class DMXService {
     for (const universe of universesToTransmit) {
       const outputChannels = this.getUniverseOutputChannels(universe);
       this.sendArtNetPacket(universe, outputChannels);
-      
+
       // Update last transmitted state
       this.lastTransmittedState.set(universe, [...outputChannels]);
     }
@@ -199,7 +230,7 @@ export class DMXService {
   private getUniverseOutputChannels(universe: number): number[] {
     const baseChannels = this.universes.get(universe) || new Array(512).fill(0);
     const outputChannels = [...baseChannels];
-    
+
     // Apply overrides
     for (let i = 0; i < 512; i++) {
       const overrideKey = `${universe}:${i + 1}`;
@@ -207,14 +238,13 @@ export class DMXService {
         outputChannels[i] = this.channelOverrides.get(overrideKey)!;
       }
     }
-    
+
     return outputChannels;
   }
 
-
   /**
    * Sends an Art-Net packet for the given universe.
-   * 
+   *
    * @param universe The DMX universe number.
    * @param channels An array of 512 DMX channel values (0-255), with all channel overrides already applied.
    *                 This should be the result of getUniverseOutputChannels().
@@ -242,7 +272,10 @@ export class DMXService {
     // Send the packet
     this.socket!.send(packet, this.artNetPort, this.broadcastAddress, (err) => {
       if (err) {
-        logger.error(`Art-Net send error for universe ${universe}`, { error: err, universe });
+        logger.error(`Art-Net send error for universe ${universe}`, {
+          error: err,
+          universe,
+        });
       }
     });
   }
@@ -252,7 +285,7 @@ export class DMXService {
     if (universeData && channel >= 1 && channel <= 512) {
       const clampedValue = Math.max(0, Math.min(255, value));
       const currentValue = universeData[channel - 1];
-      
+
       // Only mark dirty if value actually changed
       if (currentValue !== clampedValue) {
         universeData[channel - 1] = clampedValue;
@@ -268,7 +301,7 @@ export class DMXService {
       const overrideKey = `${universe}:${channel}`;
       const clampedValue = Math.max(0, Math.min(255, value));
       const currentValue = this.channelOverrides.get(overrideKey);
-      
+
       // Only mark dirty if override value actually changed
       if (currentValue !== clampedValue) {
         this.channelOverrides.set(overrideKey, clampedValue);
@@ -293,7 +326,7 @@ export class DMXService {
     if (this.channelOverrides.size > 0) {
       // Mark all affected universes as dirty
       for (const overrideKey of this.channelOverrides.keys()) {
-        const universe = parseInt(overrideKey.split(':')[0]);
+        const universe = parseInt(overrideKey.split(":")[0]);
         this.markDirty(universe);
       }
       this.channelOverrides.clear();
@@ -314,7 +347,9 @@ export class DMXService {
     if (!this.isInHighRateMode) {
       this.isInHighRateMode = true;
       this.currentRate = this.refreshRate;
-      logger.info(`📡 DMX transmission: manual trigger to high rate (${this.refreshRate}Hz)`);
+      logger.info(
+        `📡 DMX transmission: manual trigger to high rate (${this.refreshRate}Hz)`,
+      );
     }
   }
 
@@ -329,7 +364,7 @@ export class DMXService {
   getUniverseOutput(universe: number): number[] {
     const baseChannels = this.universes.get(universe) || [];
     const outputChannels = [...baseChannels];
-    
+
     // Apply overrides
     for (let i = 0; i < 512; i++) {
       const overrideKey = `${universe}:${i + 1}`;
@@ -337,16 +372,18 @@ export class DMXService {
         outputChannels[i] = this.channelOverrides.get(overrideKey)!;
       }
     }
-    
+
     return outputChannels;
   }
 
   getUniverseChannels(universe: number): number[] | null {
     const baseChannels = this.universes.get(universe);
-    if (!baseChannels) {return null;}
-    
+    if (!baseChannels) {
+      return null;
+    }
+
     const outputChannels = [...baseChannels];
-    
+
     // Apply overrides
     for (let i = 0; i < 512; i++) {
       const overrideKey = `${universe}:${i + 1}`;
@@ -354,7 +391,7 @@ export class DMXService {
         outputChannels[i] = this.channelOverrides.get(overrideKey)!;
       }
     }
-    
+
     return outputChannels;
   }
 

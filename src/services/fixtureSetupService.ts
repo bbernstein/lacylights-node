@@ -81,10 +81,17 @@ interface OFLFixture {
 }
 
 export class FixtureSetupService {
-  private static readonly OFL_DOWNLOAD_URL = "https://open-fixture-library.org/download.ofl";
+  private static readonly OFL_DOWNLOAD_URL =
+    "https://open-fixture-library.org/download.ofl";
   private static readonly TEMP_DIR = path.join(process.cwd(), "temp");
-  private static readonly OFL_ZIP_PATH = path.join(FixtureSetupService.TEMP_DIR, "ofl.zip");
-  private static readonly OFL_EXTRACT_PATH = path.join(FixtureSetupService.TEMP_DIR, "ofl");
+  private static readonly OFL_ZIP_PATH = path.join(
+    FixtureSetupService.TEMP_DIR,
+    "ofl.zip",
+  );
+  private static readonly OFL_EXTRACT_PATH = path.join(
+    FixtureSetupService.TEMP_DIR,
+    "ofl",
+  );
 
   /**
    * Check if fixtures need to be populated and populate them if necessary
@@ -92,9 +99,11 @@ export class FixtureSetupService {
   static async ensureFixturesPopulated(): Promise<void> {
     try {
       const fixtureCount = await prisma.fixtureDefinition.count();
-      
+
       if (fixtureCount === 0) {
-        console.log("🎭 No fixture definitions found. Starting initial fixture import...");
+        console.log(
+          "🎭 No fixture definitions found. Starting initial fixture import...",
+        );
         await this.downloadAndImportFixtures();
       } else {
         console.log(`✓ Found ${fixtureCount} fixture definitions in database`);
@@ -123,15 +132,18 @@ export class FixtureSetupService {
 
       // Check extraction directory
       console.log("  Checking extracted data...");
-      const extractedDirs = fs.readdirSync(this.OFL_EXTRACT_PATH)
-        .filter(item => fs.statSync(path.join(this.OFL_EXTRACT_PATH, item)).isDirectory());
+      const extractedDirs = fs
+        .readdirSync(this.OFL_EXTRACT_PATH)
+        .filter((item) =>
+          fs.statSync(path.join(this.OFL_EXTRACT_PATH, item)).isDirectory(),
+        );
       console.log(`  Found ${extractedDirs.length} manufacturer directories`);
 
       console.log("💾 Importing fixtures into database...");
       await this.importFixtures();
 
       console.log("✅ Fixture import completed successfully!");
-      
+
       // Only cleanup on success
       console.log("🧹 Cleaning up temporary files...");
       await this.cleanup();
@@ -149,43 +161,50 @@ export class FixtureSetupService {
   private static async downloadOFLData(): Promise<void> {
     return new Promise((resolve, reject) => {
       const file = fs.createWriteStream(this.OFL_ZIP_PATH);
-      
-      https.get(this.OFL_DOWNLOAD_URL, (response) => {
-        if (response.statusCode !== 200) {
-          reject(new Error(`Failed to download OFL data: ${response.statusCode}`));
-          return;
-        }
 
-        const totalSize = parseInt(response.headers['content-length'] || '0', 10);
-        let downloadedSize = 0;
-        let lastLoggedProgress = 0;
+      https
+        .get(this.OFL_DOWNLOAD_URL, (response) => {
+          if (response.statusCode !== 200) {
+            reject(
+              new Error(`Failed to download OFL data: ${response.statusCode}`),
+            );
+            return;
+          }
 
-        if (totalSize > 0) {
-          response.on('data', (chunk) => {
-            downloadedSize += chunk.length;
-            const progress = Math.round((downloadedSize / totalSize) * 100);
-            
-            // Log progress every 10%
-            if (progress >= lastLoggedProgress + 10) {
-              console.log(`  Download progress: ${progress}%`);
-              lastLoggedProgress = progress;
-            }
+          const totalSize = parseInt(
+            response.headers["content-length"] || "0",
+            10,
+          );
+          let downloadedSize = 0;
+          let lastLoggedProgress = 0;
+
+          if (totalSize > 0) {
+            response.on("data", (chunk) => {
+              downloadedSize += chunk.length;
+              const progress = Math.round((downloadedSize / totalSize) * 100);
+
+              // Log progress every 10%
+              if (progress >= lastLoggedProgress + 10) {
+                console.log(`  Download progress: ${progress}%`);
+                lastLoggedProgress = progress;
+              }
+            });
+          } else {
+            console.log("  Downloading... (size unknown)");
+          }
+
+          response.pipe(file);
+
+          file.on("finish", () => {
+            file.close();
+            console.log("  Download complete!");
+            resolve();
           });
-        } else {
-          console.log("  Downloading... (size unknown)");
-        }
-
-        response.pipe(file);
-
-        file.on('finish', () => {
-          file.close();
-          console.log("  Download complete!");
-          resolve();
+        })
+        .on("error", (err) => {
+          fs.unlinkSync(this.OFL_ZIP_PATH);
+          reject(err);
         });
-      }).on('error', (err) => {
-        fs.unlinkSync(this.OFL_ZIP_PATH);
-        reject(err);
-      });
     });
   }
 
@@ -201,11 +220,11 @@ export class FixtureSetupService {
     return new Promise((resolve, reject) => {
       fs.createReadStream(this.OFL_ZIP_PATH)
         .pipe(unzipper.Extract({ path: this.OFL_EXTRACT_PATH }))
-        .on('close', () => {
+        .on("close", () => {
           console.log("  Extraction complete!");
           resolve();
         })
-        .on('error', (err) => {
+        .on("error", (err) => {
           console.error("  Extraction error:", err);
           reject(err);
         });
@@ -217,19 +236,21 @@ export class FixtureSetupService {
    */
   private static async importFixtures(): Promise<void> {
     // Since manufacturers.json doesn't exist, build manufacturers from directories
-    const manufacturerDirs = fs.readdirSync(this.OFL_EXTRACT_PATH)
-      .filter(item => {
+    const manufacturerDirs = fs
+      .readdirSync(this.OFL_EXTRACT_PATH)
+      .filter((item) => {
         const itemPath = path.join(this.OFL_EXTRACT_PATH, item);
         return fs.statSync(itemPath).isDirectory();
       });
 
     // Create manufacturers data from directory names
     const manufacturersData: OFLManufacturers = {};
-    manufacturerDirs.forEach(dir => {
+    manufacturerDirs.forEach((dir) => {
       // Convert directory name to manufacturer name (e.g., "american-dj" -> "American DJ")
-      const name = dir.split('-').map(word => 
-        word.charAt(0).toUpperCase() + word.slice(1)
-      ).join(' ');
+      const name = dir
+        .split("-")
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(" ");
       manufacturersData[dir] = { name };
     });
 
@@ -239,9 +260,15 @@ export class FixtureSetupService {
 
     // Process each manufacturer directory
     for (const manufacturerKey of Object.keys(manufacturersData)) {
-      const manufacturerPath = path.join(this.OFL_EXTRACT_PATH, manufacturerKey);
+      const manufacturerPath = path.join(
+        this.OFL_EXTRACT_PATH,
+        manufacturerKey,
+      );
 
-      if (!fs.existsSync(manufacturerPath) || !fs.statSync(manufacturerPath).isDirectory()) {
+      if (
+        !fs.existsSync(manufacturerPath) ||
+        !fs.statSync(manufacturerPath).isDirectory()
+      ) {
         continue;
       }
 
@@ -259,7 +286,7 @@ export class FixtureSetupService {
 
         try {
           const oflFixture: OFLFixture = JSON.parse(
-            fs.readFileSync(fixturePath, "utf8")
+            fs.readFileSync(fixturePath, "utf8"),
           );
 
           // Skip fixtures without modes
@@ -284,33 +311,39 @@ export class FixtureSetupService {
           // Get all unique channels from all modes
           const allChannelNames = new Set<string>();
           oflFixture.modes.forEach((mode) => {
-            mode.channels.forEach((channelName) => allChannelNames.add(channelName));
+            mode.channels.forEach((channelName) =>
+              allChannelNames.add(channelName),
+            );
           });
 
           // Create channel definitions for all unique channels
-          const channelDefinitions = Array.from(allChannelNames).map((channelName, index) => {
-            const oflChannel = oflFixture.availableChannels[channelName];
+          const channelDefinitions = Array.from(allChannelNames).map(
+            (channelName, index) => {
+              const oflChannel = oflFixture.availableChannels[channelName];
 
-            // Use the first capability or the single capability
-            const capability = oflChannel.capabilities
-              ? oflChannel.capabilities[0]
-              : oflChannel.capability;
+              // Use the first capability or the single capability
+              const capability = oflChannel.capabilities
+                ? oflChannel.capabilities[0]
+                : oflChannel.capability;
 
-            if (!capability) {
-              throw new Error(`No capability found for channel: ${channelName}`);
-            }
+              if (!capability) {
+                throw new Error(
+                  `No capability found for channel: ${channelName}`,
+                );
+              }
 
-            const { min, max } = this.getMinMaxValues(capability);
+              const { min, max } = this.getMinMaxValues(capability);
 
-            return {
-              name: channelName,
-              type: this.mapChannelType(capability),
-              offset: index + 1,
-              minValue: min,
-              maxValue: max,
-              defaultValue: this.getDefaultValue(capability),
-            };
-          });
+              return {
+                name: channelName,
+                type: this.mapChannelType(capability),
+                offset: index + 1,
+                minValue: min,
+                maxValue: max,
+                defaultValue: this.getDefaultValue(capability),
+              };
+            },
+          );
 
           // Create the fixture definition with channels
           const fixtureDefinition = await prisma.fixtureDefinition.create({
@@ -339,11 +372,11 @@ export class FixtureSetupService {
                 modeChannels: {
                   create: oflMode.channels.map((channelName, offset) => {
                     const channelDef = fixtureDefinition.channels.find(
-                      (ch) => ch.name === channelName
+                      (ch) => ch.name === channelName,
                     );
                     if (!channelDef) {
                       throw new Error(
-                        `Channel ${channelName} not found for mode ${oflMode.name}`
+                        `Channel ${channelName} not found for mode ${oflMode.name}`,
                       );
                     }
                     return {
@@ -372,7 +405,9 @@ export class FixtureSetupService {
     console.log(`  Total fixtures processed: ${totalFixtures}`);
     console.log(`  Successfully imported: ${successfulImports}`);
     console.log(`  Errors: ${errors}`);
-    console.log(`  Skipped (already exist): ${totalFixtures - successfulImports - errors}`);
+    console.log(
+      `  Skipped (already exist): ${totalFixtures - successfulImports - errors}`,
+    );
   }
 
   /**
@@ -382,7 +417,9 @@ export class FixtureSetupService {
     const type = oflCapability.type;
     const color = oflCapability.color?.toLowerCase();
 
-    if (type === "Intensity") { return ChannelType.INTENSITY; }
+    if (type === "Intensity") {
+      return ChannelType.INTENSITY;
+    }
     if (type === "ColorIntensity") {
       switch (color) {
         case "red":
@@ -401,16 +438,36 @@ export class FixtureSetupService {
           return ChannelType.OTHER;
       }
     }
-    if (type === "Pan") { return ChannelType.PAN; }
-    if (type === "Tilt") { return ChannelType.TILT; }
-    if (type === "Zoom") { return ChannelType.ZOOM; }
-    if (type === "Focus") { return ChannelType.FOCUS; }
-    if (type === "Iris") { return ChannelType.IRIS; }
-    if (type === "Gobo") { return ChannelType.GOBO; }
-    if (type === "ColorWheel") { return ChannelType.COLOR_WHEEL; }
-    if (type === "Effect") { return ChannelType.EFFECT; }
-    if (type === "ShutterStrobe") { return ChannelType.STROBE; }
-    if (type === "Maintenance") { return ChannelType.MACRO; }
+    if (type === "Pan") {
+      return ChannelType.PAN;
+    }
+    if (type === "Tilt") {
+      return ChannelType.TILT;
+    }
+    if (type === "Zoom") {
+      return ChannelType.ZOOM;
+    }
+    if (type === "Focus") {
+      return ChannelType.FOCUS;
+    }
+    if (type === "Iris") {
+      return ChannelType.IRIS;
+    }
+    if (type === "Gobo") {
+      return ChannelType.GOBO;
+    }
+    if (type === "ColorWheel") {
+      return ChannelType.COLOR_WHEEL;
+    }
+    if (type === "Effect") {
+      return ChannelType.EFFECT;
+    }
+    if (type === "ShutterStrobe") {
+      return ChannelType.STROBE;
+    }
+    if (type === "Maintenance") {
+      return ChannelType.MACRO;
+    }
 
     return ChannelType.OTHER;
   }
@@ -427,7 +484,10 @@ export class FixtureSetupService {
     ) {
       return FixtureType.MOVING_HEAD;
     }
-    if (categoryString.includes("strobe") || categoryString.includes("blinder")) {
+    if (
+      categoryString.includes("strobe") ||
+      categoryString.includes("blinder")
+    ) {
       return FixtureType.STROBE;
     }
     if (categoryString.includes("dimmer")) {
@@ -451,7 +511,10 @@ export class FixtureSetupService {
     if (capability.dmxRange) {
       return capability.dmxRange[0];
     }
-    if (capability.type === "Intensity" || capability.type === "ColorIntensity") {
+    if (
+      capability.type === "Intensity" ||
+      capability.type === "ColorIntensity"
+    ) {
       return 0;
     }
     return 128;
@@ -460,7 +523,10 @@ export class FixtureSetupService {
   /**
    * Get min/max values for a capability
    */
-  private static getMinMaxValues(capability: OFLCapability): { min: number; max: number } {
+  private static getMinMaxValues(capability: OFLCapability): {
+    min: number;
+    max: number;
+  } {
     if (capability.dmxRange) {
       return { min: capability.dmxRange[0], max: capability.dmxRange[1] };
     }

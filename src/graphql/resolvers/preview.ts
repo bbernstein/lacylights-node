@@ -1,12 +1,16 @@
-import { Context } from '../../context';
-import { previewService } from '../../services/previewService';
+import { Context } from "../../context";
+import { previewService } from "../../services/previewService";
 
 export const previewResolvers = {
   Query: {
-    previewSession: async (_: unknown, { sessionId }: { sessionId: string }, context: Context) => {
+    previewSession: async (
+      _: unknown,
+      { sessionId }: { sessionId: string },
+      context: Context,
+    ) => {
       const session = await previewService.getPreviewSession(sessionId);
       if (!session) {
-        throw new Error('Preview session not found');
+        throw new Error("Preview session not found");
       }
 
       const project = await context.prisma.project.findUnique({
@@ -25,14 +29,18 @@ export const previewResolvers = {
   },
 
   Mutation: {
-    startPreviewSession: async (_: unknown, { projectId }: { projectId: string }, context: Context) => {
+    startPreviewSession: async (
+      _: unknown,
+      { projectId }: { projectId: string },
+      context: Context,
+    ) => {
       // Verify project exists
       const project = await context.prisma.project.findUnique({
         where: { id: projectId },
       });
 
       if (!project) {
-        throw new Error('Project not found');
+        throw new Error("Project not found");
       }
 
       const session = await previewService.startPreviewSession(projectId);
@@ -47,31 +55,49 @@ export const previewResolvers = {
       };
     },
 
-    commitPreviewSession: async (_: unknown, { sessionId }: { sessionId: string }, _context: Context) => {
+    commitPreviewSession: async (
+      _: unknown,
+      { sessionId }: { sessionId: string },
+      _context: Context,
+    ) => {
       return await previewService.commitPreviewSession(sessionId);
     },
 
-    cancelPreviewSession: async (_: unknown, { sessionId }: { sessionId: string }, _context: Context) => {
+    cancelPreviewSession: async (
+      _: unknown,
+      { sessionId }: { sessionId: string },
+      _context: Context,
+    ) => {
       return await previewService.cancelPreviewSession(sessionId);
     },
 
     updatePreviewChannel: async (
       _: unknown,
-      { sessionId, fixtureId, channelIndex, value }: {
+      {
+        sessionId,
+        fixtureId,
+        channelIndex,
+        value,
+      }: {
         sessionId: string;
         fixtureId: string;
         channelIndex: number;
         value: number;
       },
-      _context: Context
+      _context: Context,
     ) => {
-      return await previewService.updateChannelValue(sessionId, fixtureId, channelIndex, value);
+      return await previewService.updateChannelValue(
+        sessionId,
+        fixtureId,
+        channelIndex,
+        value,
+      );
     },
 
     initializePreviewWithScene: async (
       _: unknown,
       { sessionId, sceneId }: { sessionId: string; sceneId: string },
-      _context: Context
+      _context: Context,
     ) => {
       return await previewService.initializeWithScene(sessionId, sceneId);
     },
@@ -79,14 +105,22 @@ export const previewResolvers = {
 
   Subscription: {
     previewSessionUpdated: {
-      subscribe: (_: unknown, { projectId: _projectId }: { projectId: string }, context: Context) => {
-        return context.pubsub.asyncIterator(['PREVIEW_SESSION_UPDATED']);
+      subscribe: (
+        _: unknown,
+        { projectId: _projectId }: { projectId: string },
+        context: Context,
+      ) => {
+        return context.pubsub.asyncIterator(["PREVIEW_SESSION_UPDATED"]);
       },
     },
 
     dmxOutputChanged: {
-      subscribe: (_: unknown, { universe: _universe }: { universe?: number }, context: Context) => {
-        return context.pubsub.asyncIterator(['DMX_OUTPUT_CHANGED']);
+      subscribe: (
+        _: unknown,
+        { universe: _universe }: { universe?: number },
+        context: Context,
+      ) => {
+        return context.pubsub.asyncIterator(["DMX_OUTPUT_CHANGED"]);
       },
     },
   },
@@ -103,7 +137,7 @@ async function getDMXOutput(sessionId: string) {
 
   const universesUsed = new Set<number>();
   for (const channelKey of session.channelOverrides.keys()) {
-    const [universe] = channelKey.split(':').map(Number);
+    const [universe] = channelKey.split(":").map(Number);
     universesUsed.add(universe);
   }
 

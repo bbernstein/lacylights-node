@@ -1,7 +1,7 @@
-import { Context } from '../../context';
-import { dmxService } from '../../services/dmx';
-import { fadeEngine, EasingType } from '../../services/fadeEngine';
-import { getPlaybackStateService } from '../../services/playbackStateService';
+import { Context } from "../../context";
+import { dmxService } from "../../services/dmx";
+import { fadeEngine, EasingType } from "../../services/fadeEngine";
+import { getPlaybackStateService } from "../../services/playbackStateService";
 
 export const dmxResolvers = {
   Query: {
@@ -15,7 +15,7 @@ export const dmxResolvers = {
 
     currentActiveScene: async (_: any, __: any, { prisma }: Context) => {
       const currentActiveSceneId = dmxService.getCurrentActiveSceneId();
-      
+
       if (!currentActiveSceneId) {
         return null;
       }
@@ -38,12 +38,23 @@ export const dmxResolvers = {
   },
 
   Mutation: {
-    setChannelValue: async (_: any, { universe, channel, value }: { universe: number; channel: number; value: number }) => {
+    setChannelValue: async (
+      _: any,
+      {
+        universe,
+        channel,
+        value,
+      }: { universe: number; channel: number; value: number },
+    ) => {
       dmxService.setChannelValue(universe, channel, value);
       return true;
     },
 
-    setSceneLive: async (_: any, { sceneId }: { sceneId: string }, { prisma }: Context) => {
+    setSceneLive: async (
+      _: any,
+      { sceneId }: { sceneId: string },
+      { prisma }: Context,
+    ) => {
       // Get the scene with all its fixture values and channel values
       const scene = await prisma.scene.findUnique({
         where: { id: sceneId },
@@ -61,16 +72,24 @@ export const dmxResolvers = {
       }
 
       // Build array of all channel values for the scene
-      const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
-      
+      const sceneChannels: Array<{
+        universe: number;
+        channel: number;
+        value: number;
+      }> = [];
+
       for (const fixtureValue of scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
-        
+
         // Iterate through channelValues array by index
-        for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+        for (
+          let channelIndex = 0;
+          channelIndex < fixtureValue.channelValues.length;
+          channelIndex++
+        ) {
           const value = fixtureValue.channelValues[channelIndex];
           const dmxChannel = fixture.startChannel + channelIndex;
-          
+
           sceneChannels.push({
             universe: fixture.universe,
             channel: dmxChannel,
@@ -88,7 +107,11 @@ export const dmxResolvers = {
       return true;
     },
 
-    playCue: async (_: any, { cueId, fadeInTime }: { cueId: string; fadeInTime?: number }, { prisma }: Context) => {
+    playCue: async (
+      _: any,
+      { cueId, fadeInTime }: { cueId: string; fadeInTime?: number },
+      { prisma }: Context,
+    ) => {
       // Get the cue with its scene and cue list
       const cue = await prisma.cue.findUnique({
         where: { id: cueId },
@@ -105,7 +128,7 @@ export const dmxResolvers = {
           cueList: {
             include: {
               cues: {
-                orderBy: { cueNumber: 'asc' },
+                orderBy: { cueNumber: "asc" },
               },
             },
           },
@@ -117,16 +140,25 @@ export const dmxResolvers = {
       }
 
       // Use provided fadeInTime or default to cue's fadeInTime
-      const actualFadeTime = fadeInTime !== undefined ? fadeInTime : cue.fadeInTime;
+      const actualFadeTime =
+        fadeInTime !== undefined ? fadeInTime : cue.fadeInTime;
 
       // Build array of all channel values for the scene
-      const sceneChannels: Array<{ universe: number; channel: number; value: number }> = [];
+      const sceneChannels: Array<{
+        universe: number;
+        channel: number;
+        value: number;
+      }> = [];
 
       for (const fixtureValue of cue.scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
 
         // Iterate through channelValues array by index
-        for (let channelIndex = 0; channelIndex < fixtureValue.channelValues.length; channelIndex++) {
+        for (
+          let channelIndex = 0;
+          channelIndex < fixtureValue.channelValues.length;
+          channelIndex++
+        ) {
           const value = fixtureValue.channelValues[channelIndex];
           const dmxChannel = fixture.startChannel + channelIndex;
 
@@ -139,14 +171,19 @@ export const dmxResolvers = {
       }
 
       // Use fade engine to transition to the scene with the cue's easing type
-      fadeEngine.fadeToScene(sceneChannels, actualFadeTime, `cue-${cueId}`, cue.easingType as EasingType | undefined);
+      fadeEngine.fadeToScene(
+        sceneChannels,
+        actualFadeTime,
+        `cue-${cueId}`,
+        cue.easingType as EasingType | undefined,
+      );
 
       // Track the currently active scene (from the cue)
       dmxService.setActiveScene(cue.scene.id);
 
       // Update playback state service to track cue execution
       const playbackService = getPlaybackStateService();
-      const cueIndex = cue.cueList.cues.findIndex(c => c.id === cueId);
+      const cueIndex = cue.cueList.cues.findIndex((c) => c.id === cueId);
 
       if (cueIndex !== -1) {
         await playbackService.startCue(cue.cueList.id, cueIndex, cue);

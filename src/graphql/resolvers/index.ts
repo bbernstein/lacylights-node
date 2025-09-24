@@ -1,11 +1,11 @@
-import { projectResolvers } from './project';
-import { fixtureResolvers } from './fixture';
-import { sceneResolvers } from './scene';
-import { cueResolvers } from './cue';
-import { dmxResolvers } from './dmx';
-import { previewResolvers } from './preview';
-import { qlcExportResolvers } from './qlcExport';
-import { fixtureOrderingResolvers } from './fixtureOrdering';
+import { projectResolvers } from "./project";
+import { fixtureResolvers } from "./fixture";
+import { sceneResolvers } from "./scene";
+import { cueResolvers } from "./cue";
+import { dmxResolvers } from "./dmx";
+import { previewResolvers } from "./preview";
+import { qlcExportResolvers } from "./qlcExport";
+import { fixtureOrderingResolvers } from "./fixtureOrdering";
 
 export const resolvers = {
   Query: {

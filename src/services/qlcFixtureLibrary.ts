@@ -1,6 +1,6 @@
-import fs from 'fs';
-import path from 'path';
-import * as xml2js from 'xml2js';
+import fs from "fs";
+import path from "path";
+import * as xml2js from "xml2js";
 
 export interface QLCFixtureDefinition {
   manufacturer: string;
@@ -50,12 +50,13 @@ export interface FixtureMapping {
 export class QLCFixtureLibrary {
   private fixtures: Map<string, QLCFixtureDefinition> = new Map();
   private fixtureListPath: string;
-  
+
   constructor(qlcFixturesPath?: string) {
     // Use the provided path, or the QLC_FIXTURES_PATH environment variable, or default to local resources
-    this.fixtureListPath = qlcFixturesPath 
-      || process.env.QLC_FIXTURES_PATH 
-      || path.join(__dirname, '../../resources/qlc-fixtures');
+    this.fixtureListPath =
+      qlcFixturesPath ||
+      process.env.QLC_FIXTURES_PATH ||
+      path.join(__dirname, "../../resources/qlc-fixtures");
   }
 
   async loadFixtureLibrary(): Promise<void> {
@@ -63,14 +64,18 @@ export class QLCFixtureLibrary {
       throw new Error(`QLC+ fixtures path not found: ${this.fixtureListPath}`);
     }
 
-    const manufacturerDirs = fs.readdirSync(this.fixtureListPath)
-      .filter(dir => fs.statSync(path.join(this.fixtureListPath, dir)).isDirectory());
-    
+    const manufacturerDirs = fs
+      .readdirSync(this.fixtureListPath)
+      .filter((dir) =>
+        fs.statSync(path.join(this.fixtureListPath, dir)).isDirectory(),
+      );
+
     for (const manufacturerDir of manufacturerDirs) {
       const manufacturerPath = path.join(this.fixtureListPath, manufacturerDir);
-      const fixtureFiles = fs.readdirSync(manufacturerPath)
-        .filter(file => file.endsWith('.qxf'));
-      
+      const fixtureFiles = fs
+        .readdirSync(manufacturerPath)
+        .filter((file) => file.endsWith(".qxf"));
+
       for (const fixtureFile of fixtureFiles) {
         try {
           const fixturePath = path.join(manufacturerPath, fixtureFile);
@@ -87,25 +92,29 @@ export class QLCFixtureLibrary {
     }
   }
 
-  private async parseFixtureFile(filePath: string): Promise<QLCFixtureDefinition | null> {
+  private async parseFixtureFile(
+    filePath: string,
+  ): Promise<QLCFixtureDefinition | null> {
     try {
-      const xmlContent = fs.readFileSync(filePath, 'utf8');
+      const xmlContent = fs.readFileSync(filePath, "utf8");
       const parser = new xml2js.Parser();
       const result = await parser.parseStringPromise(xmlContent);
-      
-      const fixtureDef = result.FixtureDefinition;
-      if (!fixtureDef) {return null;}
 
-      const manufacturer = fixtureDef.Manufacturer?.[0] || 'Unknown';
-      const model = fixtureDef.Model?.[0] || 'Unknown';
-      const type = fixtureDef.Type?.[0] || 'Other';
+      const fixtureDef = result.FixtureDefinition;
+      if (!fixtureDef) {
+        return null;
+      }
+
+      const manufacturer = fixtureDef.Manufacturer?.[0] || "Unknown";
+      const model = fixtureDef.Model?.[0] || "Unknown";
+      const type = fixtureDef.Type?.[0] || "Other";
 
       // Parse channels
       const channels: QLCChannelDefinition[] = [];
       if (fixtureDef.Channel) {
         for (const channelData of fixtureDef.Channel) {
           channels.push({
-            name: channelData.$.Name || 'Unknown',
+            name: channelData.$.Name || "Unknown",
             preset: channelData.$.Preset,
           });
         }
@@ -116,14 +125,14 @@ export class QLCFixtureLibrary {
       if (fixtureDef.Mode) {
         for (const modeData of fixtureDef.Mode) {
           const mode: QLCFixtureMode = {
-            name: modeData.$.Name || 'Default',
+            name: modeData.$.Name || "Default",
             channelCount: 0,
             channels: [],
           };
 
           if (modeData.Channel) {
             for (const channelRef of modeData.Channel) {
-              const channelNumber = parseInt(channelRef.$.Number || '0');
+              const channelNumber = parseInt(channelRef.$.Number || "0");
               const channelName = channelRef._ || `Channel ${channelNumber}`;
               mode.channels.push({
                 number: channelNumber,
@@ -156,25 +165,34 @@ export class QLCFixtureLibrary {
     const searchLower = searchTerm.toLowerCase();
 
     for (const fixture of this.fixtures.values()) {
-      const manufacturerMatch = fixture.manufacturer.toLowerCase().includes(searchLower);
+      const manufacturerMatch = fixture.manufacturer
+        .toLowerCase()
+        .includes(searchLower);
       const modelMatch = fixture.model.toLowerCase().includes(searchLower);
-      
+
       if (manufacturerMatch || modelMatch) {
         results.push(fixture);
       }
     }
 
-    return results.sort((a, b) => 
-      a.manufacturer.localeCompare(b.manufacturer) || a.model.localeCompare(b.model)
+    return results.sort(
+      (a, b) =>
+        a.manufacturer.localeCompare(b.manufacturer) ||
+        a.model.localeCompare(b.model),
     );
   }
 
-  getFixture(manufacturer: string, model: string): QLCFixtureDefinition | undefined {
+  getFixture(
+    manufacturer: string,
+    model: string,
+  ): QLCFixtureDefinition | undefined {
     const key = `${manufacturer}/${model}`;
     return this.fixtures.get(key);
   }
 
-  suggestFixtureMappings(lacyLightsFixtures: { manufacturer: string; model: string }[]): {
+  suggestFixtureMappings(
+    lacyLightsFixtures: { manufacturer: string; model: string }[],
+  ): {
     fixture: { manufacturer: string; model: string };
     suggestions: QLCFixtureDefinition[];
   }[] {
@@ -189,10 +207,10 @@ export class QLCFixtureLibrary {
       ];
 
       const suggestions = new Set<QLCFixtureDefinition>();
-      
+
       for (const term of searchTerms) {
         const found = this.searchFixtures(term);
-        found.forEach(f => suggestions.add(f));
+        found.forEach((f) => suggestions.add(f));
       }
 
       results.push({
@@ -207,7 +225,9 @@ export class QLCFixtureLibrary {
   /**
    * Enhanced fixture mapping with channel compatibility analysis
    */
-  findCompatibleFixtures(lacyFixture: LacyLightsFixtureDetails): FixtureCompatibilityScore[] {
+  findCompatibleFixtures(
+    lacyFixture: LacyLightsFixtureDetails,
+  ): FixtureCompatibilityScore[] {
     const results: FixtureCompatibilityScore[] = [];
 
     // First, search for fixtures by name
@@ -219,20 +239,24 @@ export class QLCFixtureLibrary {
       // Add individual manufacturer words (e.g., "Chauvet" from "Chauvet Dj")
       ...manufacturerWords,
       // Add combinations of manufacturer words with model
-      ...manufacturerWords.map(word => `${word} ${lacyFixture.model}`),
+      ...manufacturerWords.map((word) => `${word} ${lacyFixture.model}`),
     ];
 
     const candidateFixtures = new Set<QLCFixtureDefinition>();
-    
+
     for (const term of nameSearchTerms) {
       const found = this.searchFixtures(term);
-      found.forEach(f => candidateFixtures.add(f));
+      found.forEach((f) => candidateFixtures.add(f));
     }
 
     // Score each candidate fixture and its modes
     for (const qlcFixture of candidateFixtures) {
       for (const mode of qlcFixture.modes) {
-        const score = this.calculateCompatibilityScore(lacyFixture, qlcFixture, mode);
+        const score = this.calculateCompatibilityScore(
+          lacyFixture,
+          qlcFixture,
+          mode,
+        );
         if (score.score > 0) {
           results.push(score);
         }
@@ -246,7 +270,7 @@ export class QLCFixtureLibrary {
   private calculateCompatibilityScore(
     lacyFixture: LacyLightsFixtureDetails,
     qlcFixture: QLCFixtureDefinition,
-    qlcMode: QLCFixtureMode
+    qlcMode: QLCFixtureMode,
   ): FixtureCompatibilityScore {
     let score = 0;
     const reasons: string[] = [];
@@ -258,45 +282,59 @@ export class QLCFixtureLibrary {
     } else if (Math.abs(lacyFixture.channelCount - qlcMode.channelCount) <= 2) {
       // Close channel count (10 points)
       score += 10;
-      reasons.push(`Similar channel count (${lacyFixture.channelCount} vs ${qlcMode.channelCount})`);
+      reasons.push(
+        `Similar channel count (${lacyFixture.channelCount} vs ${qlcMode.channelCount})`,
+      );
     }
 
     // 2. Channel type compatibility (40 points max)
-    const channelTypeScore = this.calculateChannelTypeCompatibility(lacyFixture, qlcMode);
+    const channelTypeScore = this.calculateChannelTypeCompatibility(
+      lacyFixture,
+      qlcMode,
+    );
     score += channelTypeScore.score;
     reasons.push(...channelTypeScore.reasons);
 
     // 3. Manufacturer match (15 points)
     const lacyManu = lacyFixture.manufacturer.toLowerCase().trim();
     const qlcManu = qlcFixture.manufacturer.toLowerCase().trim();
-    
+
     if (lacyManu === qlcManu) {
       score += 15;
-      reasons.push('Exact manufacturer match');
+      reasons.push("Exact manufacturer match");
     } else {
       // Check for partial manufacturer matches (e.g., "Chauvet Dj" vs "Chauvet")
       const lacyWords = lacyManu.split(/\s+/);
       const qlcWords = qlcManu.split(/\s+/);
-      
+
       let wordMatches = 0;
       for (const lacyWord of lacyWords) {
         for (const qlcWord of qlcWords) {
-          if (lacyWord === qlcWord || lacyWord.includes(qlcWord) || qlcWord.includes(lacyWord)) {
+          if (
+            lacyWord === qlcWord ||
+            lacyWord.includes(qlcWord) ||
+            qlcWord.includes(lacyWord)
+          ) {
             wordMatches++;
             break;
           }
         }
       }
-      
+
       if (wordMatches > 0) {
-        const matchScore = Math.round((wordMatches / Math.max(lacyWords.length, qlcWords.length)) * 15);
+        const matchScore = Math.round(
+          (wordMatches / Math.max(lacyWords.length, qlcWords.length)) * 15,
+        );
         score += matchScore;
         reasons.push(`Partial manufacturer match (${wordMatches} words)`);
       }
     }
 
     // 4. Model name similarity (10 points max)
-    const modelSimilarity = this.calculateStringSimilarity(lacyFixture.model, qlcFixture.model);
+    const modelSimilarity = this.calculateStringSimilarity(
+      lacyFixture.model,
+      qlcFixture.model,
+    );
     const modelScore = Math.round(modelSimilarity * 10);
     score += modelScore;
     if (modelScore > 5) {
@@ -305,11 +343,12 @@ export class QLCFixtureLibrary {
 
     // 5. Mode name relevance (5 points)
     if (lacyFixture.mode) {
-      const modeMatch = qlcMode.name.toLowerCase().includes(lacyFixture.mode.toLowerCase()) ||
-                       lacyFixture.mode.toLowerCase().includes(qlcMode.name.toLowerCase());
+      const modeMatch =
+        qlcMode.name.toLowerCase().includes(lacyFixture.mode.toLowerCase()) ||
+        lacyFixture.mode.toLowerCase().includes(qlcMode.name.toLowerCase());
       if (modeMatch) {
         score += 5;
-        reasons.push('Mode name match');
+        reasons.push("Mode name match");
       }
     }
 
@@ -323,23 +362,25 @@ export class QLCFixtureLibrary {
 
   private calculateChannelTypeCompatibility(
     lacyFixture: LacyLightsFixtureDetails,
-    qlcMode: QLCFixtureMode
+    qlcMode: QLCFixtureMode,
   ): { score: number; reasons: string[] } {
     let score = 0;
     const reasons: string[] = [];
 
     // Create channel type maps
-    const lacyChannelTypes = new Set(lacyFixture.channels.map(ch => ch.type.toLowerCase()));
-    const qlcChannelNames = qlcMode.channels.map(ch => ch.name.toLowerCase());
+    const lacyChannelTypes = new Set(
+      lacyFixture.channels.map((ch) => ch.type.toLowerCase()),
+    );
+    const qlcChannelNames = qlcMode.channels.map((ch) => ch.name.toLowerCase());
 
     // Standard color channels
-    const colorChannels = ['red', 'green', 'blue', 'amber', 'white', 'lime'];
+    const colorChannels = ["red", "green", "blue", "amber", "white", "lime"];
     let colorMatches = 0;
 
     for (const color of colorChannels) {
       const lacyHasColor = lacyChannelTypes.has(color);
-      const qlcHasColor = qlcChannelNames.some(name => name.includes(color));
-      
+      const qlcHasColor = qlcChannelNames.some((name) => name.includes(color));
+
       if (lacyHasColor && qlcHasColor) {
         colorMatches++;
       } else if (lacyHasColor && !qlcHasColor) {
@@ -361,22 +402,31 @@ export class QLCFixtureLibrary {
     }
 
     // Check for intensity/dimmer channel
-    const lacyHasIntensity = lacyChannelTypes.has('intensity');
-    const qlcHasIntensity = qlcChannelNames.some(name => 
-      name.includes('intensity') || name.includes('dimmer') || name.includes('master')
+    const lacyHasIntensity = lacyChannelTypes.has("intensity");
+    const qlcHasIntensity = qlcChannelNames.some(
+      (name) =>
+        name.includes("intensity") ||
+        name.includes("dimmer") ||
+        name.includes("master"),
     );
 
     if (lacyHasIntensity === qlcHasIntensity) {
       score += 10;
-      reasons.push(lacyHasIntensity ? 'Both have intensity channel' : 'Both lack intensity channel');
+      reasons.push(
+        lacyHasIntensity
+          ? "Both have intensity channel"
+          : "Both lack intensity channel",
+      );
     }
 
     // Check for special effects (strobe, macro, etc.)
-    const effectChannels = ['strobe', 'macro', 'effect'];
+    const effectChannels = ["strobe", "macro", "effect"];
     for (const effect of effectChannels) {
       const lacyHasEffect = lacyChannelTypes.has(effect);
-      const qlcHasEffect = qlcChannelNames.some(name => name.includes(effect));
-      
+      const qlcHasEffect = qlcChannelNames.some((name) =>
+        name.includes(effect),
+      );
+
       if (lacyHasEffect && qlcHasEffect) {
         score += 5;
         reasons.push(`Both have ${effect} channel`);
@@ -389,13 +439,15 @@ export class QLCFixtureLibrary {
   private calculateStringSimilarity(str1: string, str2: string): number {
     const s1 = str1.toLowerCase().trim();
     const s2 = str2.toLowerCase().trim();
-    
-    if (s1 === s2) {return 1.0;}
-    
+
+    if (s1 === s2) {
+      return 1.0;
+    }
+
     // Simple word-based similarity
     const words1 = s1.split(/\s+/);
     const words2 = s2.split(/\s+/);
-    
+
     let matches = 0;
     for (const word1 of words1) {
       for (const word2 of words2) {
@@ -405,14 +457,16 @@ export class QLCFixtureLibrary {
         }
       }
     }
-    
+
     return matches / Math.max(words1.length, words2.length);
   }
 
   /**
    * Enhanced fixture mapping suggestions with compatibility scoring
    */
-  suggestFixtureMappingsEnhanced(lacyLightsFixtures: LacyLightsFixtureDetails[]): {
+  suggestFixtureMappingsEnhanced(
+    lacyLightsFixtures: LacyLightsFixtureDetails[],
+  ): {
     fixture: LacyLightsFixtureDetails;
     compatibleFixtures: FixtureCompatibilityScore[];
   }[] {
@@ -420,7 +474,7 @@ export class QLCFixtureLibrary {
 
     for (const lacyFixture of lacyLightsFixtures) {
       const compatibleFixtures = this.findCompatibleFixtures(lacyFixture);
-      
+
       results.push({
         fixture: lacyFixture,
         compatibleFixtures: compatibleFixtures.slice(0, 5), // Top 5 suggestions

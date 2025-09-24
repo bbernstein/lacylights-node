@@ -1,6 +1,6 @@
-import { PubSub } from 'graphql-subscriptions';
-import { PrismaClient } from '@prisma/client';
-import { prisma, pubsub } from '../context';
+import { PubSub } from "graphql-subscriptions";
+import { PrismaClient } from "@prisma/client";
+import { prisma, pubsub } from "../context";
 
 export interface PlaybackState {
   cueListId: string;
@@ -37,7 +37,7 @@ class PlaybackStateService {
 
   constructor(
     private prisma: PrismaClient,
-    private pubsub: PubSub
+    private pubsub: PubSub,
   ) {}
 
   // Get current playback state for a cue list
@@ -46,7 +46,11 @@ class PlaybackStateService {
   }
 
   // Start playing a cue
-  async startCue(cueListId: string, cueIndex: number, cue: CueForPlayback): Promise<void> {
+  async startCue(
+    cueListId: string,
+    cueIndex: number,
+    cue: CueForPlayback,
+  ): Promise<void> {
     // Clear any existing state for this cue list
     this.stopCueList(cueListId);
 
@@ -98,7 +102,10 @@ class PlaybackStateService {
   }
 
   // Handle automatic follow to next cue
-  private async handleFollowTime(cueListId: string, currentCueIndex: number): Promise<void> {
+  private async handleFollowTime(
+    cueListId: string,
+    currentCueIndex: number,
+  ): Promise<void> {
     try {
       // Get the cue list and find the next cue
       const cueList = await this.prisma.cueList.findUnique({
@@ -106,9 +113,9 @@ class PlaybackStateService {
         include: {
           cues: {
             include: { scene: true },
-            orderBy: { cueNumber: 'asc' }
-          }
-        }
+            orderBy: { cueNumber: "asc" },
+          },
+        },
       });
 
       if (!cueList || currentCueIndex + 1 >= cueList.cues.length) {
@@ -126,7 +133,7 @@ class PlaybackStateService {
       await this.startCue(cueListId, currentCueIndex + 1, nextCue);
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Error handling follow time:', error);
+      console.error("Error handling follow time:", error);
       this.stopCueList(cueListId);
     }
   }
@@ -175,20 +182,20 @@ class PlaybackStateService {
         include: {
           cues: {
             include: { scene: true },
-            orderBy: { cueNumber: 'asc' }
-          }
-        }
+            orderBy: { cueNumber: "asc" },
+          },
+        },
       });
 
       if (!cueList || cueIndex >= cueList.cues.length || cueIndex < 0) {
-        throw new Error('Invalid cue index');
+        throw new Error("Invalid cue index");
       }
 
       const cue = cueList.cues[cueIndex];
       await this.startCue(cueListId, cueIndex, cue);
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error('Error jumping to cue:', error);
+      console.error("Error jumping to cue:", error);
       throw error;
     }
   }
@@ -244,7 +251,7 @@ class PlaybackStateService {
 
     // Publish to the generic channel that the subscription is listening to
     // The subscription resolver will filter by cueListId
-    this.pubsub.publish('CUE_LIST_PLAYBACK_UPDATED', {
+    this.pubsub.publish("CUE_LIST_PLAYBACK_UPDATED", {
       cueListPlaybackUpdated: status,
     });
   }
@@ -295,10 +302,7 @@ let playbackStateServiceInstance: PlaybackStateService | null = null;
 export function getPlaybackStateService(): PlaybackStateService {
   if (!playbackStateServiceInstance) {
     // Use shared singleton instances from context
-    playbackStateServiceInstance = new PlaybackStateService(
-      prisma,
-      pubsub
-    );
+    playbackStateServiceInstance = new PlaybackStateService(prisma, pubsub);
   }
   return playbackStateServiceInstance;
 }
