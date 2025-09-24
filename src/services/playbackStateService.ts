@@ -242,7 +242,9 @@ class PlaybackStateService {
       lastUpdated: state.lastUpdated.toISOString(),
     };
 
-    this.pubsub.publish(`CUE_LIST_PLAYBACK_UPDATED_${cueListId}`, {
+    // Publish to the generic channel that the subscription is listening to
+    // The subscription resolver will filter by cueListId
+    this.pubsub.publish('CUE_LIST_PLAYBACK_UPDATED', {
       cueListPlaybackUpdated: status,
     });
   }

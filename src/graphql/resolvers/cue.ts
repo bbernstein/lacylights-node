@@ -323,6 +323,7 @@ export const cueResolvers = {
       const nextCue = cueList.cues[nextIndex];
 
       // Use the existing playCue logic from dmx resolver
+      // This will both send DMX output AND update the playback state
       const { dmxResolvers } = await import('./dmx');
       await dmxResolvers.Mutation.playCue(null, { cueId: nextCue.id, fadeInTime }, { prisma, pubsub } as Context);
 
@@ -361,6 +362,7 @@ export const cueResolvers = {
       const previousCue = cueList.cues[previousIndex];
 
       // Use the existing playCue logic from dmx resolver
+      // This will both send DMX output AND update the playback state
       const { dmxResolvers } = await import('./dmx');
       await dmxResolvers.Mutation.playCue(null, { cueId: previousCue.id, fadeInTime }, { prisma, pubsub } as Context);
 
@@ -387,6 +389,7 @@ export const cueResolvers = {
       const targetCue = cueList.cues[cueIndex];
 
       // Use the existing playCue logic from dmx resolver
+      // This will both send DMX output AND update the playback state
       const { dmxResolvers } = await import('./dmx');
       await dmxResolvers.Mutation.playCue(null, { cueId: targetCue.id, fadeInTime }, { prisma, pubsub } as Context);
 
