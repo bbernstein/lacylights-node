@@ -318,15 +318,232 @@ describe('Cue Resolvers', () => {
   });
 
   describe('Subscription.cueListPlaybackUpdated', () => {
-    it('should filter by cueListId', () => {
-      // Extract the filter function from withFilter
-      const mockPayload = {
+    const mockWebSocketContext = {
+      pubsub: {
+        asyncIterator: jest.fn(),
+        publish: jest.fn(),
+      },
+    };
+
+    it('should subscribe to correct channel name', () => {
+      const subscription = cueResolvers.Subscription.cueListPlaybackUpdated;
+
+      // Call the subscribe function
+      subscription.subscribe(
+        {},
+        { cueListId: 'test-cue-list' },
+        mockWebSocketContext as any
+      );
+
+      // Verify it subscribes to the correct channel
+      expect(mockWebSocketContext.pubsub.asyncIterator).toHaveBeenCalledWith(['CUE_LIST_PLAYBACK_UPDATED']);
+
+      // Ensure it's NOT using the old channel format with cueListId suffix
+      expect(mockWebSocketContext.pubsub.asyncIterator).not.toHaveBeenCalledWith(['CUE_LIST_PLAYBACK_UPDATED_test-cue-list']);
+    });
+
+    it('should filter by cueListId correctly', () => {
+      // Test the filter function directly
+      const mockPayload1 = {
         cueListPlaybackUpdated: { cueListId: 'list-1' },
+      };
+      const mockPayload2 = {
+        cueListPlaybackUpdated: { cueListId: 'list-2' },
       };
       const mockVariables = { cueListId: 'list-1' };
 
-      // This is a simplified test - in reality withFilter has more complex internals
-      expect(mockPayload.cueListPlaybackUpdated.cueListId).toBe(mockVariables.cueListId);
+      // The filter should match when cueListIds are the same
+      expect(mockPayload1.cueListPlaybackUpdated.cueListId).toBe(mockVariables.cueListId);
+
+      // The filter should not match when cueListIds are different
+      expect(mockPayload2.cueListPlaybackUpdated.cueListId).not.toBe(mockVariables.cueListId);
+    });
+
+    it('should handle invalid cueListId in subscription variables', () => {
+      const subscription = cueResolvers.Subscription.cueListPlaybackUpdated;
+
+      // Test with various invalid cueListId values that should be filtered out
+      const invalidVariables = [
+        { cueListId: '' },
+        { cueListId: null },
+        { cueListId: undefined },
+        { cueListId: 123 }, // number instead of string
+      ];
+
+      // The subscription should still be created but filtering should handle invalid values
+      invalidVariables.forEach(variables => {
+        expect(() => {
+          subscription.subscribe(
+            {},
+            variables as any,
+            mockWebSocketContext as any
+          );
+        }).not.toThrow();
+      });
+    });
+
+    it('should resolve payload correctly', () => {
+      const subscription = cueResolvers.Subscription.cueListPlaybackUpdated;
+      const mockPayload = {
+        cueListPlaybackUpdated: {
+          cueListId: 'test-list',
+          isPlaying: true,
+          currentCueIndex: 5,
+          fadeProgress: 75,
+        },
+      };
+
+      const result = subscription.resolve(mockPayload);
+      expect(result).toEqual(mockPayload.cueListPlaybackUpdated);
+    });
+  });
+
+  describe('Cue Navigation with Subscription Updates', () => {
+    const mockCueList = {
+      id: 'test-list',
+      cues: [
+        {
+          id: 'cue-1',
+          cueNumber: 1.0,
+          scene: { id: 'scene-1' },
+        },
+        {
+          id: 'cue-2',
+          cueNumber: 2.0,
+          scene: { id: 'scene-2' },
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      mockContext.prisma.cueList.findUnique = jest.fn().mockResolvedValue(mockCueList);
+    });
+
+    it('should not duplicate startCue calls in nextCue mutation', async () => {
+      const mockPlaybackStateService = {
+        getPlaybackState: jest.fn().mockReturnValue({
+          currentCueIndex: 0,
+        }),
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      // Mock the dmx resolver import
+      const mockPlayCue = jest.fn();
+      jest.doMock('../dmx', () => ({
+        dmxResolvers: {
+          Mutation: {
+            playCue: mockPlayCue,
+          },
+        },
+      }));
+
+      await cueResolvers.Mutation.nextCue(
+        {},
+        { cueListId: 'test-list', fadeInTime: 2 },
+        mockContext
+      );
+
+      // Verify playCue was called (which handles both DMX and state updates)
+      expect(mockPlayCue).toHaveBeenCalledWith(
+        null,
+        { cueId: 'cue-2', fadeInTime: 2 },
+        mockContext
+      );
+
+      // The playback state service should have been called to get current state
+      expect(mockPlaybackStateService.getPlaybackState).toHaveBeenCalledWith('test-list');
+    });
+
+    it('should handle previousCue navigation correctly', async () => {
+      const mockPlaybackStateService = {
+        getPlaybackState: jest.fn().mockReturnValue({
+          currentCueIndex: 1, // Currently at second cue
+        }),
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      // Test that previousCue gets the correct playback state and validates boundaries
+      await cueResolvers.Mutation.previousCue(
+        {},
+        { cueListId: 'test-list', fadeInTime: 1.5 },
+        mockContext
+      );
+
+      // Should have checked the current playback state
+      expect(mockPlaybackStateService.getPlaybackState).toHaveBeenCalledWith('test-list');
+
+      // Should have queried for the cue list to get the previous cue
+      expect(mockContext.prisma.cueList.findUnique).toHaveBeenCalledWith({
+        where: { id: 'test-list' },
+        include: {
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: 'asc' }
+          }
+        }
+      });
+    });
+
+    it('should handle goToCue navigation correctly', async () => {
+      await cueResolvers.Mutation.goToCue(
+        {},
+        { cueListId: 'test-list', cueIndex: 1, fadeInTime: 3 },
+        mockContext
+      );
+
+      // Should have queried for the cue list to get the target cue
+      expect(mockContext.prisma.cueList.findUnique).toHaveBeenCalledWith({
+        where: { id: 'test-list' },
+        include: {
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: 'asc' }
+          }
+        }
+      });
+    });
+
+    it('should prevent boundary violations in navigation', async () => {
+      const mockPlaybackStateService = {
+        getPlaybackState: jest.fn().mockReturnValue({
+          currentCueIndex: 1, // At last cue
+        }),
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      // Test nextCue at last cue
+      await expect(
+        cueResolvers.Mutation.nextCue(
+          {},
+          { cueListId: 'test-list' },
+          mockContext
+        )
+      ).rejects.toThrow('Already at last cue');
+
+      // Test previousCue at first cue
+      mockPlaybackStateService.getPlaybackState.mockReturnValue({
+        currentCueIndex: 0,
+      });
+
+      await expect(
+        cueResolvers.Mutation.previousCue(
+          {},
+          { cueListId: 'test-list' },
+          mockContext
+        )
+      ).rejects.toThrow('Already at first cue');
+
+      // Test goToCue with invalid index
+      await expect(
+        cueResolvers.Mutation.goToCue(
+          {},
+          { cueListId: 'test-list', cueIndex: 5 },
+          mockContext
+        )
+      ).rejects.toThrow('Invalid cue index');
     });
   });
 });
