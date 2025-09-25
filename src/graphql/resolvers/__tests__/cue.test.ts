@@ -1026,10 +1026,10 @@ describe("Cue Resolvers", () => {
       ).rejects.toThrow("No update fields provided");
     });
 
-    it("should handle followTime set to null", async () => {
+    it("should handle followTime set to undefined", async () => {
       const mockInput = {
         cueIds: ["cue-1"],
-        followTime: null
+        followTime: undefined
       };
 
       const mockExistingCues = [
@@ -1038,7 +1038,7 @@ describe("Cue Resolvers", () => {
 
       const mockUpdatedCue = {
         id: "cue-1",
-        followTime: null,
+        followTime: undefined,
         scene: { id: "scene-1" }
       };
 
