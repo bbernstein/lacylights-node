@@ -381,16 +381,36 @@ export class FixtureSetupService {
       }
     }
 
-    if (type === "Pan") {return ChannelType.PAN;}
-    if (type === "Tilt") {return ChannelType.TILT;}
-    if (type === "Zoom") {return ChannelType.ZOOM;}
-    if (type === "Focus") {return ChannelType.FOCUS;}
-    if (type === "Iris") {return ChannelType.IRIS;}
-    if (type === "Gobo") {return ChannelType.GOBO;}
-    if (type === "ColorWheel") {return ChannelType.COLOR_WHEEL;}
-    if (type === "Effect") {return ChannelType.EFFECT;}
-    if (type === "ShutterStrobe") {return ChannelType.STROBE;}
-    if (type === "Maintenance") {return ChannelType.MACRO;}
+    if (type === "Pan") {
+      return ChannelType.PAN;
+    }
+    if (type === "Tilt") {
+      return ChannelType.TILT;
+    }
+    if (type === "Zoom") {
+      return ChannelType.ZOOM;
+    }
+    if (type === "Focus") {
+      return ChannelType.FOCUS;
+    }
+    if (type === "Iris") {
+      return ChannelType.IRIS;
+    }
+    if (type === "Gobo") {
+      return ChannelType.GOBO;
+    }
+    if (type === "ColorWheel") {
+      return ChannelType.COLOR_WHEEL;
+    }
+    if (type === "Effect") {
+      return ChannelType.EFFECT;
+    }
+    if (type === "ShutterStrobe") {
+      return ChannelType.STROBE;
+    }
+    if (type === "Maintenance") {
+      return ChannelType.MACRO;
+    }
 
     return ChannelType.OTHER;
   }

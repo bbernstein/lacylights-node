@@ -2,7 +2,7 @@
 process.env.NODE_ENV = "test";
 process.env.LOG_LEVEL = "ERROR"; // Only show errors during tests
 // Set a mock database URL - tests should not require real database
-process.env.DATABASE_URL = "postgresql://mock:mock@localhost:5432/mock";
+process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
 
 // Mock PrismaClient globally for all tests
 const mockPrismaClient = {
