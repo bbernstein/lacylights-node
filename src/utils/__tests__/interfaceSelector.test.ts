@@ -406,8 +406,7 @@ describe("InterfaceSelector", () => {
         close: jest.fn(),
       };
 
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const mockReadline = require("readline");
+      const mockReadline = jest.requireMock("readline");
       mockReadline.createInterface = jest.fn().mockReturnValue(mockRlInterface);
 
       // Ensure we're in interactive mode

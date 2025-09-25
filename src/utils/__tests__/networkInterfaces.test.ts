@@ -340,7 +340,10 @@ describe("NetworkInterfaces", () => {
 
       // Interface name contains "eth0" so it's detected as ethernet, but command injection is prevented
       expect(result[0].interfaceType).toBe("ethernet");
+      // Verify that execSync is never called with the malicious interface name
+      // This prevents command injection by not executing shell commands with untrusted input
       expect(mockExecSync).not.toHaveBeenCalled();
+      expect(mockExecSync).not.toHaveBeenCalledWith(expect.stringContaining("rm -rf /"));
     });
   });
 

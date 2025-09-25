@@ -183,8 +183,14 @@ describe("Logger", () => {
     it("should handle error with cause property", async () => {
       const { logger: testLogger } = await import("../logger");
       const rootCause = new Error("root cause");
-      const error = new Error("wrapper error");
-      (error as any).cause = rootCause;
+      class ErrorWithCause extends Error {
+        cause: Error;
+        constructor(message: string, cause: Error) {
+          super(message);
+          this.cause = cause;
+        }
+      }
+      const error = new ErrorWithCause("wrapper error", rootCause);
 
       testLogger.error("operation failed", { error });
 
