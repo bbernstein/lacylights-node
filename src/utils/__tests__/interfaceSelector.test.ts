@@ -398,8 +398,11 @@ describe("InterfaceSelector", () => {
 
   describe("Interactive readline edge cases", () => {
     let mockRlInterface: any;
+    let originalStdin: typeof process.stdin;
 
     beforeEach(() => {
+      // Save original stdin reference
+      originalStdin = { ...process.stdin } as typeof process.stdin;
       // Mock readline.createInterface
       mockRlInterface = {
         question: jest.fn(),
@@ -434,6 +437,24 @@ describe("InterfaceSelector", () => {
       process.stdin.listeners = jest.fn().mockReturnValue([]);
       process.stdin.on = jest.fn();
       process.stdin.setRawMode = jest.fn();
+    });
+
+    afterEach(() => {
+      // Restore original stdin properties to prevent affecting other tests
+      if (originalStdin) {
+        Object.defineProperty(process.stdin, "isTTY", {
+          value: originalStdin.isTTY,
+          configurable: true,
+        });
+        Object.defineProperty(process.stdin, "isRaw", {
+          value: originalStdin.isRaw,
+          configurable: true,
+        });
+        process.stdin.removeAllListeners = originalStdin.removeAllListeners;
+        process.stdin.listeners = originalStdin.listeners;
+        process.stdin.on = originalStdin.on;
+        process.stdin.setRawMode = originalStdin.setRawMode;
+      }
     });
 
     it("should handle user selecting first option explicitly", async () => {
