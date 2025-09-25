@@ -167,5 +167,76 @@ describe("Logger", () => {
         expect.stringContaining("operation failed"),
       );
     });
+
+    it("should serialize error objects in metadata", async () => {
+      const { logger: testLogger } = await import("../logger");
+      const error = new Error("test error");
+      error.stack = "Error: test error\n    at test";
+      testLogger.error("operation failed", { error });
+
+      const logCall = mockConsoleError.mock.calls[0][0];
+      expect(logCall).toContain('"name":"Error"');
+      expect(logCall).toContain('"message":"test error"');
+      expect(logCall).toContain('"stack":"Error: test error\\n    at test"');
+    });
+
+    it("should handle error with cause property", async () => {
+      const { logger: testLogger } = await import("../logger");
+      const rootCause = new Error("root cause");
+      const error = new Error("wrapper error");
+      (error as any).cause = rootCause;
+
+      testLogger.error("operation failed", { error });
+
+      const logCall = mockConsoleError.mock.calls[0][0];
+      expect(logCall).toContain('"cause"');
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should handle invalid LOG_LEVEL environment variable", async () => {
+      process.env.LOG_LEVEL = "INVALID_LEVEL";
+
+      const { logger: testLogger } = await import("../logger");
+
+      testLogger.debug("debug message");
+      testLogger.info("info message");
+
+      // Should default to INFO level
+      expect(mockConsoleLog).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle empty metadata objects", async () => {
+      const { logger: testLogger } = await import("../logger");
+      testLogger.info("message", {});
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringMatching(/INFO: message \{\}$/),
+      );
+    });
+
+    it("should handle undefined metadata", async () => {
+      const { logger: testLogger } = await import("../logger");
+      testLogger.info("message", undefined);
+
+      expect(mockConsoleLog).toHaveBeenCalledWith(
+        expect.stringMatching(/INFO: message$/),
+      );
+    });
+
+    it("should work with extreme log levels", async () => {
+      process.env.LOG_LEVEL = "ERROR";
+
+      const { logger: testLogger } = await import("../logger");
+
+      testLogger.debug("debug");
+      testLogger.info("info");
+      testLogger.warn("warn");
+      testLogger.error("error");
+
+      expect(mockConsoleLog).not.toHaveBeenCalled();
+      expect(mockConsoleWarn).not.toHaveBeenCalled();
+      expect(mockConsoleError).toHaveBeenCalledTimes(1);
+    });
   });
 });

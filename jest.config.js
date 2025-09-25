@@ -30,6 +30,6 @@ module.exports = {
   clearMocks: true,
   restoreMocks: true,
   resetMocks: true,
-  // Run tests sequentially to avoid database conflicts
-  maxWorkers: 1,
+  // Run tests in parallel - database conflicts resolved by mocking all database interactions
+  maxWorkers: 16,
 };

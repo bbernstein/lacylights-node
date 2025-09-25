@@ -98,3 +98,6 @@ Thumbs.db
 
 # Temporary files
 temp/
+coverage_output.txt
+*.tmp
+test-output.txt

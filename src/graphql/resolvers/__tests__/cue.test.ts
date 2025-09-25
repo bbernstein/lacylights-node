@@ -2,6 +2,7 @@ import { cueResolvers } from "../cue";
 import { playbackService } from "../../../services/playbackService";
 import { getPlaybackStateService } from "../../../services/playbackStateService";
 import type { Context } from "../../../context";
+import { EasingType } from "@prisma/client";
 
 // Mock the playback service
 jest.mock("../../../services/playbackService", () => ({
@@ -155,7 +156,7 @@ describe("Cue Resolvers", () => {
         fadeInTime: 3.0,
         fadeOutTime: 3.0,
         followTime: undefined,
-        easingType: "LINEAR" as const,
+        easingType: EasingType.LINEAR,
         notes: "Test notes",
       };
 
@@ -193,7 +194,7 @@ describe("Cue Resolvers", () => {
         fadeInTime: 5.0,
         fadeOutTime: 5.0,
         followTime: 2.0,
-        easingType: "EASE_IN_OUT_CUBIC" as const,
+        easingType: EasingType.EASE_IN_OUT_CUBIC,
         notes: "Updated notes",
       };
 
@@ -594,6 +595,463 @@ describe("Cue Resolvers", () => {
           mockContext,
         ),
       ).rejects.toThrow("Invalid cue index");
+    });
+  });
+
+  // CueList CRUD Operations Tests
+  describe("Mutation.createCueList", () => {
+    it("should create cue list with all properties", async () => {
+      const mockInput = {
+        name: "Test Cue List",
+        description: "Test Description",
+        projectId: "project-123"
+      };
+
+      const mockCreatedCueList = {
+        id: "cuelist-123",
+        name: "Test Cue List",
+        description: "Test Description",
+        projectId: "project-123",
+        project: { id: "project-123", name: "Test Project" },
+        cues: []
+      };
+
+      (mockContext.prisma.cueList.create as jest.Mock).mockResolvedValue(mockCreatedCueList);
+
+      const result = await cueResolvers.Mutation.createCueList(
+        {},
+        { input: mockInput },
+        mockContext
+      );
+
+      expect(result).toEqual(mockCreatedCueList);
+      expect(mockContext.prisma.cueList.create).toHaveBeenCalledWith({
+        data: {
+          name: "Test Cue List",
+          description: "Test Description",
+          projectId: "project-123"
+        },
+        include: {
+          project: true,
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: "asc" }
+          }
+        }
+      });
+    });
+  });
+
+  describe("Mutation.updateCueList", () => {
+    it("should update cue list with provided data", async () => {
+      const mockInput = {
+        name: "Updated Cue List",
+        description: "Updated Description"
+      };
+
+      const mockUpdatedCueList = {
+        id: "cuelist-123",
+        name: "Updated Cue List",
+        description: "Updated Description",
+        projectId: "project-123",
+        project: { id: "project-123", name: "Test Project" },
+        cues: []
+      };
+
+      (mockContext.prisma.cueList.update as jest.Mock).mockResolvedValue(mockUpdatedCueList);
+
+      const result = await cueResolvers.Mutation.updateCueList(
+        {},
+        { id: "cuelist-123", input: mockInput },
+        mockContext
+      );
+
+      expect(result).toEqual(mockUpdatedCueList);
+      expect(mockContext.prisma.cueList.update).toHaveBeenCalledWith({
+        where: { id: "cuelist-123" },
+        data: {
+          name: "Updated Cue List",
+          description: "Updated Description"
+        },
+        include: {
+          project: true,
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: "asc" }
+          }
+        }
+      });
+    });
+  });
+
+  describe("Mutation.deleteCueList", () => {
+    it("should delete cue list and return true", async () => {
+      (mockContext.prisma.cueList.delete as jest.Mock).mockResolvedValue(undefined);
+
+      const result = await cueResolvers.Mutation.deleteCueList(
+        {},
+        { id: "cuelist-123" },
+        mockContext
+      );
+
+      expect(result).toBe(true);
+      expect(mockContext.prisma.cueList.delete).toHaveBeenCalledWith({
+        where: { id: "cuelist-123" }
+      });
+    });
+  });
+
+  // Playback Control Tests
+  describe("Mutation.startCueList", () => {
+    it("should start cue list from beginning", async () => {
+      const mockCueList = {
+        id: "cuelist-123",
+        name: "Test Cue List",
+        cues: [
+          { id: "cue-1", cueNumber: 1.0, scene: { id: "scene-1" } },
+          { id: "cue-2", cueNumber: 2.0, scene: { id: "scene-2" } }
+        ]
+      };
+
+      const mockPlaybackStateService = {
+        startCue: jest.fn().mockResolvedValue(undefined)
+      };
+
+      (mockContext.prisma.cueList.findUnique as jest.Mock).mockResolvedValue(mockCueList);
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      const result = await cueResolvers.Mutation.startCueList(
+        {},
+        { cueListId: "cuelist-123" },
+        mockContext
+      );
+
+      expect(result).toBe(true);
+      expect(mockContext.prisma.cueList.findUnique).toHaveBeenCalledWith({
+        where: { id: "cuelist-123" },
+        include: {
+          cues: {
+            include: { scene: true },
+            orderBy: { cueNumber: "asc" }
+          }
+        }
+      });
+      expect(mockPlaybackStateService.startCue).toHaveBeenCalledWith(
+        "cuelist-123",
+        0,
+        mockCueList.cues[0]
+      );
+    });
+
+    it("should start cue list from specific cue", async () => {
+      const mockCueList = {
+        id: "cuelist-123",
+        name: "Test Cue List",
+        cues: [
+          { id: "cue-1", cueNumber: 1.0, scene: { id: "scene-1" } },
+          { id: "cue-2", cueNumber: 2.0, scene: { id: "scene-2" } }
+        ]
+      };
+
+      const mockPlaybackStateService = {
+        startCue: jest.fn().mockResolvedValue(undefined)
+      };
+
+      (mockContext.prisma.cueList.findUnique as jest.Mock).mockResolvedValue(mockCueList);
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      const result = await cueResolvers.Mutation.startCueList(
+        {},
+        { cueListId: "cuelist-123", startFromCue: 1 },
+        mockContext
+      );
+
+      expect(result).toBe(true);
+      expect(mockPlaybackStateService.startCue).toHaveBeenCalledWith(
+        "cuelist-123",
+        1,
+        mockCueList.cues[1]
+      );
+    });
+
+    it("should throw error if cue list not found", async () => {
+      (mockContext.prisma.cueList.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(
+        cueResolvers.Mutation.startCueList(
+          {},
+          { cueListId: "nonexistent" },
+          mockContext
+        )
+      ).rejects.toThrow("Cue list not found or empty");
+    });
+
+    it("should throw error if cue list is empty", async () => {
+      const mockEmptyCueList = {
+        id: "cuelist-123",
+        name: "Empty Cue List",
+        cues: []
+      };
+
+      (mockContext.prisma.cueList.findUnique as jest.Mock).mockResolvedValue(mockEmptyCueList);
+
+      await expect(
+        cueResolvers.Mutation.startCueList(
+          {},
+          { cueListId: "cuelist-123" },
+          mockContext
+        )
+      ).rejects.toThrow("Cue list not found or empty");
+    });
+
+    it("should throw error for invalid start cue index", async () => {
+      const mockCueList = {
+        id: "cuelist-123",
+        name: "Test Cue List",
+        cues: [
+          { id: "cue-1", cueNumber: 1.0, scene: { id: "scene-1" } }
+        ]
+      };
+
+      (mockContext.prisma.cueList.findUnique as jest.Mock).mockResolvedValue(mockCueList);
+
+      await expect(
+        cueResolvers.Mutation.startCueList(
+          {},
+          { cueListId: "cuelist-123", startFromCue: 5 },
+          mockContext
+        )
+      ).rejects.toThrow("Invalid cue index");
+
+      await expect(
+        cueResolvers.Mutation.startCueList(
+          {},
+          { cueListId: "cuelist-123", startFromCue: -1 },
+          mockContext
+        )
+      ).rejects.toThrow("Invalid cue index");
+    });
+  });
+
+  describe("Mutation.stopCueList", () => {
+    it("should stop cue list playback", async () => {
+      const mockPlaybackStateService = {
+        stopCueList: jest.fn()
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      const result = await cueResolvers.Mutation.stopCueList(
+        {},
+        { cueListId: "cuelist-123" }
+      );
+
+      expect(result).toBe(true);
+      expect(mockPlaybackStateService.stopCueList).toHaveBeenCalledWith("cuelist-123");
+    });
+  });
+
+  // Navigation Error Cases
+  describe("Navigation Error Handling", () => {
+    it("should throw error for nextCue when no playback state", async () => {
+      const mockPlaybackStateService = {
+        getPlaybackState: jest.fn().mockReturnValue(null)
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      await expect(
+        cueResolvers.Mutation.nextCue(
+          {},
+          { cueListId: "cuelist-123" },
+          mockContext
+        )
+      ).rejects.toThrow("No active playback for this cue list");
+    });
+
+    it("should throw error for nextCue when current cue index is null", async () => {
+      const mockPlaybackStateService = {
+        getPlaybackState: jest.fn().mockReturnValue({
+          currentCueIndex: null
+        })
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      await expect(
+        cueResolvers.Mutation.nextCue(
+          {},
+          { cueListId: "cuelist-123" },
+          mockContext
+        )
+      ).rejects.toThrow("No active playback for this cue list");
+    });
+
+    it("should throw error for previousCue when no playback state", async () => {
+      const mockPlaybackStateService = {
+        getPlaybackState: jest.fn().mockReturnValue(null)
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      await expect(
+        cueResolvers.Mutation.previousCue(
+          {},
+          { cueListId: "cuelist-123" },
+          mockContext
+        )
+      ).rejects.toThrow("No active playback for this cue list");
+    });
+
+    it("should throw error for goToCue when no playback state", async () => {
+      const mockPlaybackStateService = {
+        getPlaybackState: jest.fn().mockReturnValue(null)
+      };
+
+      (getPlaybackStateService as jest.Mock).mockReturnValue(mockPlaybackStateService);
+
+      await expect(
+        cueResolvers.Mutation.goToCue(
+          {},
+          { cueListId: "cuelist-123", cueIndex: 1 },
+          mockContext
+        )
+      ).rejects.toThrow("Invalid cue index");
+    });
+  });
+
+  // Bulk Update Operations Tests
+  describe("Mutation.bulkUpdateCues", () => {
+    it("should update multiple cues with all fields", async () => {
+      const mockInput = {
+        cueIds: ["cue-1", "cue-2"],
+        fadeInTime: 3.0,
+        fadeOutTime: 2.0,
+        followTime: 5.0,
+        easingType: EasingType.LINEAR
+      };
+
+      const mockExistingCues = [
+        { id: "cue-1", cueListId: "cuelist-123", scene: { id: "scene-1" } },
+        { id: "cue-2", cueListId: "cuelist-123", scene: { id: "scene-2" } }
+      ];
+
+      const mockUpdatedCues = [
+        { id: "cue-1", fadeInTime: 3.0, fadeOutTime: 2.0, followTime: 5.0, easingType: EasingType.LINEAR, scene: { id: "scene-1" } },
+        { id: "cue-2", fadeInTime: 3.0, fadeOutTime: 2.0, followTime: 5.0, easingType: EasingType.LINEAR, scene: { id: "scene-2" } }
+      ];
+
+      (mockContext.prisma.cue.findMany as jest.Mock).mockResolvedValue(mockExistingCues);
+      (mockContext.prisma.$transaction as jest.Mock).mockResolvedValue(mockUpdatedCues);
+
+      const result = await cueResolvers.Mutation.bulkUpdateCues(
+        {},
+        { input: mockInput },
+        mockContext
+      );
+
+      expect(result).toEqual(mockUpdatedCues);
+      expect(mockContext.prisma.cue.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ["cue-1", "cue-2"] } },
+        include: { scene: true }
+      });
+    });
+
+    it("should update cues with partial fields", async () => {
+      const mockInput = {
+        cueIds: ["cue-1"],
+        fadeInTime: 4.0
+      };
+
+      const mockExistingCues = [
+        { id: "cue-1", cueListId: "cuelist-456", scene: { id: "scene-1" } }
+      ];
+
+      const mockUpdatedCue = {
+        id: "cue-1",
+        fadeInTime: 4.0,
+        scene: { id: "scene-1" }
+      };
+
+      (mockContext.prisma.cue.findMany as jest.Mock).mockResolvedValue(mockExistingCues);
+      (mockContext.prisma.$transaction as jest.Mock).mockResolvedValue([mockUpdatedCue]);
+
+      const result = await cueResolvers.Mutation.bulkUpdateCues(
+        {},
+        { input: mockInput },
+        mockContext
+      );
+
+      expect(result).toEqual([mockUpdatedCue]);
+    });
+
+    it("should throw error when some cues are not found", async () => {
+      const mockInput = {
+        cueIds: ["cue-1", "cue-2", "cue-3"],
+        fadeInTime: 3.0
+      };
+
+      const mockExistingCues = [
+        { id: "cue-1", scene: { id: "scene-1" } }
+      ];
+
+      (mockContext.prisma.cue.findMany as jest.Mock).mockResolvedValue(mockExistingCues);
+
+      await expect(
+        cueResolvers.Mutation.bulkUpdateCues(
+          {},
+          { input: mockInput },
+          mockContext
+        )
+      ).rejects.toThrow("Cues not found: cue-2, cue-3");
+    });
+
+    it("should throw error when no update fields provided", async () => {
+      const mockInput = {
+        cueIds: ["cue-1"]
+      };
+
+      const mockExistingCues = [
+        { id: "cue-1", scene: { id: "scene-1" } }
+      ];
+
+      (mockContext.prisma.cue.findMany as jest.Mock).mockResolvedValue(mockExistingCues);
+
+      await expect(
+        cueResolvers.Mutation.bulkUpdateCues(
+          {},
+          { input: mockInput },
+          mockContext
+        )
+      ).rejects.toThrow("No update fields provided");
+    });
+
+    it("should handle followTime set to null", async () => {
+      const mockInput = {
+        cueIds: ["cue-1"],
+        followTime: null
+      };
+
+      const mockExistingCues = [
+        { id: "cue-1", cueListId: "cuelist-789", scene: { id: "scene-1" } }
+      ];
+
+      const mockUpdatedCue = {
+        id: "cue-1",
+        followTime: null,
+        scene: { id: "scene-1" }
+      };
+
+      (mockContext.prisma.cue.findMany as jest.Mock).mockResolvedValue(mockExistingCues);
+      (mockContext.prisma.$transaction as jest.Mock).mockResolvedValue([mockUpdatedCue]);
+
+      const result = await cueResolvers.Mutation.bulkUpdateCues(
+        {},
+        { input: mockInput },
+        mockContext
+      );
+
+      expect(result).toEqual([mockUpdatedCue]);
     });
   });
 });
