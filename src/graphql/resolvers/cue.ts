@@ -24,7 +24,7 @@ export interface CreateCueInput {
   sceneId: string;
   fadeInTime?: number;
   fadeOutTime?: number;
-  followTime?: number | null;
+  followTime?: number;
   easingType?: EasingType;
   notes?: string;
 }
@@ -35,7 +35,7 @@ export interface UpdateCueInput {
   sceneId?: string;
   fadeInTime?: number;
   fadeOutTime?: number;
-  followTime?: number | null;
+  followTime?: number;
   easingType?: EasingType;
   notes?: string;
 }
@@ -49,7 +49,7 @@ export interface BulkUpdateCuesInput {
   cueIds: string[];
   fadeInTime?: number;
   fadeOutTime?: number;
-  followTime?: number | null;
+  followTime?: number;
   easingType?: EasingType;
 }
 
