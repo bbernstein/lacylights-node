@@ -1,22 +1,10 @@
 /* eslint-disable no-console */
-import { PrismaClient, FixtureType, ChannelType } from "@prisma/client";
-import https from "https";
-import fs from "fs";
-import path from "path";
-import unzipper from "unzipper";
-
-const prisma = new PrismaClient();
-
-interface OFLManufacturer {
-  name: string;
-  website?: string;
-  rdmId?: number;
-  comment?: string;
-}
-
-interface OFLManufacturers {
-  [key: string]: OFLManufacturer;
-}
+import { FixtureType, ChannelType, PrismaClient } from "@prisma/client";
+import { IFileSystemService, FileSystemService } from "./abstractions/FileSystemService";
+import { IHttpService, HttpService } from "./abstractions/HttpService";
+import { IPathService, PathService } from "./abstractions/PathService";
+import { IDatabaseService, DatabaseService, FixtureDefinition } from "./abstractions/DatabaseService";
+import { IArchiveService, ArchiveService } from "./abstractions/ArchiveService";
 
 interface OFLCapability {
   type: string;
@@ -40,141 +28,155 @@ interface OFLChannel {
   capabilities?: OFLCapability[];
 }
 
-interface OFLPhysical {
-  dimensions?: [number, number, number];
-  weight?: number;
-  power?: number;
-  DMXconnector?: string;
-  bulb?: {
-    type?: string;
-  };
-  lens?: {
-    degreesMinMax?: [number, number];
-  };
-}
-
 interface OFLMode {
   name: string;
-  shortName?: string;
   channels: string[];
 }
 
 interface OFLFixture {
-  $schema: string;
   name: string;
+  shortName?: string;
   categories: string[];
   meta?: {
     authors?: string[];
     createDate?: string;
     lastModifyDate?: string;
-  };
-  links?: {
-    manual?: string[];
-    productPage?: string[];
-    video?: string[];
-  };
-  physical?: OFLPhysical;
-  availableChannels: {
-    [channelName: string]: OFLChannel;
+    importPlugin?: {
+      plugin: string;
+      date: string;
+      comment?: string;
+    };
   };
   modes: OFLMode[];
+  availableChannels: { [key: string]: OFLChannel };
 }
 
+interface OFLData {
+  [manufacturer: string]: {
+    [fixture: string]: OFLFixture;
+  };
+}
+
+export interface FixtureSetupConfig {
+  oflDownloadUrl: string;
+  tempDir: string;
+  oflZipPath: string;
+  oflExtractPath: string;
+  oflJsonPath: string;
+}
+
+/**
+ * FixtureSetupService handles downloading and importing fixture definitions
+ * from the Open Fixture Library into the application database.
+ *
+ * This service uses dependency injection for better testability and maintainability.
+ * It provides both instance-based methods for flexible usage and static methods
+ * for backward compatibility with existing code.
+ */
 export class FixtureSetupService {
-  private static readonly OFL_DOWNLOAD_URL =
-    "https://open-fixture-library.org/download.ofl";
-  private static readonly TEMP_DIR = path.join(process.cwd(), "temp");
-  private static readonly OFL_ZIP_PATH = path.join(
-    FixtureSetupService.TEMP_DIR,
-    "ofl.zip",
-  );
-  private static readonly OFL_EXTRACT_PATH = path.join(
-    FixtureSetupService.TEMP_DIR,
-    "ofl",
-  );
+  private readonly config: FixtureSetupConfig;
+
+  constructor(
+    private readonly fileSystem: IFileSystemService,
+    private readonly http: IHttpService,
+    private readonly pathService: IPathService,
+    private readonly database: IDatabaseService,
+    private readonly archive: IArchiveService,
+    config?: Partial<FixtureSetupConfig>
+  ) {
+    const defaultConfig: FixtureSetupConfig = {
+      oflDownloadUrl: `https://github.com/OpenLightingProject/open-fixture-library/archive/${process.env.OFL_BRANCH || "master"}.zip`,
+      tempDir: this.pathService.join(process.cwd(), "temp"),
+      oflZipPath: this.pathService.join(process.cwd(), "temp", "ofl.zip"),
+      oflExtractPath: this.pathService.join(process.cwd(), "temp", "extract"),
+      oflJsonPath: this.pathService.join(process.cwd(), "temp", "ofl.json"),
+    };
+
+    this.config = { ...defaultConfig, ...config };
+  }
+
+  get testConfig(): FixtureSetupConfig {
+    return this.config;
+  }
 
   /**
-   * Check if fixtures need to be populated and populate them if necessary
+   * Creates a FixtureSetupService instance with all dependencies injected.
+   * This is the recommended way to create instances for production use.
    */
-  static async ensureFixturesPopulated(): Promise<void> {
+  static create(prisma?: PrismaClient): FixtureSetupService {
+    const fileSystem = new FileSystemService();
+    const http = new HttpService();
+    const pathService = new PathService();
+    const database = new DatabaseService(prisma || new PrismaClient());
+    const archive = new ArchiveService(fileSystem);
+
+    return new FixtureSetupService(fileSystem, http, pathService, database, archive);
+  }
+
+  /**
+   * Static method for backward compatibility with existing code.
+   * Ensures that fixture definitions are populated in the database.
+   * If no fixtures exist, downloads and imports from Open Fixture Library.
+   */
+  static async ensureFixturesPopulated(prisma?: PrismaClient): Promise<void> {
+    const service = FixtureSetupService.create(prisma);
+    await service.ensureFixturesPopulated();
+  }
+
+  async ensureFixturesPopulated(): Promise<void> {
     try {
-      const fixtureCount = await prisma.fixtureDefinition.count();
+      const fixtureCount = await this.database.getFixtureCount();
 
       if (fixtureCount === 0) {
-        console.log(
-          "🎭 No fixture definitions found. Starting initial fixture import...",
-        );
+        console.log("🎭 No fixture definitions found. Starting initial fixture import...");
         await this.downloadAndImportFixtures();
       } else {
         console.log(`✓ Found ${fixtureCount} fixture definitions in database`);
       }
     } catch (error) {
-      console.error("❌ Error checking fixture definitions:", error);
+      console.error("Error ensuring fixtures populated:", error);
       throw error;
     }
   }
 
-  /**
-   * Download OFL data and import fixtures
-   */
-  private static async downloadAndImportFixtures(): Promise<void> {
+  async downloadAndImportFixtures(): Promise<void> {
     try {
-      // Create temp directory
-      if (!fs.existsSync(this.TEMP_DIR)) {
-        fs.mkdirSync(this.TEMP_DIR, { recursive: true });
+      await this.ensureTempDirectory();
+
+      if (!this.fileSystem.existsSync(this.config.oflJsonPath)) {
+        await this.downloadOFLData();
+        await this.extractOFLData();
+        await this.processExtractedData();
       }
 
-      console.log("📥 Downloading Open Fixture Library data...");
-      await this.downloadOFLData();
-
-      console.log("📦 Extracting fixture data...");
-      await this.extractOFLData();
-
-      // Check extraction directory
-      console.log("  Checking extracted data...");
-      const extractedDirs = fs
-        .readdirSync(this.OFL_EXTRACT_PATH)
-        .filter((item) =>
-          fs.statSync(path.join(this.OFL_EXTRACT_PATH, item)).isDirectory(),
-        );
-      console.log(`  Found ${extractedDirs.length} manufacturer directories`);
-
-      console.log("💾 Importing fixtures into database...");
       await this.importFixtures();
-
       console.log("✅ Fixture import completed successfully!");
-
-      // Only cleanup on success
-      console.log("🧹 Cleaning up temporary files...");
-      await this.cleanup();
     } catch (error) {
-      console.error("❌ Error during fixture setup:", error);
-      // Don't cleanup on error for debugging
-      console.log("⚠️  Temporary files preserved in:", this.TEMP_DIR);
+      console.error("Error downloading and importing fixtures:", error);
       throw error;
     }
   }
 
-  /**
-   * Download OFL zip file
-   */
-  private static async downloadOFLData(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(this.OFL_ZIP_PATH);
+  private async ensureTempDirectory(): Promise<void> {
+    if (!this.fileSystem.existsSync(this.config.tempDir)) {
+      this.fileSystem.mkdirSync(this.config.tempDir, { recursive: true });
+    }
+  }
 
-      https
-        .get(this.OFL_DOWNLOAD_URL, (response) => {
+  private async downloadOFLData(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      console.log("📥 Downloading Open Fixture Library data...");
+      const file = this.fileSystem.createWriteStream(this.config.oflZipPath);
+
+      this.http
+        .get(this.config.oflDownloadUrl, (response) => {
           if (response.statusCode !== 200) {
-            reject(
-              new Error(`Failed to download OFL data: ${response.statusCode}`),
-            );
+            console.error(`Failed to download OFL fixtures. Status code: ${response.statusCode}`);
+            reject(new Error(`Failed to download OFL fixtures. Status code: ${response.statusCode}`));
             return;
           }
 
-          const totalSize = parseInt(
-            response.headers["content-length"] || "0",
-            10,
-          );
+          const totalSize = parseInt(response.headers["content-length"] || "0", 10);
           let downloadedSize = 0;
           let lastLoggedProgress = 0;
 
@@ -183,7 +185,6 @@ export class FixtureSetupService {
               downloadedSize += chunk.length;
               const progress = Math.round((downloadedSize / totalSize) * 100);
 
-              // Log progress every 10%
               if (progress >= lastLoggedProgress + 10) {
                 console.log(`  Download progress: ${progress}%`);
                 lastLoggedProgress = progress;
@@ -202,224 +203,165 @@ export class FixtureSetupService {
           });
         })
         .on("error", (err) => {
-          fs.unlinkSync(this.OFL_ZIP_PATH);
+          console.error("Error downloading OFL fixtures:", err);
+          if (this.fileSystem.existsSync(this.config.oflZipPath)) {
+            this.fileSystem.unlinkSync(this.config.oflZipPath);
+          }
           reject(err);
         });
     });
   }
 
-  /**
-   * Extract OFL zip file
-   */
-  private static async extractOFLData(): Promise<void> {
-    // Create extraction directory
-    if (!fs.existsSync(this.OFL_EXTRACT_PATH)) {
-      fs.mkdirSync(this.OFL_EXTRACT_PATH, { recursive: true });
+  private async extractOFLData(): Promise<void> {
+    try {
+      console.log("📦 Extracting fixture data...");
+      await this.archive.extractZip(this.config.oflZipPath, this.config.oflExtractPath);
+      console.log("  Extraction complete!");
+    } catch (error) {
+      console.error("Error extracting OFL data:", error);
+      throw error;
     }
-
-    return new Promise((resolve, reject) => {
-      fs.createReadStream(this.OFL_ZIP_PATH)
-        .pipe(unzipper.Extract({ path: this.OFL_EXTRACT_PATH }))
-        .on("close", () => {
-          console.log("  Extraction complete!");
-          resolve();
-        })
-        .on("error", (err) => {
-          console.error("  Extraction error:", err);
-          reject(err);
-        });
-    });
   }
 
-  /**
-   * Import fixtures from extracted OFL data
-   */
-  private static async importFixtures(): Promise<void> {
-    // Since manufacturers.json doesn't exist, build manufacturers from directories
-    const manufacturerDirs = fs
-      .readdirSync(this.OFL_EXTRACT_PATH)
-      .filter((item) => {
-        const itemPath = path.join(this.OFL_EXTRACT_PATH, item);
-        return fs.statSync(itemPath).isDirectory();
-      });
+  private async processExtractedData(): Promise<void> {
+    try {
+      console.log("  Checking extracted data...");
+      const extractedDirs = this.fileSystem
+        .readdirSync(this.config.oflExtractPath)
+        .filter((item) =>
+          this.fileSystem.statSync(this.pathService.join(this.config.oflExtractPath, item)).isDirectory()
+        );
 
-    // Create manufacturers data from directory names
-    const manufacturersData: OFLManufacturers = {};
-    manufacturerDirs.forEach((dir) => {
-      // Convert directory name to manufacturer name (e.g., "american-dj" -> "American DJ")
-      const name = dir
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-      manufacturersData[dir] = { name };
-    });
-
-    let totalFixtures = 0;
-    let successfulImports = 0;
-    let errors = 0;
-
-    // Process each manufacturer directory
-    for (const manufacturerKey of Object.keys(manufacturersData)) {
-      const manufacturerPath = path.join(
-        this.OFL_EXTRACT_PATH,
-        manufacturerKey,
-      );
-
-      if (
-        !fs.existsSync(manufacturerPath) ||
-        !fs.statSync(manufacturerPath).isDirectory()
-      ) {
-        continue;
+      if (extractedDirs.length === 0) {
+        throw new Error("No directories found in extracted OFL data");
       }
 
-      const manufacturerName = manufacturersData[manufacturerKey].name;
-      console.log(`  Processing ${manufacturerName}...`);
+      const oflDir = extractedDirs[0];
+      const fixturesPath = this.pathService.join(this.config.oflExtractPath, oflDir, "fixtures");
 
-      // Get all fixture files for this manufacturer
-      const fixtureFiles = fs
-        .readdirSync(manufacturerPath)
-        .filter((file) => file.endsWith(".json"));
+      console.log("  Processing fixture data...");
+      const oflData = await this.loadOFLData(fixturesPath);
 
-      for (const fixtureFile of fixtureFiles) {
-        totalFixtures++;
-        const fixturePath = path.join(manufacturerPath, fixtureFile);
+      // Save processed data for importFixtures to use
+      this.fileSystem.writeFileSync(this.config.oflJsonPath, JSON.stringify(oflData), 'utf8');
+      console.log("  Fixture data processing complete!");
+    } catch (error) {
+      console.error("Error processing extracted data:", error);
+      throw error;
+    }
+  }
 
-        try {
-          const oflFixture: OFLFixture = JSON.parse(
-            fs.readFileSync(fixturePath, "utf8"),
-          );
+  private async loadOFLData(fixturesPath: string): Promise<OFLData> {
+    const oflData: OFLData = {};
 
-          // Skip fixtures without modes
-          if (!oflFixture.modes || oflFixture.modes.length === 0) {
-            continue;
+    if (!this.fileSystem.existsSync(fixturesPath)) {
+      throw new Error(`Fixtures directory not found: ${fixturesPath}`);
+    }
+
+    const manufacturers = this.fileSystem.readdirSync(fixturesPath)
+      .filter(item => this.fileSystem.statSync(this.pathService.join(fixturesPath, item)).isDirectory());
+
+    for (const manufacturer of manufacturers) {
+      const manufacturerPath = this.pathService.join(fixturesPath, manufacturer);
+      const fixtures = this.fileSystem.readdirSync(manufacturerPath)
+        .filter(file => file.endsWith('.json'));
+
+      if (fixtures.length > 0) {
+        oflData[manufacturer] = {};
+
+        for (const fixtureFile of fixtures) {
+          const fixturePath = this.pathService.join(manufacturerPath, fixtureFile);
+          try {
+            const fixtureData = JSON.parse(this.fileSystem.readFileSync(fixturePath));
+            const fixtureName = this.pathService.basename(fixtureFile, '.json');
+            oflData[manufacturer][fixtureName] = fixtureData;
+          } catch (error) {
+            console.warn(`  Warning: Could not parse fixture file ${fixturePath}:`, (error as Error).message);
           }
-
-          // Check if fixture already exists
-          const existing = await prisma.fixtureDefinition.findUnique({
-            where: {
-              manufacturer_model: {
-                manufacturer: manufacturerName,
-                model: oflFixture.name,
-              },
-            },
-          });
-
-          if (existing) {
-            continue;
-          }
-
-          // Get all unique channels from all modes
-          const allChannelNames = new Set<string>();
-          oflFixture.modes.forEach((mode) => {
-            mode.channels.forEach((channelName) =>
-              allChannelNames.add(channelName),
-            );
-          });
-
-          // Create channel definitions for all unique channels
-          const channelDefinitions = Array.from(allChannelNames).map(
-            (channelName, index) => {
-              const oflChannel = oflFixture.availableChannels[channelName];
-
-              // Use the first capability or the single capability
-              const capability = oflChannel.capabilities
-                ? oflChannel.capabilities[0]
-                : oflChannel.capability;
-
-              if (!capability) {
-                throw new Error(
-                  `No capability found for channel: ${channelName}`,
-                );
-              }
-
-              const { min, max } = this.getMinMaxValues(capability);
-
-              return {
-                name: channelName,
-                type: this.mapChannelType(capability),
-                offset: index + 1,
-                minValue: min,
-                maxValue: max,
-                defaultValue: this.getDefaultValue(capability),
-              };
-            },
-          );
-
-          // Create the fixture definition with channels
-          const fixtureDefinition = await prisma.fixtureDefinition.create({
-            data: {
-              manufacturer: manufacturerName,
-              model: oflFixture.name,
-              type: this.mapFixtureType(oflFixture.categories),
-              isBuiltIn: true,
-              channels: {
-                create: channelDefinitions,
-              },
-            },
-            include: {
-              channels: true,
-            },
-          });
-
-          // Create modes for this fixture
-          for (const oflMode of oflFixture.modes) {
-            await prisma.fixtureMode.create({
-              data: {
-                name: oflMode.name,
-                shortName: oflMode.shortName || null,
-                channelCount: oflMode.channels.length,
-                definitionId: fixtureDefinition.id,
-                modeChannels: {
-                  create: oflMode.channels.map((channelName, offset) => {
-                    const channelDef = fixtureDefinition.channels.find(
-                      (ch) => ch.name === channelName,
-                    );
-                    if (!channelDef) {
-                      throw new Error(
-                        `Channel ${channelName} not found for mode ${oflMode.name}`,
-                      );
-                    }
-                    return {
-                      offset: offset + 1,
-                      channelId: channelDef.id,
-                    };
-                  }),
-                },
-              },
-            });
-          }
-
-          successfulImports++;
-
-          // Log progress every 100 fixtures
-          if (successfulImports % 100 === 0) {
-            console.log(`    Imported ${successfulImports} fixtures...`);
-          }
-        } catch {
-          errors++;
         }
       }
     }
 
-    console.log("\n📊 Import Summary:");
-    console.log(`  Total fixtures processed: ${totalFixtures}`);
-    console.log(`  Successfully imported: ${successfulImports}`);
-    console.log(`  Errors: ${errors}`);
-    console.log(
-      `  Skipped (already exist): ${totalFixtures - successfulImports - errors}`,
-    );
+    return oflData;
   }
 
-  /**
-   * Map OFL channel types to our ChannelType enum
-   */
-  private static mapChannelType(oflCapability: OFLCapability): ChannelType {
+  private async importFixtures(): Promise<void> {
+    try {
+      console.log("📊 Importing fixture definitions...");
+
+      const oflData: OFLData = JSON.parse(this.fileSystem.readFileSync(this.config.oflJsonPath));
+      const fixtureDefinitions: FixtureDefinition[] = [];
+
+      for (const [manufacturerName, fixtures] of Object.entries(oflData)) {
+        for (const [fixtureName, oflFixture] of Object.entries(fixtures)) {
+          try {
+            if (oflFixture.modes && oflFixture.modes.length > 0) {
+              const mode = oflFixture.modes[0]; // Use first mode for now
+              const channelDefinitions = mode.channels
+                .map((channelName, index) => {
+                  const capability = oflFixture.availableChannels?.[channelName];
+                  if (!capability) {
+                    return null;
+                  }
+
+                  const channelCapability = capability.capability ||
+                    (capability.capabilities && capability.capabilities[0]);
+
+                  if (!channelCapability) {
+                    return null;
+                  }
+
+                  const { min, max } = this.getMinMaxValues(channelCapability);
+                  return {
+                    name: channelName,
+                    type: this.mapChannelType(channelCapability),
+                    offset: index + 1,
+                    minValue: min,
+                    maxValue: max,
+                    defaultValue: this.getDefaultValue(channelCapability),
+                  };
+                })
+                .filter((channel): channel is NonNullable<typeof channel> => channel !== null);
+
+              if (channelDefinitions.length > 0) {
+                fixtureDefinitions.push({
+                  manufacturer: manufacturerName,
+                  model: oflFixture.name,
+                  type: this.mapFixtureType(oflFixture.categories),
+                  isBuiltIn: true,
+                  channels: {
+                    create: channelDefinitions,
+                  },
+                });
+              }
+            }
+          } catch (error) {
+            console.warn(`  Warning: Could not process fixture ${manufacturerName} ${fixtureName}:`, (error as Error).message);
+          }
+        }
+      }
+
+      if (fixtureDefinitions.length > 0) {
+        const result = await this.database.createFixtures(fixtureDefinitions);
+        console.log(`Successfully imported ${result.count} fixture definitions`);
+      } else {
+        console.log("No valid fixture definitions found to import");
+      }
+    } catch (error) {
+      console.error("Error importing fixtures:", error);
+      throw error;
+    }
+  }
+
+  // Utility methods - these can now be tested independently
+  mapChannelType(oflCapability: OFLCapability): ChannelType {
     const type = oflCapability.type;
     const color = oflCapability.color?.toLowerCase();
 
     if (type === "Intensity") {
       return ChannelType.INTENSITY;
     }
+
     if (type === "ColorIntensity") {
       switch (color) {
         case "red":
@@ -438,6 +380,7 @@ export class FixtureSetupService {
           return ChannelType.OTHER;
       }
     }
+
     if (type === "Pan") {
       return ChannelType.PAN;
     }
@@ -472,10 +415,7 @@ export class FixtureSetupService {
     return ChannelType.OTHER;
   }
 
-  /**
-   * Map OFL categories to our FixtureType enum
-   */
-  private static mapFixtureType(categories: string[]): FixtureType {
+  mapFixtureType(categories: string[]): FixtureType {
     const categoryString = categories.join(" ").toLowerCase();
 
     if (
@@ -504,10 +444,7 @@ export class FixtureSetupService {
     return FixtureType.OTHER;
   }
 
-  /**
-   * Get default value for a capability
-   */
-  private static getDefaultValue(capability: OFLCapability): number {
+  getDefaultValue(capability: OFLCapability): number {
     if (capability.dmxRange) {
       return capability.dmxRange[0];
     }
@@ -520,10 +457,7 @@ export class FixtureSetupService {
     return 128;
   }
 
-  /**
-   * Get min/max values for a capability
-   */
-  private static getMinMaxValues(capability: OFLCapability): {
+  getMinMaxValues(capability: OFLCapability): {
     min: number;
     max: number;
   } {
@@ -533,19 +467,16 @@ export class FixtureSetupService {
     return { min: 0, max: 255 };
   }
 
-  /**
-   * Clean up temporary files
-   */
-  private static async cleanup(): Promise<void> {
+  async cleanup(): Promise<void> {
     try {
-      if (fs.existsSync(this.OFL_ZIP_PATH)) {
-        fs.unlinkSync(this.OFL_ZIP_PATH);
-      }
-      if (fs.existsSync(this.OFL_EXTRACT_PATH)) {
-        fs.rmSync(this.OFL_EXTRACT_PATH, { recursive: true, force: true });
+      if (this.fileSystem.existsSync(this.config.oflZipPath)) {
+        this.fileSystem.unlinkSync(this.config.oflZipPath);
+        console.log("Cleaned up OFL zip file");
+      } else {
+        console.log("OFL zip file not found, nothing to clean up");
       }
     } catch (error) {
-      console.warn("Warning: Could not clean up temporary files:", error);
+      console.error("Error during cleanup:", error);
     }
   }
 }

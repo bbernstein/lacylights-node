@@ -1,0 +1,269 @@
+import { typeDefs } from "../schema";
+import { buildSchema, validateSchema } from "graphql";
+import { gql } from "graphql-tag";
+
+describe("GraphQL Schema", () => {
+  let schema: any;
+
+  beforeAll(() => {
+    // Build the schema from typeDefs
+    try {
+      schema = buildSchema(typeDefs.loc?.source.body || "");
+    } catch (error) {
+      // If the schema uses GraphQL features not supported by buildSchema,
+      // we'll test the typeDefs directly
+      schema = null;
+    }
+  });
+
+  it("should have valid GraphQL syntax", () => {
+    expect(() => gql`${typeDefs.loc?.source.body}`).not.toThrow();
+  });
+
+  it("should define core types", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    // Check for main entity types
+    expect(schemaString).toContain("type Project");
+    expect(schemaString).toContain("type FixtureDefinition");
+    expect(schemaString).toContain("type FixtureInstance");
+    expect(schemaString).toContain("type Scene");
+    expect(schemaString).toContain("type CueList");
+    expect(schemaString).toContain("type Cue");
+    expect(schemaString).toContain("type User");
+  });
+
+  it("should define required enums", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("enum FixtureType");
+    expect(schemaString).toContain("enum ChannelType");
+    expect(schemaString).toContain("enum UserRole");
+    expect(schemaString).toContain("enum ProjectRole");
+    expect(schemaString).toContain("enum EasingType");
+  });
+
+  it("should define input types for mutations", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("input CreateProjectInput");
+    expect(schemaString).toContain("input CreateFixtureDefinitionInput");
+    expect(schemaString).toContain("input CreateFixtureInstanceInput");
+    expect(schemaString).toContain("input CreateSceneInput");
+    expect(schemaString).toContain("input CreateCueListInput");
+    expect(schemaString).toContain("input CreateCueInput");
+  });
+
+  it("should define Query type with required fields", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("type Query");
+    expect(schemaString).toContain("projects: [Project!]!");
+    expect(schemaString).toContain("project(id: ID!): Project");
+    expect(schemaString).toContain("fixtureDefinitions");
+    expect(schemaString).toContain("dmxOutput(universe: Int!): [Int!]!");
+  });
+
+  it("should define Mutation type with required fields", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("type Mutation");
+    expect(schemaString).toContain("createProject");
+    expect(schemaString).toContain("createFixtureInstance");
+    expect(schemaString).toContain("createScene");
+    expect(schemaString).toContain("setChannelValue");
+    expect(schemaString).toContain("startPreviewSession");
+  });
+
+  it("should define Subscription type", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("type Subscription");
+    expect(schemaString).toContain("dmxOutputChanged");
+    expect(schemaString).toContain("projectUpdated");
+    expect(schemaString).toContain("previewSessionUpdated");
+  });
+
+  it("should define FixtureType enum with correct values", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("LED_PAR");
+    expect(schemaString).toContain("MOVING_HEAD");
+    expect(schemaString).toContain("STROBE");
+    expect(schemaString).toContain("DIMMER");
+    expect(schemaString).toContain("OTHER");
+  });
+
+  it("should define ChannelType enum with correct values", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("INTENSITY");
+    expect(schemaString).toContain("RED");
+    expect(schemaString).toContain("GREEN");
+    expect(schemaString).toContain("BLUE");
+    expect(schemaString).toContain("WHITE");
+    expect(schemaString).toContain("PAN");
+    expect(schemaString).toContain("TILT");
+  });
+
+  it("should define QLC+ export/import types", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("type QLCExportResult");
+    expect(schemaString).toContain("type QLCImportResult");
+    expect(schemaString).toContain("type QLCFixtureDefinition");
+    expect(schemaString).toContain("type FixtureMapping");
+  });
+
+  it("should have proper field types and nullability", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    // Check for proper ID fields
+    expect(schemaString).toContain("id: ID!");
+
+    // Check for proper array types
+    expect(schemaString).toContain("fixtures: [FixtureInstance!]!");
+    expect(schemaString).toContain("scenes: [Scene!]!");
+
+    // Check for optional fields
+    expect(schemaString).toContain("description: String");
+    expect(schemaString).toContain("followTime: Float");
+  });
+
+  it("should have consistent naming conventions", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    // Types should be PascalCase
+    const typeMatches = schemaString.match(/type\s+(\w+)/g) || [];
+    typeMatches.forEach(match => {
+      const typeName = match.split(/\s+/)[1];
+      expect(typeName[0]).toEqual(typeName[0].toUpperCase());
+    });
+
+    // Enums should be UPPER_CASE
+    const enumValueMatches = schemaString.match(/^\s+[A-Z_]+$/gm) || [];
+    enumValueMatches.forEach(match => {
+      const enumValue = match.trim();
+      expect(enumValue).toMatch(/^[A-Z_]+$/);
+    });
+  });
+
+  it("should define relationships correctly", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    // Check foreign key relationships
+    expect(schemaString).toContain("project: Project!");
+    expect(schemaString).toContain("fixture: FixtureInstance!");
+    expect(schemaString).toContain("scene: Scene!");
+    expect(schemaString).toContain("cueList: CueList!");
+  });
+
+  it("should define input validation constraints", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    // Check for non-null constraints on critical fields
+    expect(schemaString).toContain("name: String!");
+    expect(schemaString).toContain("manufacturer: String!");
+    expect(schemaString).toContain("model: String!");
+    expect(schemaString).toContain("projectId: ID!");
+  });
+
+  it("should define preview system types", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("type PreviewSession");
+    expect(schemaString).toContain("startPreviewSession");
+    expect(schemaString).toContain("updatePreviewChannel");
+    expect(schemaString).toContain("previewSessionUpdated");
+  });
+
+  it("should define cue list playback types", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("type CueListPlaybackStatus");
+    expect(schemaString).toContain("startCueList");
+    expect(schemaString).toContain("nextCue");
+    expect(schemaString).toContain("goToCue");
+    expect(schemaString).toContain("cueListPlaybackUpdated");
+  });
+
+  it("should define proper subscription return types", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("dmxOutputChanged(universe: Int): UniverseOutput!");
+    expect(schemaString).toContain("projectUpdated(projectId: ID!): Project!");
+    expect(schemaString).toContain("previewSessionUpdated(projectId: ID!): PreviewSession!");
+  });
+
+  it("should have valid mutation return types", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    // Create operations should return the created entity
+    expect(schemaString).toContain("createProject(input: CreateProjectInput!): Project!");
+    expect(schemaString).toContain("createScene(input: CreateSceneInput!): Scene!");
+
+    // Boolean operations
+    expect(schemaString).toContain("deleteProject(id: ID!): Boolean!");
+    expect(schemaString).toContain("setChannelValue(universe: Int!, channel: Int!, value: Int!): Boolean!");
+  });
+
+  it("should define bulk operations", () => {
+    const schemaString = typeDefs.loc?.source.body || "";
+
+    expect(schemaString).toContain("bulkUpdateCues");
+    expect(schemaString).toContain("reorderCues");
+    expect(schemaString).toContain("reorderProjectFixtures");
+    expect(schemaString).toContain("reorderSceneFixtures");
+  });
+
+  describe("Field consistency", () => {
+    it("should use consistent ID field naming", () => {
+      const schemaString = typeDefs.loc?.source.body || "";
+
+      // All types should have `id: ID!` field
+      const typeBlocks = schemaString.split("type ").slice(1);
+      typeBlocks.forEach(block => {
+        const typeName = block.split(/[\s\n{]/)[0];
+        // Skip certain types that might not have ID fields
+        if (!["UniverseOutput", "QLCFixtureMode", "LacyLightsFixture"].includes(typeName)) {
+          expect(block).toContain("id: ID!");
+        }
+      });
+    });
+
+    it("should use consistent timestamp field naming", () => {
+      const schemaString = typeDefs.loc?.source.body || "";
+
+      expect(schemaString).toContain("createdAt: String!");
+      expect(schemaString).toContain("updatedAt: String!");
+    });
+
+    it("should use consistent relationship field naming", () => {
+      const schemaString = typeDefs.loc?.source.body || "";
+
+      // Foreign key relationships should follow pattern
+      expect(schemaString).toContain("projectId: ID!");
+      expect(schemaString).toContain("sceneId: ID!");
+      expect(schemaString).toContain("cueListId: ID!");
+      expect(schemaString).toContain("fixtureId: ID!");
+    });
+  });
+
+  describe("Input type validation", () => {
+    it("should have required fields marked as non-null", () => {
+      const schemaString = typeDefs.loc?.source.body || "";
+
+      // Check critical input fields are non-null
+      expect(schemaString).toContain("input CreateProjectInput {");
+      expect(schemaString).toMatch(/name:\s*String!/);
+    });
+
+    it("should define array inputs correctly", () => {
+      const schemaString = typeDefs.loc?.source.body || "";
+
+      expect(schemaString).toContain("fixtureValues: [FixtureValueInput!]!");
+      expect(schemaString).toContain("channelValues: [Int!]!");
+      expect(schemaString).toContain("tags: [String!]");
+    });
+  });
+});

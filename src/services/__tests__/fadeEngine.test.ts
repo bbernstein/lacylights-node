@@ -1,4 +1,3 @@
-import "./setup";
 import { fadeEngine } from "../fadeEngine";
 import { dmxService } from "../dmx";
 
@@ -26,6 +25,12 @@ describe("FadeEngine", () => {
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  afterAll(() => {
+    // Ensure fade engine is completely stopped
+    fadeEngine.stop();
+    fadeEngine.cancelAllFades();
   });
 
   describe("initialization and lifecycle", () => {
@@ -459,4 +464,4 @@ describe("FadeEngine", () => {
       expect(mockDmxService.setChannelValue).toHaveBeenCalledTimes(2048);
     });
   });
-});
+}); 

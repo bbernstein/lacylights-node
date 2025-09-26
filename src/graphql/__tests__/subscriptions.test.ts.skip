@@ -1,0 +1,291 @@
+import { WebSocketServer } from "ws";
+import { useServer } from "graphql-ws/lib/use/ws";
+import { makeExecutableSchema } from "@graphql-tools/schema";
+import { setupWebSocketServer } from "../subscriptions";
+import { typeDefs } from "../schema";
+import { resolvers } from "../resolvers";
+import { Server } from "http";
+
+// Mock dependencies
+jest.mock("ws");
+jest.mock("graphql-ws/lib/use/ws");
+jest.mock("@graphql-tools/schema");
+jest.mock("../schema");
+jest.mock("../resolvers");
+jest.mock("../context");
+
+const mockWebSocketServer = WebSocketServer as jest.MockedClass<typeof WebSocketServer>;
+const mockUseServer = useServer as jest.MockedFunction<typeof useServer>;
+const mockMakeExecutableSchema = makeExecutableSchema as jest.MockedFunction<typeof makeExecutableSchema>;
+
+describe("GraphQL Subscriptions", () => {
+  let mockHttpServer: jest.Mocked<Server>;
+  let mockWsServer: jest.Mocked<InstanceType<typeof WebSocketServer>>;
+  let mockServerCleanup: jest.MockedFunction<() => Promise<void>>;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+
+    // Mock HTTP server
+    mockHttpServer = {
+      listen: jest.fn(),
+      close: jest.fn(),
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+    } as any;
+
+    // Mock WebSocket server
+    mockWsServer = {
+      close: jest.fn(),
+      on: jest.fn(),
+      off: jest.fn(),
+      emit: jest.fn(),
+      clients: new Set(),
+    } as any;
+
+    // Mock server cleanup function
+    mockServerCleanup = jest.fn().mockResolvedValue(undefined);
+
+    // Setup mocks
+    mockWebSocketServer.mockImplementation(() => mockWsServer);
+    mockUseServer.mockReturnValue(mockServerCleanup);
+    mockMakeExecutableSchema.mockReturnValue({} as any);
+
+    // Mock dynamic imports in context
+    const mockCreateWebSocketContext = jest.fn().mockResolvedValue({
+      prisma: {},
+      pubsub: {},
+    });
+
+    jest.doMock("../context", () => ({
+      createWebSocketContext: mockCreateWebSocketContext,
+    }));
+  });
+
+  afterEach(() => {
+    jest.resetModules();
+  });
+
+  describe("setupWebSocketServer", () => {
+    it("should create WebSocket server with correct configuration", () => {
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockWebSocketServer).toHaveBeenCalledWith({
+        server: mockHttpServer,
+        path: "/graphql",
+      });
+    });
+
+    it("should create executable schema with typeDefs and resolvers", () => {
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockMakeExecutableSchema).toHaveBeenCalledWith({
+        typeDefs,
+        resolvers,
+      });
+    });
+
+    it("should setup GraphQL WS server with useServer", () => {
+      const mockSchema = { kind: "Document" };
+      mockMakeExecutableSchema.mockReturnValue(mockSchema as any);
+
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockUseServer).toHaveBeenCalledWith(
+        {
+          schema: mockSchema,
+          context: expect.any(Function),
+        },
+        mockWsServer
+      );
+    });
+
+    it("should return server cleanup function", () => {
+      const result = setupWebSocketServer(mockHttpServer);
+
+      expect(result).toBe(mockServerCleanup);
+    });
+
+    it("should handle context creation for WebSocket connections", async () => {
+      setupWebSocketServer(mockHttpServer);
+
+      // Get the context function that was passed to useServer
+      const useServerCall = mockUseServer.mock.calls[0];
+      const contextFn = useServerCall[0].context;
+
+      // Call the context function
+      const result = await contextFn({}, {}, {});
+
+      expect(result).toEqual({
+        prisma: {},
+        pubsub: {},
+      });
+    });
+
+    it("should handle context creation errors gracefully", async () => {
+      const mockCreateWebSocketContext = jest.fn().mockRejectedValue(new Error("Context creation failed"));
+
+      jest.doMock("../context", () => ({
+        createWebSocketContext: mockCreateWebSocketContext,
+      }));
+
+      setupWebSocketServer(mockHttpServer);
+
+      // Get the context function
+      const useServerCall = mockUseServer.mock.calls[0];
+      const contextFn = useServerCall[0].context;
+
+      // The context function should handle the error
+      await expect(contextFn({}, {}, {})).rejects.toThrow("Context creation failed");
+    });
+
+    it("should pass WebSocket server instance to useServer", () => {
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockUseServer).toHaveBeenCalledWith(
+        expect.any(Object),
+        mockWsServer
+      );
+    });
+
+    it("should use dynamic import for context creation", async () => {
+      setupWebSocketServer(mockHttpServer);
+
+      // Verify that the context function uses dynamic import
+      const useServerCall = mockUseServer.mock.calls[0];
+      const contextFn = useServerCall[0].context;
+
+      // Call the context function to trigger the dynamic import
+      await contextFn({}, {}, {});
+
+      // The dynamic import should have been triggered
+      // This is verified by the context creation working
+    });
+  });
+
+  describe("WebSocket server integration", () => {
+    it("should integrate with HTTP server correctly", () => {
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockWebSocketServer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          server: mockHttpServer,
+        })
+      );
+    });
+
+    it("should use correct GraphQL path", () => {
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockWebSocketServer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          path: "/graphql",
+        })
+      );
+    });
+
+    it("should handle multiple setup calls", () => {
+      const cleanup1 = setupWebSocketServer(mockHttpServer);
+      const cleanup2 = setupWebSocketServer(mockHttpServer);
+
+      expect(cleanup1).toBe(mockServerCleanup);
+      expect(cleanup2).toBe(mockServerCleanup);
+      expect(mockWebSocketServer).toHaveBeenCalledTimes(2);
+      expect(mockUseServer).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("schema construction", () => {
+    it("should use imported typeDefs", () => {
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockMakeExecutableSchema).toHaveBeenCalledWith(
+        expect.objectContaining({
+          typeDefs: typeDefs,
+        })
+      );
+    });
+
+    it("should use imported resolvers", () => {
+      setupWebSocketServer(mockHttpServer);
+
+      expect(mockMakeExecutableSchema).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resolvers: resolvers,
+        })
+      );
+    });
+
+    it("should handle schema creation errors", () => {
+      mockMakeExecutableSchema.mockImplementation(() => {
+        throw new Error("Schema creation failed");
+      });
+
+      expect(() => setupWebSocketServer(mockHttpServer)).toThrow("Schema creation failed");
+    });
+  });
+
+  describe("cleanup functionality", () => {
+    it("should return cleanup function that can be called", async () => {
+      const cleanup = setupWebSocketServer(mockHttpServer);
+
+      await cleanup();
+
+      expect(mockServerCleanup).toHaveBeenCalledTimes(1);
+    });
+
+    it("should handle cleanup errors", async () => {
+      mockServerCleanup.mockRejectedValue(new Error("Cleanup failed"));
+
+      const cleanup = setupWebSocketServer(mockHttpServer);
+
+      await expect(cleanup()).rejects.toThrow("Cleanup failed");
+    });
+
+    it("should allow multiple cleanup calls", async () => {
+      const cleanup = setupWebSocketServer(mockHttpServer);
+
+      await cleanup();
+      await cleanup();
+
+      expect(mockServerCleanup).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe("error handling", () => {
+    it("should handle WebSocketServer construction errors", () => {
+      mockWebSocketServer.mockImplementation(() => {
+        throw new Error("WebSocket server creation failed");
+      });
+
+      expect(() => setupWebSocketServer(mockHttpServer)).toThrow("WebSocket server creation failed");
+    });
+
+    it("should handle useServer setup errors", () => {
+      mockUseServer.mockImplementation(() => {
+        throw new Error("useServer setup failed");
+      });
+
+      expect(() => setupWebSocketServer(mockHttpServer)).toThrow("useServer setup failed");
+    });
+  });
+
+  describe("configuration validation", () => {
+    it("should require HTTP server parameter", () => {
+      expect(() => setupWebSocketServer(null as any)).toThrow();
+    });
+
+    it("should work with different HTTP server instances", () => {
+      const anotherServer = { listen: jest.fn() } as any;
+
+      setupWebSocketServer(anotherServer);
+
+      expect(mockWebSocketServer).toHaveBeenCalledWith(
+        expect.objectContaining({
+          server: anotherServer,
+        })
+      );
+    });
+  });
+});

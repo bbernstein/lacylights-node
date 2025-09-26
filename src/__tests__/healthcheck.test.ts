@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 // Mock the http module before any imports
 const mockRequest = {
   on: jest.fn(),
@@ -14,11 +15,10 @@ jest.mock("http", () => ({
 // Track exit codes
 let capturedExitCode: string | number | null | undefined = null;
 
-// Mock process.exit to return instead of throwing
+// Mock process.exit to prevent actual exit
 const mockProcessExit = jest
   .spyOn(process, "exit")
   .mockImplementation((_code?: string | number | null | undefined) => {
-    // Store the exit code but don't actually exit or throw
     capturedExitCode = _code;
     return undefined as never;
   });
@@ -45,8 +45,10 @@ describe("healthcheck", () => {
       return mockRequest;
     });
 
-    // Import the healthcheck module to trigger execution
-    await import("../healthcheck");
+    // Use isolateModules to prevent module caching issues
+    jest.isolateModules(() => {
+      require("../healthcheck");
+    });
 
     expect(mockProcessExit).toHaveBeenCalledWith(0);
     expect(capturedExitCode).toBe(0);
@@ -73,7 +75,9 @@ describe("healthcheck", () => {
       return mockRequest;
     });
 
-    await import("../healthcheck");
+    jest.isolateModules(() => {
+      require("../healthcheck");
+    });
 
     expect(mockProcessExit).toHaveBeenCalledWith(1);
     expect(capturedExitCode).toBe(1);
@@ -83,7 +87,9 @@ describe("healthcheck", () => {
     // Configure mock to return request object without calling callback
     mockHttpRequest.mockImplementation(() => mockRequest);
 
-    await import("../healthcheck");
+    jest.isolateModules(() => {
+      require("../healthcheck");
+    });
 
     // Find and trigger the error callback
     expect(mockRequest.on).toHaveBeenCalledWith("error", expect.any(Function));
@@ -101,7 +107,9 @@ describe("healthcheck", () => {
     // Configure mock to return request object
     mockHttpRequest.mockImplementation(() => mockRequest);
 
-    await import("../healthcheck");
+    jest.isolateModules(() => {
+      require("../healthcheck");
+    });
 
     // Find and trigger the timeout callback
     expect(mockRequest.on).toHaveBeenCalledWith("timeout", expect.any(Function));
@@ -122,7 +130,9 @@ describe("healthcheck", () => {
 
     mockHttpRequest.mockReturnValue(mockRequest);
 
-    await import("../healthcheck");
+    jest.isolateModules(() => {
+      require("../healthcheck");
+    });
 
     expect(mockHttpRequest).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -142,7 +152,9 @@ describe("healthcheck", () => {
   it("should call request.end() to send the request", async () => {
     mockHttpRequest.mockReturnValue(mockRequest);
 
-    await import("../healthcheck");
+    jest.isolateModules(() => {
+      require("../healthcheck");
+    });
 
     expect(mockRequest.end).toHaveBeenCalled();
   });

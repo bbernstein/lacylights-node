@@ -1,72 +1,100 @@
 // Set environment variables FIRST, before any imports that might use them
 process.env.NODE_ENV = "test";
 process.env.LOG_LEVEL = "ERROR"; // Only show errors during tests
-process.env.DATABASE_URL =
-  process.env.DATABASE_URL ||
-  "postgresql://lacylights:lacylights_dev_password@localhost:5432/lacylights_test";
+// Set a mock database URL - tests should not require real database
+process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
 
-import { PrismaClient } from "@prisma/client";
+// Mock PrismaClient globally for all tests
+const mockPrismaClient = {
+  $connect: jest.fn().mockResolvedValue(undefined),
+  $disconnect: jest.fn().mockResolvedValue(undefined),
+  $queryRaw: jest.fn().mockResolvedValue([]),
+  $executeRaw: jest.fn().mockResolvedValue({ count: 0 }),
+  $executeRawUnsafe: jest.fn().mockResolvedValue({ count: 0 }),
+  $transaction: jest.fn(),
+  project: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  fixture: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  scene: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  cueList: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  cue: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  fixtureDefinition: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  user: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+};
 
-// Global test setup
-let prisma: PrismaClient | undefined;
+// Note: We don't mock fadeEngine or dmxService globally as their tests need the real implementations
+// Individual test files will mock these as needed
 
+// Global test setup - no database connections required
 beforeAll(async () => {
-  // Try to connect to database, but don't fail if it's not available
-  try {
-    // Initialize Prisma client for tests with explicit DATABASE_URL
-    prisma = new PrismaClient({
-      datasources: {
-        db: {
-          url: process.env.DATABASE_URL,
-        },
-      },
-    });
-
-    // Connect to database with a short timeout
-    await prisma.$connect();
-  } catch {
-    // If database connection fails, set prisma to undefined so tests can skip database operations
-    prisma = undefined;
-    // eslint-disable-next-line no-console
-    console.warn('⚠️  Database not available - some tests may be skipped');
-  }
+  // No real database setup needed - all mocked
+  jest.clearAllMocks();
 });
 
 afterAll(async () => {
-  // Clean up database connection
-  if (prisma) {
-    await prisma.$disconnect();
-  }
+  // Clear all timers and intervals to ensure clean exit
+  jest.clearAllTimers();
+  jest.clearAllMocks();
 });
 
 beforeEach(async () => {
-  // Clean up database before each test (only if database is available)
-  if (prisma) {
-    try {
-      const tablenames = await prisma.$queryRaw<Array<{ tablename: string }>>`
-        SELECT tablename FROM pg_tables WHERE schemaname='public'
-      `;
-
-      const tables = tablenames
-        .map(({ tablename }) => tablename)
-        .filter((name) => name !== "_prisma_migrations")
-        .map((name) => `"public"."${name}"`)
-        .join(", ");
-
-      if (tables) {
-        await prisma.$executeRawUnsafe(`TRUNCATE TABLE ${tables} CASCADE;`);
-      }
-    } catch (error) {
-      // If database cleanup fails, just warn - don't fail the test
-      // eslint-disable-next-line no-console
-      console.warn('Database cleanup failed:', error);
-    }
-  }
+  // Reset all mocks before each test
+  jest.clearAllMocks();
 });
 
-// Global test utilities
+// Global test utilities - provide mock prisma instead of real one
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-(global as any).testPrisma = prisma;
+(global as any).testPrisma = mockPrismaClient;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).mockPrisma = mockPrismaClient;
 
 // Increase test timeout for database operations
 jest.setTimeout(30000);

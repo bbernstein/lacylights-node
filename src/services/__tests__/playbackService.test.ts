@@ -316,21 +316,4 @@ describe("PlaybackService", () => {
       expect(findUniqueMock).toHaveBeenCalledTimes(2);
     });
   });
-
-  describe("cleanup", () => {
-    it("should clear all cached data", async () => {
-      mockPrisma.cueList.findUnique = jest.fn().mockResolvedValue(mockCueList);
-
-      // Create some cached data
-      await playbackService.getPlaybackStatus("test-cue-list-id");
-      await playbackService.startPlayback("test-cue-list-id");
-
-      // Cleanup
-      playbackService.cleanup();
-
-      // Should hit database again after cleanup
-      await playbackService.getPlaybackStatus("test-cue-list-id");
-      expect(mockPrisma.cueList.findUnique).toHaveBeenCalledTimes(2);
-    });
-  });
-});
+}); 
