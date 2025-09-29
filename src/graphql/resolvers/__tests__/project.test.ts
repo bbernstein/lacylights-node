@@ -328,28 +328,6 @@ describe("Project Resolvers", () => {
             channels: {
               orderBy: { offset: "asc" },
             },
-            definition: {
-              include: {
-                modes: {
-                  include: {
-                    modeChannels: {
-                      include: {
-                        channel: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            mode: {
-              include: {
-                modeChannels: {
-                  include: {
-                    channel: true,
-                  },
-                },
-              },
-            },
           },
         });
         expect(result).toEqual(mockFixtures);

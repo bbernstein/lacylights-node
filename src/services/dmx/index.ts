@@ -23,7 +23,6 @@ export class DMXService {
   private artNetPort: number = 6454;
 
   // Adaptive transmission rate management
-  private lastTransmittedState: Map<number, number[]> = new Map();
   private lastChangeTime: number = 0;
   private currentRate: number = 44;
   private highRateDuration: number = 2000; // Keep high rate for 2 seconds after last change
@@ -83,7 +82,6 @@ export class DMXService {
     // Initialize universes with 512 channels each, all set to 0
     for (let i = 1; i <= universeCount; i++) {
       this.universes.set(i, new Array(512).fill(0));
-      this.lastTransmittedState.set(i, new Array(512).fill(0));
     }
 
     logger.info(`🎭 DMX Service initialized with ${universeCount} universes`);
@@ -213,13 +211,10 @@ export class DMXService {
       universesToTransmit = Array.from(this.universes.keys());
     }
 
-    // Send Art-Net packets for universes and update transmitted state
+    // Send Art-Net packets for universes
     for (const universe of universesToTransmit) {
       const outputChannels = this.getUniverseOutputChannels(universe);
       this.sendArtNetPacket(universe, outputChannels);
-
-      // Update last transmitted state
-      this.lastTransmittedState.set(universe, [...outputChannels]);
     }
 
     // Clear dirty flags after successful transmission

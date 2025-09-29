@@ -94,9 +94,8 @@ model FixtureMode {
   channelCount Int     @map("channel_count")
   definitionId String  @map("definition_id")
 
-  definition       FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
-  modeChannels     ModeChannel[]
-  fixtureInstances FixtureInstance[]
+  definition   FixtureDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+  modeChannels ModeChannel[]
 
   @@unique([definitionId, name])
   @@map("fixture_modes")
@@ -129,10 +128,7 @@ model FixtureInstance {
   // Flattened Mode Information
   modeName     String?      @map("mode_name")
   channelCount Int?         @map("channel_count")
-  
-  // Legacy field to be removed after migration
-  modeId       String?      @map("mode_id")
-  
+
   // DMX Configuration
   projectId    String       @map("project_id")
   universe     Int
@@ -147,7 +143,6 @@ model FixtureInstance {
 
   // Relations
   definition    FixtureDefinition @relation(fields: [definitionId], references: [id])
-  mode          FixtureMode?      @relation(fields: [modeId], references: [id])
   project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
   channels      InstanceChannel[]
   fixtureValues FixtureValue[]
