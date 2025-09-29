@@ -104,29 +104,6 @@ export const projectResolvers = {
             channels: {
               orderBy: { offset: "asc" },
             },
-            // Include legacy fields for backward compatibility
-            definition: {
-              include: {
-                modes: {
-                  include: {
-                    modeChannels: {
-                      include: {
-                        channel: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            mode: {
-              include: {
-                modeChannels: {
-                  include: {
-                    channel: true,
-                  },
-                },
-              },
-            },
           },
         });
       },

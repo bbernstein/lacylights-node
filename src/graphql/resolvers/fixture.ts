@@ -190,7 +190,6 @@ export const fixtureResolvers = {
           name: input.name,
           description: input.description,
           definitionId: input.definitionId,
-          modeId: input.modeId,
           projectId: input.projectId,
           universe: input.universe,
           startChannel: input.startChannel,
@@ -207,20 +206,6 @@ export const fixtureResolvers = {
         include: {
           channels: {
             orderBy: { offset: "asc" },
-          },
-          definition: {
-            include: {
-              channels: true,
-              modes: {
-                include: {
-                  modeChannels: {
-                    include: {
-                      channel: true,
-                    },
-                  },
-                },
-              },
-            },
           },
           project: true,
         },
@@ -262,13 +247,11 @@ export const fixtureResolvers = {
           where: { id },
           select: {
             definitionId: true,
-            modeId: true,
           },
         });
 
         const definitionId = input.definitionId || currentFixture?.definitionId;
-        const modeId =
-          input.modeId !== undefined ? input.modeId : currentFixture?.modeId;
+        const modeId = input.modeId;
 
         if (definitionId) {
           // Get the new definition
@@ -310,7 +293,6 @@ export const fixtureResolvers = {
             });
 
             if (mode) {
-              updateData.modeId = modeId;
               updateData.modeName = mode.name;
               updateData.channelCount = mode.channelCount;
 
@@ -324,8 +306,7 @@ export const fixtureResolvers = {
               }));
             }
           } else {
-            // No mode specified, clear modeId and use definition channels
-            updateData.modeId = null;
+            // No mode specified, use definition channels
             updateData.modeName = "Default";
             updateData.channelCount = definition.channels.length;
           }
@@ -362,20 +343,6 @@ export const fixtureResolvers = {
         include: {
           channels: {
             orderBy: { offset: "asc" },
-          },
-          definition: {
-            include: {
-              channels: true,
-              modes: {
-                include: {
-                  modeChannels: {
-                    include: {
-                      channel: true,
-                    },
-                  },
-                },
-              },
-            },
           },
           project: true,
         },

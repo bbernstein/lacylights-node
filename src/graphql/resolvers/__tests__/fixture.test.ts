@@ -638,7 +638,6 @@ describe("Fixture Resolvers", () => {
             manufacturer: "ETC",
             model: "ColorSource PAR",
             type: FixtureType.LED_PAR,
-            modeId: null,
             modeName: "Default",
             channelCount: 1,
             channels: {
