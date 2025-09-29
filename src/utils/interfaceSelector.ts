@@ -90,7 +90,11 @@ export async function selectNetworkInterface(): Promise<string | null> {
 
     // Ensure stdin is not in raw mode
     const wasRaw = process.stdin.isRaw;
-    if (process.stdin.isTTY && process.stdin.isRaw) {
+    if (
+      process.stdin.isTTY &&
+      process.stdin.isRaw &&
+      typeof process.stdin.setRawMode === "function"
+    ) {
       process.stdin.setRawMode(false);
     }
 
@@ -108,18 +112,25 @@ export async function selectNetworkInterface(): Promise<string | null> {
 
           // Restore original listeners after a delay
           setTimeout(() => {
-            originalListeners.forEach((listener) =>
-              process.stdin.on("data", listener as (data: Buffer) => void),
-            );
-            originalKeyListeners.forEach((listener) =>
-              process.stdin.on(
-                "keypress",
-                listener as (str: string, key: object) => void,
-              ),
-            );
+            // Only restore listeners if process.stdin is still available
+            if (typeof process.stdin.on === "function") {
+              originalListeners.forEach((listener) =>
+                process.stdin.on("data", listener as (data: Buffer) => void),
+              );
+              originalKeyListeners.forEach((listener) =>
+                process.stdin.on(
+                  "keypress",
+                  listener as (str: string, key: object) => void,
+                ),
+              );
+            }
 
             // Restore raw mode if it was enabled
-            if (process.stdin.isTTY && wasRaw) {
+            if (
+              process.stdin.isTTY &&
+              wasRaw &&
+              typeof process.stdin.setRawMode === "function"
+            ) {
               process.stdin.setRawMode(true);
             }
           }, 100);
@@ -127,6 +138,12 @@ export async function selectNetworkInterface(): Promise<string | null> {
           resolve(input);
         },
       );
+    }).catch((error) => {
+      // Clean up on error
+      if (process.stdin.isTTY && typeof process.stdin.setRawMode === "function") {
+        process.stdin.setRawMode(false);
+      }
+      throw error;
     });
 
     let selectedIndex: number;
