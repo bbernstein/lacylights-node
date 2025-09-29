@@ -164,6 +164,36 @@ export const typeDefs = gql`
     channels: [Int!]!
   }
 
+  # Native LacyLights Export/Import
+  type ExportResult {
+    projectId: String!
+    projectName: String!
+    jsonContent: String!
+    stats: ExportStats!
+  }
+
+  type ExportStats {
+    fixtureDefinitionsCount: Int!
+    fixtureInstancesCount: Int!
+    scenesCount: Int!
+    cueListsCount: Int!
+    cuesCount: Int!
+  }
+
+  type ImportResult {
+    projectId: String!
+    stats: ImportStats!
+    warnings: [String!]!
+  }
+
+  type ImportStats {
+    fixtureDefinitionsCreated: Int!
+    fixtureInstancesCreated: Int!
+    scenesCreated: Int!
+    cueListsCreated: Int!
+    cuesCreated: Int!
+  }
+
   # QLC+ Export
   type QLCExportResult {
     projectName: String!
@@ -380,6 +410,32 @@ export const typeDefs = gql`
     qlcMode: String!
   }
 
+  enum ImportMode {
+    CREATE
+    MERGE
+  }
+
+  enum FixtureConflictStrategy {
+    SKIP
+    REPLACE
+    ERROR
+  }
+
+  input ExportOptionsInput {
+    description: String
+    includeFixtures: Boolean
+    includeScenes: Boolean
+    includeCueLists: Boolean
+  }
+
+  input ImportOptionsInput {
+    mode: ImportMode!
+    targetProjectId: ID
+    projectName: String
+    fixtureConflictStrategy: FixtureConflictStrategy
+    importBuiltInFixtures: Boolean
+  }
+
   # Queries
   type Query {
     # Projects
@@ -505,6 +561,10 @@ export const typeDefs = gql`
     previousCue(cueListId: ID!, fadeInTime: Float): Boolean!
     goToCue(cueListId: ID!, cueIndex: Int!, fadeInTime: Float): Boolean!
     stopCueList(cueListId: ID!): Boolean!
+
+    # Native LacyLights Import/Export
+    exportProject(projectId: ID!, options: ExportOptionsInput): ExportResult!
+    importProject(jsonContent: String!, options: ImportOptionsInput!): ImportResult!
 
     # QLC+ Import/Export (data-modifying operations)
     importProjectFromQLC(
