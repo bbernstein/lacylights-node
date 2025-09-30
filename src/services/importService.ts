@@ -319,8 +319,11 @@ export class ImportService {
           definitionId,
           name: exportFixture.name,
           description: exportFixture.description,
-          // Set manufacturer, model, and type from definition to ensure consistency
-          // These are denormalized fields that must match the linked definition
+          // Set manufacturer, model, and type from definition to ensure consistency.
+          // These are denormalized fields that must match the linked definition.
+          // Business logic: These fields are duplicated here to optimize UI display and query performance.
+          // It is critical that they remain synchronized with the linked fixture definition (definitionId)
+          // to maintain data consistency for both the user interface and backend queries
           manufacturer: definition.manufacturer,
           model: definition.model,
           type: definition.type,
@@ -473,8 +476,9 @@ export class ImportService {
     // Extract all numbers used in similar names
     const usedNumbers = new Set<number>();
     // Create pattern once outside loop for efficiency
+    // Use single space to match generation format: "Name (123)"
     const escapedName = this.escapeRegex(nameWithoutSuffix);
-    const numberPattern = new RegExp(`^${escapedName}\\s+\\((\\d+)\\)$`);
+    const numberPattern = new RegExp(`^${escapedName} \\((\\d+)\\)$`);
 
     for (const project of similarProjects) {
       if (project.name === nameWithoutSuffix) {
