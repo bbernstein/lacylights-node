@@ -259,6 +259,14 @@ export class ImportService {
     stats: ImportResult['stats'],
     warnings: string[]
   ): Promise<void> {
+    // Cache fixture definitions to avoid redundant database queries
+    type DefinitionData = {
+      manufacturer: string;
+      model: string;
+      type: import('@prisma/client').FixtureType;
+    } | null;
+    const definitionCache = new Map<string, DefinitionData>();
+
     for (const exportFixture of exportData.fixtureInstances) {
       const definitionId = definitionIdMap.get(exportFixture.definitionRefId);
       if (!definitionId) {
@@ -266,15 +274,19 @@ export class ImportService {
         continue;
       }
 
-      // Get the fixture definition to retrieve manufacturer, model, and type
-      const definition = await this.prisma.fixtureDefinition.findUnique({
-        where: { id: definitionId },
-        select: {
-          manufacturer: true,
-          model: true,
-          type: true,
-        },
-      });
+      // Check cache first, then query database if not found
+      let definition = definitionCache.get(definitionId);
+      if (definition === undefined) {
+        definition = await this.prisma.fixtureDefinition.findUnique({
+          where: { id: definitionId },
+          select: {
+            manufacturer: true,
+            model: true,
+            type: true,
+          },
+        });
+        definitionCache.set(definitionId, definition);
+      }
 
       if (!definition) {
         warnings.push(
