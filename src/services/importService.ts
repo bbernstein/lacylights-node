@@ -226,10 +226,18 @@ export class ImportService {
             shortName: exportMode.shortName,
             channelCount: exportMode.channelCount,
             modeChannels: {
-              create: exportMode.modeChannels.map((mc) => ({
-                channelId: channelIdMap.get(mc.channelRefId)!,
-                offset: mc.offset,
-              })),
+              create: exportMode.modeChannels.map((mc) => {
+                const channelId = channelIdMap.get(mc.channelRefId);
+                if (!channelId) {
+                  throw new Error(
+                    `Mode "${exportMode.name}" in fixture "${exportDef.manufacturer} ${exportDef.model}" references unknown channelRefId "${mc.channelRefId}".`
+                  );
+                }
+                return {
+                  channelId,
+                  offset: mc.offset,
+                };
+              }),
             },
           },
         });

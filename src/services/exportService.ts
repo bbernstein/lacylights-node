@@ -203,10 +203,16 @@ export class ExportService {
         const modeRefId = `mode-${exportModes.length}`;
         modeRefMap.set(mode.id, modeRefId);
 
-        const exportModeChannels: ExportModeChannel[] = mode.modeChannels.map((mc) => ({
-          channelRefId: channelRefMap.get(mc.channelId)!,
-          offset: mc.offset,
-        }));
+        const exportModeChannels: ExportModeChannel[] = mode.modeChannels.map((mc) => {
+          const channelRefId = channelRefMap.get(mc.channelId);
+          if (!channelRefId) {
+            throw new Error(`Channel reference not found for channelId: ${mc.channelId} in mode: ${mode.name}`);
+          }
+          return {
+            channelRefId,
+            offset: mc.offset,
+          };
+        });
 
         exportModes.push({
           refId: modeRefId,
@@ -290,11 +296,17 @@ export class ExportService {
       const sceneRefId = `scene-${exportScenes.length}`;
       sceneRefMap.set(scene.id, sceneRefId);
 
-      const exportFixtureValues: ExportFixtureValue[] = scene.fixtureValues.map((fv) => ({
-        fixtureRefId: fixtureRefMap.get(fv.fixtureId)!,
-        channelValues: fv.channelValues,
-        sceneOrder: fv.sceneOrder ?? undefined,
-      }));
+      const exportFixtureValues: ExportFixtureValue[] = scene.fixtureValues.map((fv) => {
+        const fixtureRefId = fixtureRefMap.get(fv.fixtureId);
+        if (!fixtureRefId) {
+          throw new Error(`Missing fixtureRefId for fixtureId: ${fv.fixtureId} in scene: ${scene.id}`);
+        }
+        return {
+          fixtureRefId,
+          channelValues: fv.channelValues,
+          sceneOrder: fv.sceneOrder ?? undefined,
+        };
+      });
 
       exportScenes.push({
         refId: sceneRefId,
@@ -333,19 +345,25 @@ export class ExportService {
       const cueListRefId = `cuelist-${exportCueLists.length}`;
       cueListRefMap.set(cueList.id, cueListRefId);
 
-      const exportCues: ExportCue[] = cueList.cues.map((cue) => ({
-        originalId: cue.id,
-        name: cue.name,
-        cueNumber: cue.cueNumber,
-        sceneRefId: sceneRefMap.get(cue.sceneId)!,
-        fadeInTime: cue.fadeInTime,
-        fadeOutTime: cue.fadeOutTime,
-        followTime: cue.followTime ?? undefined,
-        easingType: cue.easingType ?? undefined,
-        notes: cue.notes ?? undefined,
-        createdAt: cue.createdAt.toISOString(),
-        updatedAt: cue.updatedAt.toISOString(),
-      }));
+      const exportCues: ExportCue[] = cueList.cues.map((cue) => {
+        const sceneRefId = sceneRefMap.get(cue.sceneId);
+        if (!sceneRefId) {
+          throw new Error(`Scene reference ID not found for cue.sceneId: ${cue.sceneId}`);
+        }
+        return {
+          originalId: cue.id,
+          name: cue.name,
+          cueNumber: cue.cueNumber,
+          sceneRefId,
+          fadeInTime: cue.fadeInTime,
+          fadeOutTime: cue.fadeOutTime,
+          followTime: cue.followTime ?? undefined,
+          easingType: cue.easingType ?? undefined,
+          notes: cue.notes ?? undefined,
+          createdAt: cue.createdAt.toISOString(),
+          updatedAt: cue.updatedAt.toISOString(),
+        };
+      });
 
       exportCueLists.push({
         refId: cueListRefId,
