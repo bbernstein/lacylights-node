@@ -3,7 +3,7 @@
  * Imports project data from LacyLights native JSON format
  */
 
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, FixtureType } from '@prisma/client';
 import type { LacyLightsExport } from '../types/export.js';
 
 /**
@@ -263,7 +263,7 @@ export class ImportService {
     type DefinitionData = {
       manufacturer: string;
       model: string;
-      type: import('@prisma/client').FixtureType;
+      type: FixtureType;
     } | null;
     const definitionCache = new Map<string, DefinitionData>();
 
