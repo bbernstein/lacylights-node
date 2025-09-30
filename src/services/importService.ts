@@ -252,6 +252,23 @@ export class ImportService {
         continue;
       }
 
+      // Get the fixture definition to retrieve manufacturer, model, and type
+      const definition = await this.prisma.fixtureDefinition.findUnique({
+        where: { id: definitionId },
+        select: {
+          manufacturer: true,
+          model: true,
+          type: true,
+        },
+      });
+
+      if (!definition) {
+        warnings.push(
+          `Skipped fixture instance: ${exportFixture.name} (definition not found in database)`
+        );
+        continue;
+      }
+
       // Check for DMX address conflicts
       const existing = await this.prisma.fixtureInstance.findFirst({
         where: {
@@ -275,8 +292,9 @@ export class ImportService {
           definitionId,
           name: exportFixture.name,
           description: exportFixture.description,
-          manufacturer: exportFixture.definitionRefId, // Will be denormalized via trigger/hook
-          model: exportFixture.definitionRefId,
+          manufacturer: definition.manufacturer,
+          model: definition.model,
+          type: definition.type,
           modeName: exportFixture.modeName,
           channelCount: exportFixture.channelCount,
           universe: exportFixture.universe,

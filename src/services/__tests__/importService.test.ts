@@ -173,7 +173,15 @@ describe('ImportService', () => {
       prisma.project.findMany.mockResolvedValue([]);
 
       prisma.project.create.mockResolvedValue(mockProject as any);
-      prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
+      // First call for checking if definition exists, second call for getting definition data
+      prisma.fixtureDefinition.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'new-def-1',
+          manufacturer: 'Test Mfg',
+          model: 'Test Model',
+          type: 'LED_PAR',
+        } as any);
       prisma.fixtureDefinition.create.mockResolvedValue(mockDefinition as any);
       prisma.fixtureMode.create.mockResolvedValue({} as any);
       prisma.fixtureInstance.findFirst.mockResolvedValue(null);
@@ -211,7 +219,14 @@ describe('ImportService', () => {
       ] as any[]);
 
       prisma.project.create.mockResolvedValue(mockProject as any);
-      prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
+      prisma.fixtureDefinition.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'new-def-1',
+          manufacturer: 'Test Mfg',
+          model: 'Test Model',
+          type: 'LED_PAR',
+        } as any);
       prisma.fixtureDefinition.create.mockResolvedValue(mockDefinition as any);
       prisma.fixtureMode.create.mockResolvedValue({} as any);
       prisma.fixtureInstance.findFirst.mockResolvedValue(null);
@@ -245,7 +260,14 @@ describe('ImportService', () => {
       ] as any[]);
 
       prisma.project.create.mockResolvedValue(mockProject as any);
-      prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
+      prisma.fixtureDefinition.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'def-1',
+          manufacturer: 'Test Mfg',
+          model: 'Test Model',
+          type: 'LED_PAR',
+        } as any);
       prisma.fixtureDefinition.create.mockResolvedValue({
         id: 'def-1',
         channels: [{ id: 'ch-1' }],
@@ -286,7 +308,14 @@ describe('ImportService', () => {
       const mockCueList = { id: 'new-cuelist-1' };
 
       prisma.project.findUnique.mockResolvedValue(mockProject as any);
-      prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
+      prisma.fixtureDefinition.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({
+          id: 'new-def-1',
+          manufacturer: 'Test Mfg',
+          model: 'Test Model',
+          type: 'LED_PAR',
+        } as any);
       prisma.fixtureDefinition.create.mockResolvedValue(mockDefinition as any);
       prisma.fixtureMode.create.mockResolvedValue({} as any);
       prisma.fixtureInstance.findFirst.mockResolvedValue(null);
@@ -335,8 +364,12 @@ describe('ImportService', () => {
         model: 'Test Model',
       };
 
+      prisma.project.findFirst.mockResolvedValue(null);
+      prisma.project.findMany.mockResolvedValue([]);
       prisma.project.create.mockResolvedValue(mockProject as any);
-      prisma.fixtureDefinition.findUnique.mockResolvedValue(existingDefinition as any);
+      prisma.fixtureDefinition.findUnique
+        .mockResolvedValueOnce(existingDefinition as any)
+        .mockResolvedValueOnce(existingDefinition as any);
       prisma.fixtureInstance.findFirst.mockResolvedValue(null);
       prisma.fixtureInstance.create.mockResolvedValue({ id: 'new-fixture-1' } as any);
       prisma.scene.create.mockResolvedValue({ id: 'new-scene-1' } as any);
@@ -360,12 +393,17 @@ describe('ImportService', () => {
         id: 'new-def-1',
         manufacturer: 'Test Mfg',
         model: 'Test Model',
+        type: 'LED_PAR',
         channels: [{ id: 'new-ch-1' }],
       };
       const existingFixture = { id: 'existing-fixture-1' };
 
+      prisma.project.findFirst.mockResolvedValue(null);
+      prisma.project.findMany.mockResolvedValue([]);
       prisma.project.create.mockResolvedValue(mockProject as any);
-      prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
+      prisma.fixtureDefinition.findUnique
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockDefinition as any);
       prisma.fixtureDefinition.create.mockResolvedValue(mockDefinition as any);
       prisma.fixtureMode.create.mockResolvedValue({} as any);
       prisma.fixtureInstance.findFirst.mockResolvedValue(existingFixture as any);
