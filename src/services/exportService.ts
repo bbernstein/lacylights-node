@@ -299,7 +299,7 @@ export class ExportService {
       const exportFixtureValues: ExportFixtureValue[] = scene.fixtureValues.map((fv) => {
         const fixtureRefId = fixtureRefMap.get(fv.fixtureId);
         if (!fixtureRefId) {
-          throw new Error(`Missing fixtureRefId for fixtureId: ${fv.fixtureId} in scene: ${scene.id}`);
+          throw new Error(`Missing fixture reference for fixture ${fv.fixtureId} in scene: ${scene.name} (${scene.id})`);
         }
         return {
           fixtureRefId,
@@ -348,7 +348,7 @@ export class ExportService {
       const exportCues: ExportCue[] = cueList.cues.map((cue) => {
         const sceneRefId = sceneRefMap.get(cue.sceneId);
         if (!sceneRefId) {
-          throw new Error(`Scene reference ID not found for cue.sceneId: ${cue.sceneId}`);
+          throw new Error(`Scene reference not found for scene ${cue.sceneId} in cue: ${cue.name} (${cue.cueNumber})`);
         }
         return {
           originalId: cue.id,
