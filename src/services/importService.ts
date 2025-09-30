@@ -47,8 +47,9 @@ export class ImportService {
   /**
    * Regex pattern for matching project names with number suffixes
    * Matches format: "Name (123)" where 123 is any number
+   * Uses single space to match the generation logic in generateUniqueProjectName
    */
-  private static readonly PROJECT_NAME_SUFFIX_PATTERN = /^(.+?)(?:\s+\((\d+)\))?$/;
+  private static readonly PROJECT_NAME_SUFFIX_PATTERN = /^(.+?)(?: \((\d+)\))?$/;
 
   constructor(private prisma: PrismaClient) {}
 
@@ -318,6 +319,8 @@ export class ImportService {
           definitionId,
           name: exportFixture.name,
           description: exportFixture.description,
+          // Set manufacturer, model, and type from definition to ensure consistency
+          // These are denormalized fields that must match the linked definition
           manufacturer: definition.manufacturer,
           model: definition.model,
           type: definition.type,
