@@ -78,10 +78,13 @@ export class ImportService {
     let projectId: string;
 
     if (options.mode === 'create') {
-      // Create a new project
+      // Create a new project with unique name
+      const baseName = options.projectName ?? exportData.project.name;
+      const uniqueName = await this.generateUniqueProjectName(baseName);
+
       const project = await this.prisma.project.create({
         data: {
-          name: options.projectName ?? exportData.project.name,
+          name: uniqueName,
           description: exportData.project.description,
         },
       });
@@ -388,6 +391,69 @@ export class ImportService {
       stats.cueListsCreated++;
       stats.cuesCreated += cues.length;
     }
+  }
+
+  /**
+   * Generate a unique project name by adding/incrementing a number suffix
+   * @param baseName - The base name to make unique
+   * @returns A unique project name
+   */
+  private async generateUniqueProjectName(baseName: string): Promise<string> {
+    // Check if base name already exists
+    const existingWithBaseName = await this.prisma.project.findFirst({
+      where: { name: baseName },
+    });
+
+    if (!existingWithBaseName) {
+      return baseName;
+    }
+
+    // Extract any existing number suffix
+    const match = baseName.match(/^(.+?)(?:\s+\((\d+)\))?$/);
+    const nameWithoutSuffix = match ? match[1] : baseName;
+    const startingNumber = match && match[2] ? parseInt(match[2], 10) : 1;
+
+    // Find all projects with similar names
+    const similarProjects = await this.prisma.project.findMany({
+      where: {
+        name: {
+          startsWith: nameWithoutSuffix,
+        },
+      },
+      select: { name: true },
+    });
+
+    // Extract all numbers used in similar names
+    const usedNumbers = new Set<number>();
+    const pattern = new RegExp(`^${this.escapeRegex(nameWithoutSuffix)}\\s+\\((\\d+)\\)$`);
+
+    for (const project of similarProjects) {
+      if (project.name === nameWithoutSuffix) {
+        usedNumbers.add(0); // Base name without number
+      } else {
+        const numberMatch = project.name.match(pattern);
+        if (numberMatch) {
+          usedNumbers.add(parseInt(numberMatch[1], 10));
+        }
+      }
+    }
+
+    // Find the next available number
+    let nextNumber = startingNumber;
+    while (usedNumbers.has(nextNumber)) {
+      nextNumber++;
+    }
+
+    return `${nameWithoutSuffix} (${nextNumber})`;
+  }
+
+  /**
+   * Escape special regex characters in a string
+   * @param str - String to escape
+   * @returns Escaped string
+   */
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
   /**

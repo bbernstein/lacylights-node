@@ -155,7 +155,7 @@ describe('ImportService', () => {
   });
 
   describe('importProject', () => {
-    it('should import project in CREATE mode', async () => {
+    it('should import project in CREATE mode with unique name', async () => {
       const mockExport = createMockExport();
       const mockProject = { id: 'new-project-1', name: 'Test Project', description: null };
       const mockDefinition = {
@@ -167,6 +167,10 @@ describe('ImportService', () => {
       const mockFixture = { id: 'new-fixture-1' };
       const mockScene = { id: 'new-scene-1' };
       const mockCueList = { id: 'new-cuelist-1' };
+
+      // Mock unique name generation - name doesn't exist
+      prisma.project.findFirst.mockResolvedValue(null);
+      prisma.project.findMany.mockResolvedValue([]);
 
       prisma.project.create.mockResolvedValue(mockProject as any);
       prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
@@ -188,6 +192,80 @@ describe('ImportService', () => {
       expect(result.stats.cueListsCreated).toBe(1);
       expect(result.stats.cuesCreated).toBe(1);
       expect(result.warnings).toHaveLength(0);
+    });
+
+    it('should generate unique project name when name exists', async () => {
+      const mockExport = createMockExport();
+      const mockProject = { id: 'new-project-1', name: 'Test Project (1)', description: null };
+      const mockDefinition = {
+        id: 'new-def-1',
+        manufacturer: 'Test Mfg',
+        model: 'Test Model',
+        channels: [{ id: 'new-ch-1' }],
+      };
+
+      // Mock unique name generation - base name exists
+      prisma.project.findFirst.mockResolvedValue({ id: '1', name: 'Test Project' } as any);
+      prisma.project.findMany.mockResolvedValue([
+        { name: 'Test Project' },
+      ] as any[]);
+
+      prisma.project.create.mockResolvedValue(mockProject as any);
+      prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
+      prisma.fixtureDefinition.create.mockResolvedValue(mockDefinition as any);
+      prisma.fixtureMode.create.mockResolvedValue({} as any);
+      prisma.fixtureInstance.findFirst.mockResolvedValue(null);
+      prisma.fixtureInstance.create.mockResolvedValue({} as any);
+      prisma.scene.create.mockResolvedValue({} as any);
+      prisma.cueList.create.mockResolvedValue({} as any);
+
+      await importService.importProject(mockExport, { mode: 'create' });
+
+      // Verify that project.create was called with the unique name
+      expect(prisma.project.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: 'Test Project (1)',
+          }),
+        })
+      );
+    });
+
+    it('should increment project name number when numbered name exists', async () => {
+      const mockExport = createMockExport();
+      mockExport.project.name = 'Test Project (2)';
+      const mockProject = { id: 'new-project-1', name: 'Test Project (3)', description: null };
+
+      // Mock unique name generation - numbered names exist
+      prisma.project.findFirst.mockResolvedValue({ id: '1', name: 'Test Project (2)' } as any);
+      prisma.project.findMany.mockResolvedValue([
+        { name: 'Test Project' },
+        { name: 'Test Project (1)' },
+        { name: 'Test Project (2)' },
+      ] as any[]);
+
+      prisma.project.create.mockResolvedValue(mockProject as any);
+      prisma.fixtureDefinition.findUnique.mockResolvedValue(null);
+      prisma.fixtureDefinition.create.mockResolvedValue({
+        id: 'def-1',
+        channels: [{ id: 'ch-1' }],
+      } as any);
+      prisma.fixtureMode.create.mockResolvedValue({} as any);
+      prisma.fixtureInstance.findFirst.mockResolvedValue(null);
+      prisma.fixtureInstance.create.mockResolvedValue({} as any);
+      prisma.scene.create.mockResolvedValue({} as any);
+      prisma.cueList.create.mockResolvedValue({} as any);
+
+      await importService.importProject(mockExport, { mode: 'create' });
+
+      // Verify that project.create was called with the next available number
+      expect(prisma.project.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            name: 'Test Project (3)',
+          }),
+        })
+      );
     });
 
     it('should import project in MERGE mode', async () => {
