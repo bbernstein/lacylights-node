@@ -44,6 +44,12 @@ export interface ImportResult {
  * Service for importing project data
  */
 export class ImportService {
+  /**
+   * Regex pattern for matching project names with number suffixes
+   * Matches format: "Name (123)" where 123 is any number
+   */
+  private static readonly PROJECT_NAME_SUFFIX_PATTERN = /^(.+?)(?:\s+\((\d+)\))?$/;
+
   constructor(private prisma: PrismaClient) {}
 
   /**
@@ -427,7 +433,7 @@ export class ImportService {
     }
 
     // Extract any existing number suffix
-    const match = baseName.match(/^(.+?)(?:\s+\((\d+)\))?$/);
+    const match = baseName.match(ImportService.PROJECT_NAME_SUFFIX_PATTERN);
     const nameWithoutSuffix = match ? match[1] : baseName;
     const startingNumber = match && match[2] ? parseInt(match[2], 10) : 1;
 
@@ -443,13 +449,15 @@ export class ImportService {
 
     // Extract all numbers used in similar names
     const usedNumbers = new Set<number>();
-    const pattern = new RegExp(`^${this.escapeRegex(nameWithoutSuffix)}\\s+\\((\\d+)\\)$`);
+    // Create pattern once outside loop for efficiency
+    const escapedName = this.escapeRegex(nameWithoutSuffix);
+    const numberPattern = new RegExp(`^${escapedName}\\s+\\((\\d+)\\)$`);
 
     for (const project of similarProjects) {
       if (project.name === nameWithoutSuffix) {
         usedNumbers.add(0); // Base name without number
       } else {
-        const numberMatch = project.name.match(pattern);
+        const numberMatch = project.name.match(numberPattern);
         if (numberMatch) {
           usedNumbers.add(parseInt(numberMatch[1], 10));
         }

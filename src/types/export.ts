@@ -3,6 +3,8 @@
  * A normalized JSON format for exporting and importing complete project data
  */
 
+import type { FixtureType, ChannelType, EasingType } from '@prisma/client';
+
 /**
  * Root export format containing all project data
  */
@@ -250,40 +252,7 @@ export interface ExportCue {
 }
 
 /**
- * Fixture type enum
+ * Re-export Prisma enums to avoid duplication
+ * These types match the database schema exactly
  */
-export type FixtureType = 'LED_PAR' | 'MOVING_HEAD' | 'STROBE' | 'DIMMER' | 'OTHER';
-
-/**
- * Channel type enum
- */
-export type ChannelType =
-  | 'INTENSITY'
-  | 'RED'
-  | 'GREEN'
-  | 'BLUE'
-  | 'WHITE'
-  | 'AMBER'
-  | 'UV'
-  | 'PAN'
-  | 'TILT'
-  | 'ZOOM'
-  | 'FOCUS'
-  | 'IRIS'
-  | 'GOBO'
-  | 'COLOR_WHEEL'
-  | 'EFFECT'
-  | 'STROBE'
-  | 'MACRO'
-  | 'OTHER';
-
-/**
- * Easing type enum
- */
-export type EasingType =
-  | 'LINEAR'
-  | 'EASE_IN_OUT_CUBIC'
-  | 'EASE_IN_OUT_SINE'
-  | 'EASE_OUT_EXPONENTIAL'
-  | 'BEZIER'
-  | 'S_CURVE';
+export type { FixtureType, ChannelType, EasingType };

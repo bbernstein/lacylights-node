@@ -78,7 +78,7 @@ export class ExportService {
     // Export metadata
     const metadata: ExportMetadata = {
       exportedAt: new Date().toISOString(),
-      lacyLightsVersion: '1.0.0', // TODO: Get from package.json
+      lacyLightsVersion: EXPORT_FORMAT_VERSION,
       description: options.description,
     };
 
