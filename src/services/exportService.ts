@@ -299,7 +299,7 @@ export class ExportService {
       const exportFixtureValues: ExportFixtureValue[] = scene.fixtureValues.map((fv) => {
         const fixtureRefId = fixtureRefMap.get(fv.fixtureId);
         if (!fixtureRefId) {
-          throw new Error(`Missing fixture reference for fixture ${fv.fixtureId} in scene: ${scene.name} (${scene.id})`);
+          throw new Error(`Missing fixture reference for fixture ${fv.fixtureId} in scene: ${scene.name}`);
         }
         return {
           fixtureRefId,
