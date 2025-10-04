@@ -56,8 +56,8 @@ if ! run_on_pi "command -v docker &> /dev/null"; then
     DEPS_INSTALLED=false
 fi
 
-if ! run_on_pi "command -v docker-compose &> /dev/null"; then
-    echo "docker-compose is not installed"
+if ! run_on_pi "docker compose version &> /dev/null"; then
+    echo "docker compose plugin is not installed"
     DEPS_INSTALLED=false
 fi
 
@@ -123,8 +123,8 @@ run_on_pi "cd $DEPLOY_DIR && npm run build"
 # Start Docker services
 echo ""
 echo "Starting Docker services..."
-run_on_pi "cd $DEPLOY_DIR && docker-compose down || true"
-run_on_pi "cd $DEPLOY_DIR && docker-compose up -d"
+run_on_pi "cd $DEPLOY_DIR && docker compose down || true"
+run_on_pi "cd $DEPLOY_DIR && docker compose up -d"
 
 # Wait for database to be ready
 echo ""

@@ -25,7 +25,7 @@ npm run deploy:pi
 
 This will:
 1. Check SSH connection to the Pi
-2. Install dependencies if needed (Node.js, Docker, docker-compose)
+2. Install dependencies if needed (Node.js, Docker with compose plugin)
 3. Clone the repository branch
 4. Install npm packages
 5. Build the application
@@ -100,10 +100,10 @@ ssh pi@rasp.local 'cd ~/lacylights-node && npm run stop'
 ssh pi@rasp.local 'cd ~/lacylights-node && npm run stop && npm start'
 
 # Check Docker services
-ssh pi@rasp.local 'cd ~/lacylights-node && docker-compose ps'
+ssh pi@rasp.local 'cd ~/lacylights-node && docker compose ps'
 
 # View Docker logs
-ssh pi@rasp.local 'cd ~/lacylights-node && docker-compose logs -f'
+ssh pi@rasp.local 'cd ~/lacylights-node && docker compose logs -f'
 
 # SSH to the Pi
 ssh pi@rasp.local
@@ -130,13 +130,13 @@ npm start
 tail -f server.log
 
 # Restart Docker services
-docker-compose restart
+docker compose restart
 
 # Pull latest changes and redeploy
 git pull origin feature/raspberry-pi-deployment
 npm install
 npm run build
-docker-compose restart
+docker compose restart
 npm run stop
 npm start
 ```

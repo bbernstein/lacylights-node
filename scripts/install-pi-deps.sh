@@ -67,18 +67,15 @@ echo ""
 echo "Adding user to docker group..."
 sudo usermod -aG docker $USER
 
-# Install docker-compose
+# Check docker compose plugin (included with Docker)
 echo ""
-echo "Installing docker-compose..."
-if command -v docker-compose &> /dev/null; then
-    echo "docker-compose is already installed: $(docker-compose --version)"
-    read -p "Reinstall docker-compose? (y/n) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        sudo apt-get install -y docker-compose
-    fi
+echo "Checking docker compose plugin..."
+if docker compose version &> /dev/null; then
+    echo "docker compose plugin is installed: $(docker compose version)"
 else
-    sudo apt-get install -y docker-compose
+    echo "Warning: docker compose plugin not found"
+    echo "This should have been installed with Docker"
+    echo "You may need to reinstall Docker or install the plugin manually"
 fi
 
 # Install git if not present
@@ -105,7 +102,7 @@ echo "Installed versions:"
 echo "  Node.js: $(node --version)"
 echo "  npm: $(npm --version)"
 echo "  Docker: $(docker --version)"
-echo "  docker-compose: $(docker-compose --version)"
+echo "  docker compose: $(docker compose version 2>/dev/null || echo 'not found')"
 echo "  git: $(git --version)"
 echo ""
 echo "IMPORTANT: You must log out and log back in for docker group changes to take effect."
