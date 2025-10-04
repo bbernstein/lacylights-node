@@ -10,7 +10,7 @@ PI_HOST="${PI_HOST:-rasp.local}"
 PI_USER="${PI_USER:-pi}"
 REPO_URL="https://github.com/bbernstein/lacylights-node.git"
 BRANCH_NAME="feature/raspberry-pi-deployment"
-DEPLOY_DIR="$HOME/lacylights-node"
+DEPLOY_DIR="/home/$PI_USER/lacylights-node"
 
 echo "=========================================="
 echo "LacyLights Raspberry Pi Deployment"
