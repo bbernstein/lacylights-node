@@ -32,8 +32,14 @@ export class DatabaseService implements IDatabaseService {
   }
 
   async createFixtures(fixtures: FixtureDefinition[]): Promise<{ count: number }> {
-    return this.prisma.fixtureDefinition.createMany({
-      data: fixtures
-    });
+    // createMany doesn't support nested creates, so we use individual creates in a transaction
+    const results = await this.prisma.$transaction(
+      fixtures.map(fixture =>
+        this.prisma.fixtureDefinition.create({
+          data: fixture
+        })
+      )
+    );
+    return { count: results.length };
   }
 }
