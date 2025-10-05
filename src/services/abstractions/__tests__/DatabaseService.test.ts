@@ -34,7 +34,7 @@ describe('DatabaseService', () => {
   });
 
   describe('createFixtures', () => {
-    it('should create fixtures using prisma createMany', async () => {
+    it('should create fixtures using transaction with modes', async () => {
       const fixtures: FixtureDefinition[] = [
         {
           manufacturer: 'Chauvet',
@@ -60,19 +60,52 @@ describe('DatabaseService', () => {
                 defaultValue: 0
               }
             ]
-          }
+          },
+          modes: [
+            {
+              name: '2-Channel',
+              shortName: '2CH',
+              channelCount: 2,
+              channels: [
+                { offset: 1, channelName: 'Red' },
+                { offset: 2, channelName: 'Green' }
+              ]
+            }
+          ]
         }
       ];
 
-      const expectedResult = { count: 1 };
-      (mockPrisma.fixtureDefinition.createMany as jest.Mock).mockResolvedValue(expectedResult);
+      const createdFixture = {
+        id: '1',
+        manufacturer: 'Chauvet',
+        model: 'SlimPAR Pro H USB',
+        type: FixtureType.LED_PAR,
+        isBuiltIn: false,
+        channels: [
+          { id: '1', name: 'Red', type: ChannelType.RED, offset: 0, minValue: 0, maxValue: 255, defaultValue: 0, definitionId: '1' },
+          { id: '2', name: 'Green', type: ChannelType.GREEN, offset: 1, minValue: 0, maxValue: 255, defaultValue: 0, definitionId: '1' }
+        ]
+      };
+
+      const mockTx = {
+        fixtureDefinition: {
+          create: jest.fn().mockResolvedValue(createdFixture)
+        },
+        fixtureMode: {
+          create: jest.fn().mockResolvedValue({ id: '1', name: '2-Channel' })
+        }
+      };
+
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback: any) => {
+        return callback(mockTx);
+      });
 
       const result = await service.createFixtures(fixtures);
 
-      expect(result).toEqual(expectedResult);
-      expect(mockPrisma.fixtureDefinition.createMany).toHaveBeenCalledWith({
-        data: fixtures
-      });
+      expect(result).toEqual({ count: 1 });
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
+      expect(mockTx.fixtureDefinition.create).toHaveBeenCalledTimes(1);
+      expect(mockTx.fixtureMode.create).toHaveBeenCalledTimes(1);
     });
 
     it('should create multiple fixtures', async () => {
@@ -111,28 +144,44 @@ describe('DatabaseService', () => {
         }
       ];
 
-      const expectedResult = { count: 2 };
-      (mockPrisma.fixtureDefinition.createMany as jest.Mock).mockResolvedValue(expectedResult);
+      const mockTx = {
+        fixtureDefinition: {
+          create: jest.fn()
+            .mockResolvedValueOnce({ id: '1', channels: [{ id: '1', name: 'Master' }] })
+            .mockResolvedValueOnce({ id: '2', channels: [{ id: '2', name: 'Pan' }] })
+        },
+        fixtureMode: {
+          create: jest.fn()
+        }
+      };
+
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback: any) => {
+        return callback(mockTx);
+      });
 
       const result = await service.createFixtures(fixtures);
 
-      expect(result).toEqual(expectedResult);
-      expect(mockPrisma.fixtureDefinition.createMany).toHaveBeenCalledWith({
-        data: fixtures
-      });
+      expect(result).toEqual({ count: 2 });
+      expect(mockTx.fixtureDefinition.create).toHaveBeenCalledTimes(2);
     });
 
     it('should handle empty fixtures array', async () => {
       const fixtures: FixtureDefinition[] = [];
-      const expectedResult = { count: 0 };
-      (mockPrisma.fixtureDefinition.createMany as jest.Mock).mockResolvedValue(expectedResult);
+
+      const mockTx = {
+        fixtureDefinition: {
+          create: jest.fn()
+        }
+      };
+
+      (mockPrisma.$transaction as jest.Mock).mockImplementation(async (callback: any) => {
+        return callback(mockTx);
+      });
 
       const result = await service.createFixtures(fixtures);
 
-      expect(result).toEqual(expectedResult);
-      expect(mockPrisma.fixtureDefinition.createMany).toHaveBeenCalledWith({
-        data: fixtures
-      });
+      expect(result).toEqual({ count: 0 });
+      expect(mockTx.fixtureDefinition.create).not.toHaveBeenCalled();
     });
   });
 });

@@ -46,6 +46,7 @@ export class DatabaseService implements IDatabaseService {
 
   async createFixtures(fixtures: FixtureDefinition[]): Promise<{ count: number }> {
     // createMany doesn't support nested creates, so we use individual creates in a transaction
+    // Increase timeout for large fixture imports (default is 5s, we use 60s)
     const results = await this.prisma.$transaction(async (tx) => {
       const createdFixtures = [];
 
@@ -94,6 +95,9 @@ export class DatabaseService implements IDatabaseService {
       }
 
       return createdFixtures;
+    }, {
+      maxWait: 10000, // Wait up to 10s to start transaction
+      timeout: 60000,  // Allow transaction to run for up to 60s
     });
 
     return { count: results.length };

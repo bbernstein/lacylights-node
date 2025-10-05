@@ -214,9 +214,11 @@ describe("FixtureSetupService", () => {
         return true;
       });
 
+      const mockWriteStream = createMockWriteStream();
       const mockRequest = createMockHttpRequest();
       const mockResponse = { statusCode: 404 } as any;
 
+      mockFileSystem.createWriteStream.mockReturnValue(mockWriteStream as any);
       mockHttp.get.mockImplementation((url, callback) => {
         callback(mockResponse);
         return mockRequest;
@@ -511,6 +513,9 @@ describe("FixtureSetupService", () => {
 
     it("should handle downloadOFLData HTTP errors", async () => {
       const mockError = new Error("Network error");
+      const mockWriteStream = createMockWriteStream();
+
+      mockFileSystem.createWriteStream.mockReturnValue(mockWriteStream as any);
       mockHttp.get.mockImplementation(() => {
         const mockRequest = { on: jest.fn() };
         mockRequest.on.mockImplementation((event, callback) => {
@@ -530,11 +535,13 @@ describe("FixtureSetupService", () => {
     });
 
     it("should handle downloadOFLData non-200 status codes", async () => {
+      const mockWriteStream = createMockWriteStream();
       const mockResponse: any = {
         statusCode: 404,
         headers: {},
       };
 
+      mockFileSystem.createWriteStream.mockReturnValue(mockWriteStream as any);
       mockHttp.get.mockImplementation((url, callback) => {
         callback(mockResponse);
         return { on: jest.fn() };
@@ -743,7 +750,7 @@ describe("FixtureSetupService", () => {
       // Verify all channel types were processed
       expect(mockDatabase.createFixtures).toHaveBeenCalledWith([
         expect.objectContaining({
-          manufacturer: "martin",
+          manufacturer: "Martin", // Formatted from "martin"
           model: "Moving Head Pro",
           type: FixtureType.MOVING_HEAD,
           isBuiltIn: true,
@@ -762,7 +769,13 @@ describe("FixtureSetupService", () => {
               expect.objectContaining({ name: "Amber", type: ChannelType.AMBER }),
               expect.objectContaining({ name: "UV", type: ChannelType.UV })
             ])
-          }
+          },
+          modes: expect.arrayContaining([
+            expect.objectContaining({
+              name: "16-channel",
+              channelCount: 16
+            })
+          ])
         })
       ]);
     });
@@ -835,19 +848,30 @@ describe("FixtureSetupService", () => {
 
       expect(mockDatabase.createFixtures).toHaveBeenCalledWith([
         expect.objectContaining({
-          manufacturer: "martin",
+          manufacturer: "Martin", // Formatted from "martin"
           model: "Strobe Pro",
           type: FixtureType.STROBE,
+          isBuiltIn: true,
           channels: {
             create: expect.arrayContaining([
               expect.objectContaining({ name: "Strobe", type: ChannelType.STROBE })
             ])
-          }
+          },
+          modes: expect.arrayContaining([
+            expect.objectContaining({
+              name: "1-channel",
+              channelCount: 1,
+              channels: expect.arrayContaining([
+                expect.objectContaining({ offset: 1, channelName: "Strobe" })
+              ])
+            })
+          ])
         }),
         expect.objectContaining({
-          manufacturer: "etc",
+          manufacturer: "Etc", // Formatted from "etc"
           model: "Dimmer Pack 4",
           type: FixtureType.DIMMER,
+          isBuiltIn: true,
           channels: {
             create: expect.arrayContaining([
               expect.objectContaining({ name: "Ch1", type: ChannelType.INTENSITY }),
@@ -855,7 +879,19 @@ describe("FixtureSetupService", () => {
               expect.objectContaining({ name: "Ch3", type: ChannelType.INTENSITY }),
               expect.objectContaining({ name: "Ch4", type: ChannelType.INTENSITY })
             ])
-          }
+          },
+          modes: expect.arrayContaining([
+            expect.objectContaining({
+              name: "4-channel",
+              channelCount: 4,
+              channels: expect.arrayContaining([
+                expect.objectContaining({ offset: 1, channelName: "Ch1" }),
+                expect.objectContaining({ offset: 2, channelName: "Ch2" }),
+                expect.objectContaining({ offset: 3, channelName: "Ch3" }),
+                expect.objectContaining({ offset: 4, channelName: "Ch4" })
+              ])
+            })
+          ])
         })
       ]);
     });
