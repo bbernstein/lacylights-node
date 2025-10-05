@@ -85,7 +85,7 @@ export class FixtureSetupService {
     config?: Partial<FixtureSetupConfig>
   ) {
     const defaultConfig: FixtureSetupConfig = {
-      oflDownloadUrl: `https://github.com/OpenLightingProject/open-fixture-library/archive/${process.env.OFL_BRANCH || "master"}.zip`,
+      oflDownloadUrl: "https://open-fixture-library.org/download.ofl",
       tempDir: this.pathService.join(process.cwd(), "temp"),
       oflZipPath: this.pathService.join(process.cwd(), "temp", "ofl.zip"),
       oflExtractPath: this.pathService.join(process.cwd(), "temp", "extract"),
