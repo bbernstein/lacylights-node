@@ -37,6 +37,7 @@
     "test:artnet": "tsx scripts/test-artnet.ts",
     "test:fade": "tsx scripts/test-fade-engine.ts",
     "test:e2e-fade": "tsx scripts/test-e2e-fade.ts",
+    "test:performance": "tsx scripts/test-performance-dmx.ts",
     "introspect:schema": "tsx scripts/introspect-schema.ts",
     "export:qlc": "tsx scripts/test-qlc-export.ts",
     "mapping:qlc": "tsx scripts/test-qlc-mapping.ts",
