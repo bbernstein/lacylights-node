@@ -164,14 +164,42 @@ export class FixtureSetupService {
   }
 
   private async downloadOFLData(): Promise<void> {
+    return this.downloadOFLDataWithRedirects(this.config.oflDownloadUrl, 5);
+  }
+
+  private async downloadOFLDataWithRedirects(url: string, maxRedirects: number): Promise<void> {
     return new Promise((resolve, reject) => {
-      console.log("📥 Downloading Open Fixture Library data...");
+      if (maxRedirects === 0) {
+        reject(new Error('Too many redirects'));
+        return;
+      }
+
+      console.log(maxRedirects === 5 ? "📥 Downloading Open Fixture Library data..." : `  Following redirect...`);
       const file = this.fileSystem.createWriteStream(this.config.oflZipPath);
 
       this.http
-        .get(this.config.oflDownloadUrl, (response) => {
+        .get(url, (response) => {
+          // Handle redirects (301, 302, 303, 307, 308)
+          if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400) {
+            const redirectUrl = response.headers.location;
+            if (!redirectUrl) {
+              reject(new Error(`Redirect status ${response.statusCode} but no location header`));
+              return;
+            }
+
+            console.log(`  Redirect to: ${redirectUrl}`);
+            file.close();
+
+            // Follow the redirect
+            this.downloadOFLDataWithRedirects(redirectUrl, maxRedirects - 1)
+              .then(resolve)
+              .catch(reject);
+            return;
+          }
+
           if (response.statusCode !== 200) {
             console.error(`Failed to download OFL fixtures. Status code: ${response.statusCode}`);
+            file.close();
             reject(new Error(`Failed to download OFL fixtures. Status code: ${response.statusCode}`));
             return;
           }
@@ -204,6 +232,7 @@ export class FixtureSetupService {
         })
         .on("error", (err) => {
           console.error("Error downloading OFL fixtures:", err);
+          file.close();
           if (this.fileSystem.existsSync(this.config.oflZipPath)) {
             this.fileSystem.unlinkSync(this.config.oflZipPath);
           }
