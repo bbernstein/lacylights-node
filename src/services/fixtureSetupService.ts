@@ -265,8 +265,21 @@ export class FixtureSetupService {
         throw new Error("No directories found in extracted OFL data");
       }
 
-      const oflDir = extractedDirs[0];
-      const fixturesPath = this.pathService.join(this.config.oflExtractPath, oflDir, "fixtures");
+      // Try to find the fixtures directory
+      // Official OFL download structure: extract/ contains manufacturer folders directly
+      // GitHub archive structure: extract/open-fixture-library-master/fixtures/manufacturer folders
+      let fixturesPath: string;
+
+      // Check if first directory has a 'fixtures' subdirectory (GitHub archive format)
+      const potentialGitHubPath = this.pathService.join(this.config.oflExtractPath, extractedDirs[0], "fixtures");
+      if (this.fileSystem.existsSync(potentialGitHubPath)) {
+        fixturesPath = potentialGitHubPath;
+        console.log(`  Using GitHub archive structure: ${fixturesPath}`);
+      } else {
+        // Assume official OFL format where manufacturer folders are at root of extract
+        fixturesPath = this.config.oflExtractPath;
+        console.log(`  Using official OFL structure: ${fixturesPath}`);
+      }
 
       console.log("  Processing fixture data...");
       const oflData = await this.loadOFLData(fixturesPath);
