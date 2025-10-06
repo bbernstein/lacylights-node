@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { LacyLightsServer } from './server';
 import { logger } from './utils/logger';
 
