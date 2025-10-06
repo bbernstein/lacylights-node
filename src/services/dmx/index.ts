@@ -72,7 +72,7 @@ export class DMXService {
           await this.setFallbackBroadcastAddress();
         }
       } catch (error) {
-        logger.warn(`Failed to query Art-Net broadcast address ('artnet_broadcast_address') from database settings: ${error}`);
+        logger.warn(`Failed to query Art-Net broadcast address ("artnet_broadcast_address") from database settings: ${error}`);
         // Fall back to interface selection
         await this.setFallbackBroadcastAddress();
       }
@@ -434,10 +434,16 @@ export class DMXService {
   private closeSocket(): Promise<void> {
     return new Promise((resolve) => {
       if (this.socket) {
-        this.socket.close(() => {
+        try {
+          this.socket.close(() => {
+            this.socket = undefined;
+            resolve();
+          });
+        } catch (error) {
+          logger.warn(`Error closing Art-Net socket: ${error}`);
           this.socket = undefined;
           resolve();
-        });
+        }
       } else {
         resolve();
       }
@@ -466,13 +472,20 @@ export class DMXService {
     // Update broadcast address
     this.broadcastAddress = newAddress;
 
-    // Create new socket
+    // Create new socket with error handling
     this.socket = dgram.createSocket("udp4");
-    this.socket.bind(() => {
-      this.socket!.setBroadcast(true);
+
+    // Add error event listener
+    this.socket.on("error", (err: Error) => {
+      logger.error(`❌ Art-Net socket error: ${err.message}`);
+      this.socket?.close();
+      this.socket = undefined;
     });
 
-    logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
+    this.socket.bind(() => {
+      this.socket!.setBroadcast(true);
+      logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
+    });
   }
 
   stop() {
