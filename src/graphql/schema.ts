@@ -164,6 +164,14 @@ export const typeDefs = gql`
     channels: [Int!]!
   }
 
+  type Setting {
+    id: ID!
+    key: String!
+    value: String!
+    createdAt: String!
+    updatedAt: String!
+  }
+
   # Native LacyLights Export/Import
   type ExportResult {
     projectId: String!
@@ -436,6 +444,11 @@ export const typeDefs = gql`
     importBuiltInFixtures: Boolean
   }
 
+  input UpdateSettingInput {
+    key: String!
+    value: String!
+  }
+
   # Queries
   type Query {
     # Projects
@@ -465,6 +478,10 @@ export const typeDefs = gql`
 
     # Active Scene Tracking
     currentActiveScene: Scene
+
+    # Settings
+    settings: [Setting!]!
+    setting(key: String!): Setting
 
     # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
@@ -575,6 +592,9 @@ export const typeDefs = gql`
       projectId: ID!
       fixtureMappings: [FixtureMappingInput!]
     ): QLCExportResult!
+
+    # Settings
+    updateSetting(input: UpdateSettingInput!): Setting!
   }
 
   # Subscriptions

@@ -4,6 +4,7 @@ import {
   saveInterfacePreference,
 } from "../../utils/interfaceSelector";
 import { logger } from "../../utils/logger";
+import { prisma } from "../../context";
 
 export interface UniverseOutput {
   universe: number;
@@ -57,12 +58,35 @@ export class DMXService {
 
     // Select network interface for Art-Net broadcast
     if (this.artNetEnabled) {
-      const selectedInterface = await selectNetworkInterface();
-      if (selectedInterface) {
-        this.broadcastAddress = selectedInterface;
-        saveInterfacePreference(selectedInterface);
-      } else {
-        this.broadcastAddress = "255.255.255.255";
+      // First check if there's a setting in the database
+      try {
+        const setting = await prisma.setting.findUnique({
+          where: { key: "artnet_broadcast_address" },
+        });
+
+        if (setting && setting.value) {
+          this.broadcastAddress = setting.value;
+          logger.info(`📡 Using Art-Net broadcast address from settings: ${this.broadcastAddress}`);
+        } else {
+          // Fall back to interface selection
+          const selectedInterface = await selectNetworkInterface();
+          if (selectedInterface) {
+            this.broadcastAddress = selectedInterface;
+            saveInterfacePreference(selectedInterface);
+          } else {
+            this.broadcastAddress = "255.255.255.255";
+          }
+        }
+      } catch (error) {
+        logger.warn(`Failed to load Art-Net broadcast address from settings: ${error}`);
+        // Fall back to interface selection
+        const selectedInterface = await selectNetworkInterface();
+        if (selectedInterface) {
+          this.broadcastAddress = selectedInterface;
+          saveInterfacePreference(selectedInterface);
+        } else {
+          this.broadcastAddress = "255.255.255.255";
+        }
       }
     }
 
