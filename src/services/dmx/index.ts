@@ -427,6 +427,14 @@ export class DMXService {
     return outputs;
   }
 
+  getBroadcastAddress(): string {
+    return this.broadcastAddress;
+  }
+
+  isArtNetEnabled(): boolean {
+    return this.artNetEnabled;
+  }
+
   stop() {
     if (this.intervalId) {
       clearTimeout(this.intervalId);

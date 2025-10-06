@@ -1,4 +1,5 @@
 import { Context } from "../../context";
+import { dmxService } from "../../services/dmx";
 
 export interface UpdateSettingInput {
   key: string;
@@ -17,6 +18,13 @@ export const settingsResolvers = {
       return prisma.setting.findUnique({
         where: { key },
       });
+    },
+
+    systemInfo: async () => {
+      return {
+        artnetBroadcastAddress: dmxService.getBroadcastAddress(),
+        artnetEnabled: dmxService.isArtNetEnabled(),
+      };
     },
   },
 
