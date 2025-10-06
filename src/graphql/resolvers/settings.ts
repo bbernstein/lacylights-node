@@ -62,6 +62,7 @@ export const settingsResolvers = {
           // Log the error but don't fail the mutation
           logger.error("Error reloading Art-Net broadcast address", {
             error,
+            broadcastAddress: input.value,
           });
         }
       }

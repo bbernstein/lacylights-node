@@ -69,24 +69,12 @@ export class DMXService {
           logger.info(`📡 Using Art-Net broadcast address from settings: ${this.broadcastAddress}`);
         } else {
           // Fall back to interface selection
-          const selectedInterface = await selectNetworkInterface();
-          if (selectedInterface) {
-            this.broadcastAddress = selectedInterface;
-            saveInterfacePreference(selectedInterface);
-          } else {
-            this.broadcastAddress = "255.255.255.255";
-          }
+          await this.setFallbackBroadcastAddress();
         }
       } catch (error) {
-        logger.warn(`Failed to load Art-Net broadcast address from settings: ${error}`);
+        logger.warn(`Failed to query Art-Net broadcast address ('artnet_broadcast_address') from database settings: ${error}`);
         // Fall back to interface selection
-        const selectedInterface = await selectNetworkInterface();
-        if (selectedInterface) {
-          this.broadcastAddress = selectedInterface;
-          saveInterfacePreference(selectedInterface);
-        } else {
-          this.broadcastAddress = "255.255.255.255";
-        }
+        await this.setFallbackBroadcastAddress();
       }
     }
 
@@ -427,6 +415,35 @@ export class DMXService {
     return outputs;
   }
 
+  /**
+   * Private method to set fallback broadcast address via interface selection
+   */
+  private async setFallbackBroadcastAddress(): Promise<void> {
+    const selectedInterface = await selectNetworkInterface();
+    if (selectedInterface) {
+      this.broadcastAddress = selectedInterface;
+      saveInterfacePreference(selectedInterface);
+    } else {
+      this.broadcastAddress = "255.255.255.255";
+    }
+  }
+
+  /**
+   * Private method to close the UDP socket safely
+   */
+  private closeSocket(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.socket) {
+        this.socket.close(() => {
+          this.socket = undefined;
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
+  }
+
   getBroadcastAddress(): string {
     return this.broadcastAddress;
   }
@@ -443,11 +460,8 @@ export class DMXService {
 
     logger.info(`🔄 Reloading Art-Net broadcast address from ${this.broadcastAddress} to ${newAddress}`);
 
-    // Close existing socket
-    if (this.socket) {
-      this.socket.close();
-      this.socket = undefined;
-    }
+    // Close existing socket safely
+    await this.closeSocket();
 
     // Update broadcast address
     this.broadcastAddress = newAddress;
