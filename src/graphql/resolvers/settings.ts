@@ -60,10 +60,13 @@ export const settingsResolvers = {
           await dmxService.reloadBroadcastAddress(input.value);
         } catch (error) {
           // Log the error but don't fail the mutation
-          logger.error("Error reloading Art-Net broadcast address", {
-            error,
-            broadcastAddress: input.value,
-          });
+          logger.error(
+            "Error reloading Art-Net broadcast address. The broadcast address was not updated and the system will continue using the previous address.",
+            {
+              error,
+              attemptedBroadcastAddress: input.value,
+            }
+          );
         }
       }
 

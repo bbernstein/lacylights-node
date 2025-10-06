@@ -475,17 +475,25 @@ export class DMXService {
     // Create new socket with error handling
     this.socket = dgram.createSocket("udp4");
 
-    // Add error event listener
+    // Add error event listener - dgram bind errors are emitted via 'error' event, not callback
     this.socket.on("error", (err: Error) => {
       logger.error(`❌ Art-Net socket error: ${err.message}`);
       this.socket?.close();
       this.socket = undefined;
     });
 
-    this.socket.bind(() => {
-      this.socket!.setBroadcast(true);
-      logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
-    });
+    // Bind socket with try-catch for additional safety
+    try {
+      this.socket.bind(() => {
+        this.socket!.setBroadcast(true);
+        logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
+      });
+    } catch (error) {
+      logger.error(`❌ Failed to bind Art-Net socket: ${error}`);
+      this.socket?.close();
+      this.socket = undefined;
+      throw error;
+    }
   }
 
   stop() {
