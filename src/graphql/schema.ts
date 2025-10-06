@@ -177,6 +177,14 @@ export const typeDefs = gql`
     artnetEnabled: Boolean!
   }
 
+  type NetworkInterfaceOption {
+    name: String!
+    address: String!
+    broadcast: String!
+    description: String!
+    interfaceType: String!
+  }
+
   # Native LacyLights Export/Import
   type ExportResult {
     projectId: String!
@@ -490,6 +498,7 @@ export const typeDefs = gql`
 
     # System Information
     systemInfo: SystemInfo!
+    networkInterfaceOptions: [NetworkInterfaceOption!]!
 
     # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!

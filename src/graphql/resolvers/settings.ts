@@ -1,5 +1,6 @@
 import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
+import { getNetworkInterfaces } from "../../utils/networkInterfaces";
 
 export interface UpdateSettingInput {
   key: string;
@@ -25,6 +26,10 @@ export const settingsResolvers = {
         artnetBroadcastAddress: dmxService.getBroadcastAddress(),
         artnetEnabled: dmxService.isArtNetEnabled(),
       };
+    },
+
+    networkInterfaceOptions: async () => {
+      return getNetworkInterfaces();
     },
   },
 
