@@ -1,6 +1,12 @@
 import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { getNetworkInterfaces } from "../../utils/networkInterfaces";
+import { logger } from "../../utils/logger";
+
+// Setting key constants
+export const SETTING_KEYS = {
+  ARTNET_BROADCAST_ADDRESS: "artnet_broadcast_address",
+} as const;
 
 export interface UpdateSettingInput {
   key: string;
@@ -49,12 +55,14 @@ export const settingsResolvers = {
       });
 
       // If artnet_broadcast_address is updated, reload the DMX service
-      if (input.key === 'artnet_broadcast_address') {
+      if (input.key === SETTING_KEYS.ARTNET_BROADCAST_ADDRESS) {
         try {
           await dmxService.reloadBroadcastAddress(input.value);
         } catch (error) {
           // Log the error but don't fail the mutation
-          console.error('Error reloading Art-Net broadcast address:', error);
+          logger.error("Error reloading Art-Net broadcast address", {
+            error,
+          });
         }
       }
 
