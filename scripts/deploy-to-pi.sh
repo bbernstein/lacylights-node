@@ -6,10 +6,10 @@
 set -e  # Exit on any error
 
 # Configuration
-PI_HOST="${PI_HOST:-rasp.local}"
+PI_HOST="${PI_HOST:-lacylights.local}"
 PI_USER="${PI_USER:-pi}"
 REPO_URL="https://github.com/bbernstein/lacylights-node.git"
-BRANCH_NAME="feature/raspberry-pi-deployment"
+BRANCH_NAME="${BRANCH_NAME:-main}"
 DEPLOY_DIR="/home/$PI_USER/lacylights-node"
 
 echo "=========================================="
@@ -37,7 +37,7 @@ if ! run_on_pi "echo 'SSH connection successful'"; then
     echo "Please ensure:"
     echo "  1. The Raspberry Pi is on the network"
     echo "  2. SSH is enabled on the Pi"
-    echo "  3. Your SSH key is configured (ssh pi@rasp.local should work without password)"
+    echo "  3. Your SSH key is configured (ssh pi@lacylights.local should work without password)"
     exit 1
 fi
 

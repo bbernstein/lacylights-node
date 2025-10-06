@@ -7,13 +7,13 @@ This guide explains how to deploy LacyLights Node.js server to a Raspberry Pi.
 1. **Raspberry Pi Setup**
    - Raspberry Pi (tested on Pi 5)
    - Raspberry Pi OS (Debian-based) installed
-   - Network connectivity (Pi accessible via `rasp.local` or specific IP)
+   - Network connectivity (Pi accessible via `lacylights.local` or specific IP)
    - SSH enabled on the Pi
 
 2. **Local Machine Setup**
    - SSH key configured for passwordless login to Pi
    - Git configured with access to the repository
-   - Test SSH connection: `ssh pi@rasp.local`
+   - Test SSH connection: `ssh pi@lacylights.local`
 
 ## Quick Start
 
@@ -63,7 +63,7 @@ If you need more control, you can run the scripts separately:
 2. **Configure Environment**:
    After the first deployment, you may want to customize the `.env` file on the Pi:
    ```bash
-   ssh pi@rasp.local
+   ssh pi@lacylights.local
    cd ~/lacylights-node
    nano .env
    ```
@@ -84,29 +84,29 @@ If you need more control, you can run the scripts separately:
 ### Accessing the Server
 
 Once deployed, the server will be accessible at:
-- GraphQL API: `http://rasp.local:4000/graphql`
-- GraphQL Playground: `http://rasp.local:4000/graphql`
+- GraphQL API: `http://lacylights.local:4000/graphql`
+- GraphQL Playground: `http://lacylights.local:4000/graphql`
 
 ### Useful Commands
 
 ```bash
 # View server logs
-ssh pi@rasp.local 'cd ~/lacylights-node && tail -f server.log'
+ssh pi@lacylights.local 'cd ~/lacylights-node && tail -f server.log'
 
 # Stop the server
-ssh pi@rasp.local 'cd ~/lacylights-node && npm run stop'
+ssh pi@lacylights.local 'cd ~/lacylights-node && npm run stop'
 
 # Restart the server
-ssh pi@rasp.local 'cd ~/lacylights-node && npm run stop && npm start'
+ssh pi@lacylights.local 'cd ~/lacylights-node && npm run stop && npm start'
 
 # Check Docker services
-ssh pi@rasp.local 'cd ~/lacylights-node && docker compose ps'
+ssh pi@lacylights.local 'cd ~/lacylights-node && docker compose ps'
 
 # View Docker logs
-ssh pi@rasp.local 'cd ~/lacylights-node && docker compose logs -f'
+ssh pi@lacylights.local 'cd ~/lacylights-node && docker compose logs -f'
 
 # SSH to the Pi
-ssh pi@rasp.local
+ssh pi@lacylights.local
 ```
 
 ### Managing the Server
@@ -115,7 +115,7 @@ The server runs as a background process. To manage it:
 
 ```bash
 # SSH to the Pi
-ssh pi@rasp.local
+ssh pi@lacylights.local
 
 # Navigate to the project
 cd ~/lacylights-node
@@ -146,7 +146,7 @@ npm start
 ### SSH Connection Issues
 
 If you can't connect to the Pi:
-1. Verify the Pi is on the network: `ping rasp.local`
+1. Verify the Pi is on the network: `ping lacylights.local`
 2. Check SSH is enabled on the Pi
 3. Verify your SSH key: `ssh-add -l`
 4. Try with IP instead of hostname: `PI_HOST=192.168.1.xxx npm run deploy:pi`
@@ -168,7 +168,7 @@ If ports are already in use:
 
 Check what's using the ports:
 ```bash
-ssh pi@rasp.local 'sudo netstat -tulpn | grep :5432'
+ssh pi@lacylights.local 'sudo netstat -tulpn | grep :5432'
 ```
 
 ### Art-Net Not Working
@@ -206,5 +206,5 @@ The script will pull the latest changes and redeploy automatically.
 
 - Raspberry Pi 5 is recommended for optimal performance
 - Older Pi models may experience higher CPU usage during fades
-- Monitor CPU temperature: `ssh pi@rasp.local 'vcgencmd measure_temp'`
+- Monitor CPU temperature: `ssh pi@lacylights.local 'vcgencmd measure_temp'`
 - Consider active cooling for continuous operation

@@ -416,11 +416,13 @@ export class FixtureSetupService {
               type ChannelDef = {
                 name: string;
                 type: ChannelType;
+                offset: number;
                 minValue: number;
                 maxValue: number;
                 defaultValue: number;
               };
               const channelMap = new Map<string, ChannelDef>();
+              let nextOffset = 1;
 
               for (const mode of oflFixture.modes) {
                 for (const channelName of mode.channels) {
@@ -436,6 +438,7 @@ export class FixtureSetupService {
                         channelMap.set(channelName, {
                           name: channelName,
                           type: this.mapChannelType(channelCapability),
+                          offset: nextOffset++,
                           minValue: min,
                           maxValue: max,
                           defaultValue: this.getDefaultValue(channelCapability),
@@ -473,10 +476,7 @@ export class FixtureSetupService {
                   type: this.mapFixtureType(oflFixture.categories),
                   isBuiltIn: true,
                   channels: {
-                    create: channelDefinitions.map((ch, idx) => ({
-                      ...ch,
-                      offset: idx + 1
-                    })),
+                    create: channelDefinitions
                   },
                   modes: modes
                 });
