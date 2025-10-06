@@ -61,7 +61,7 @@ export const settingsResolvers = {
         } catch (error) {
           // Log the error but don't fail the mutation
           logger.error(
-            "Error reloading Art-Net broadcast address. The broadcast address was not updated and the system will continue using the previous address.",
+            "Error reloading Art-Net broadcast address. The database setting was saved, but the Art-Net service failed to reload and will continue using the previous broadcast address.",
             {
               error,
               attemptedBroadcastAddress: input.value,

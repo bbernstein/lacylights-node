@@ -485,7 +485,7 @@ export class DMXService {
     // Bind socket with try-catch for additional safety
     try {
       this.socket.bind(() => {
-        this.socket!.setBroadcast(true);
+        this.socket?.setBroadcast(true);
         logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
       });
     } catch (error) {
