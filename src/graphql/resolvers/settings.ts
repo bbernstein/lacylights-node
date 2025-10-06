@@ -34,7 +34,7 @@ export const settingsResolvers = {
       { input }: { input: UpdateSettingInput },
       { prisma }: Context,
     ) => {
-      return prisma.setting.upsert({
+      const result = await prisma.setting.upsert({
         where: { key: input.key },
         update: { value: input.value },
         create: {
@@ -42,6 +42,18 @@ export const settingsResolvers = {
           value: input.value,
         },
       });
+
+      // If artnet_broadcast_address is updated, reload the DMX service
+      if (input.key === 'artnet_broadcast_address') {
+        try {
+          await dmxService.reloadBroadcastAddress(input.value);
+        } catch (error) {
+          // Log the error but don't fail the mutation
+          console.error('Error reloading Art-Net broadcast address:', error);
+        }
+      }
+
+      return result;
     },
   },
 };

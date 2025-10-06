@@ -435,6 +435,32 @@ export class DMXService {
     return this.artNetEnabled;
   }
 
+  async reloadBroadcastAddress(newAddress: string): Promise<void> {
+    if (!this.artNetEnabled) {
+      logger.warn("Art-Net is disabled, cannot reload broadcast address");
+      return;
+    }
+
+    logger.info(`🔄 Reloading Art-Net broadcast address from ${this.broadcastAddress} to ${newAddress}`);
+
+    // Close existing socket
+    if (this.socket) {
+      this.socket.close();
+      this.socket = undefined;
+    }
+
+    // Update broadcast address
+    this.broadcastAddress = newAddress;
+
+    // Create new socket
+    this.socket = dgram.createSocket("udp4");
+    this.socket.bind(() => {
+      this.socket!.setBroadcast(true);
+    });
+
+    logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
+  }
+
   stop() {
     if (this.intervalId) {
       clearTimeout(this.intervalId);
