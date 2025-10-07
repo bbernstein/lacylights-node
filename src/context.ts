@@ -36,7 +36,9 @@ export function getSharedPrisma(): PrismaClient {
     sharedPrisma = new PrismaClient();
 
     // Middleware to automatically serialize/deserialize channelValues for SQLite
-    sharedPrisma.$use(async (params, next) => {
+    // Skip in test environment since Prisma is mocked
+    if (process.env.NODE_ENV !== 'test' && typeof sharedPrisma.$use === 'function') {
+      sharedPrisma.$use(async (params, next) => {
       const serializeChannelValues = (item: any) => {
         if (item && item.channelValues && Array.isArray(item.channelValues)) {
           item.channelValues = JSON.stringify(item.channelValues);
@@ -117,6 +119,7 @@ export function getSharedPrisma(): PrismaClient {
 
       return deserializeResult(result);
     });
+    }
   }
   return sharedPrisma;
 }

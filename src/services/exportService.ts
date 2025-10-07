@@ -20,7 +20,7 @@ import type {
   ExportCue,
 } from '../types/export.js';
 import { ChannelType, FixtureType, EasingType } from '../types/enums.js';
-import { parseChannelValues, parseTags } from '../utils/db-helpers.js';
+import { parseTags } from '../utils/db-helpers.js';
 
 const EXPORT_FORMAT_VERSION = '1.0.0';
 
@@ -303,9 +303,10 @@ export class ExportService {
         if (!fixtureRefId) {
           throw new Error(`Missing fixture reference for fixture ${fv.fixtureId} in scene: ${scene.name}`);
         }
+        // Middleware automatically deserializes channelValues to array
         return {
           fixtureRefId,
-          channelValues: parseChannelValues(fv.channelValues),
+          channelValues: fv.channelValues as unknown as number[],
           sceneOrder: fv.sceneOrder ?? undefined,
         };
       });

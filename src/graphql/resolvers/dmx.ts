@@ -2,7 +2,6 @@ import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { fadeEngine, EasingType } from "../../services/fadeEngine";
 import { getPlaybackStateService } from "../../services/playbackStateService";
-import { parseChannelValues } from "../../utils/db-helpers";
 
 export const dmxResolvers = {
   Query: {
@@ -81,7 +80,8 @@ export const dmxResolvers = {
 
       for (const fixtureValue of scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
-        const channelValues = parseChannelValues(fixtureValue.channelValues);
+        // Middleware automatically deserializes channelValues to array
+        const channelValues = fixtureValue.channelValues as unknown as number[];
 
         // Iterate through channelValues array by index
         for (
@@ -154,7 +154,8 @@ export const dmxResolvers = {
 
       for (const fixtureValue of cue.scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
-        const channelValues = parseChannelValues(fixtureValue.channelValues);
+        // Middleware automatically deserializes channelValues to array
+        const channelValues = fixtureValue.channelValues as unknown as number[];
 
         // Iterate through channelValues array by index
         for (

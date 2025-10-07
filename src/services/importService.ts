@@ -6,7 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 import { FixtureType } from '../types/enums';
 import type { LacyLightsExport } from '../types/export.js';
-import { serializeTags, serializeChannelValues } from '../utils/db-helpers.js';
+import { serializeTags } from '../utils/db-helpers.js';
 
 /**
  * Options for importing a project
@@ -390,7 +390,7 @@ export class ImportService {
           fixtureValues: {
             create: fixtureValues.map((fv) => ({
               fixtureId: fixtureIdMap.get(fv.fixtureRefId)!,
-              channelValues: serializeChannelValues(fv.channelValues),
+              channelValues: fv.channelValues as any, // Middleware serializes to string
               sceneOrder: fv.sceneOrder,
             })),
           },

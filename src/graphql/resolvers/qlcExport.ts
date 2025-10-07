@@ -5,7 +5,7 @@ import {
   FixtureMapping,
 } from "../../services/qlcFixtureLibrary";
 import { ChannelType } from "../../types/enums";
-import { parseChannelValues, serializeChannelValues, serializeTags } from "../../utils/db-helpers";
+import { serializeTags } from "../../utils/db-helpers";
 
 // Constants
 const FIXTURE_INDEX_DELIMITER = "|||";
@@ -190,7 +190,8 @@ export const qlcExportResolvers = {
                     (fv) => fv.fixtureId === fixture.id,
                   );
 
-                  const channelValues = parseChannelValues(fixtureValue?.channelValues);
+                  // Middleware automatically deserializes channelValues to array
+                  const channelValues = (fixtureValue?.channelValues || []) as number[];
                   if (fixtureValue && channelValues.length > 0) {
                     // Convert channel values array to comma-separated string
                     const channelValuesStr = channelValues
@@ -768,9 +769,10 @@ export const qlcExportResolvers = {
                     }
                     // If no channel data (fv._ is empty/undefined), channelValues remains all zeros
 
+                    // Middleware automatically serializes channelValues array to string
                     sceneFixtureValues.push({
                       fixtureId: lacyFixtureId,
-                      channelValues: serializeChannelValues(channelValues),
+                      channelValues: channelValues as any,
                     });
                   }
                 } else if (qlcFixtureId) {
