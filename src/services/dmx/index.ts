@@ -64,7 +64,7 @@ export class DMXService {
           where: { key: "artnet_broadcast_address" },
         });
 
-        if (setting && setting.value) {
+        if (setting) {
           this.broadcastAddress = setting.value;
           logger.info(`📡 Using Art-Net broadcast address from settings: ${this.broadcastAddress}`);
         } else {
@@ -475,25 +475,28 @@ export class DMXService {
     // Create new socket with error handling - use local reference to avoid race conditions
     const socket = dgram.createSocket("udp4");
 
-    // Add error event listener - dgram bind errors are emitted via 'error' event, not callback
-    socket.on("error", (err: Error) => {
-      logger.error(`❌ Art-Net socket error: ${err.message}`);
-      socket.close();
-      this.socket = undefined;
+    // Bind socket and wait for completion to avoid race conditions
+    await new Promise<void>((resolve, reject) => {
+      // Add error event listener - dgram bind errors are emitted via 'error' event, not callback
+      socket.once("error", (err: Error) => {
+        logger.error(`❌ Art-Net socket error during bind: ${err.message}`);
+        socket.close();
+        reject(err);
+      });
+
+      socket.bind(() => {
+        try {
+          socket.setBroadcast(true);
+          logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
     });
 
-    // Bind socket with try-catch for additional safety
-    try {
-      socket.bind(() => {
-        socket.setBroadcast(true);
-        logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
-      });
-      this.socket = socket;
-    } catch (error) {
-      logger.error(`❌ Failed to bind Art-Net socket: ${error}`);
-      socket.close();
-      throw error;
-    }
+    // Only assign socket after successful bind
+    this.socket = socket;
   }
 
   stop() {
