@@ -1,6 +1,6 @@
 import { PubSub } from "graphql-subscriptions";
 import { PrismaClient } from "@prisma/client";
-import { prisma, pubsub } from "../context";
+import { prisma, pubsub, type Context } from "../context";
 
 export interface PlaybackState {
   cueListId: string;
@@ -107,12 +107,22 @@ class PlaybackStateService {
     currentCueIndex: number,
   ): Promise<void> {
     try {
-      // Get the cue list and find the next cue
+      // Get the cue list and find the next cue with full scene data
       const cueList = await this.prisma.cueList.findUnique({
         where: { id: cueListId },
         include: {
           cues: {
-            include: { scene: true },
+            include: {
+              scene: {
+                include: {
+                  fixtureValues: {
+                    include: {
+                      fixture: true,
+                    },
+                  },
+                },
+              },
+            },
             orderBy: { cueNumber: "asc" },
           },
         },
@@ -130,7 +140,15 @@ class PlaybackStateService {
       }
 
       const nextCue = cueList.cues[currentCueIndex + 1];
-      await this.startCue(cueListId, currentCueIndex + 1, nextCue);
+
+      // Call playCue through the dmx resolver to actually trigger DMX output
+      // This ensures auto-follow behaves exactly like manual advance
+      const { dmxResolvers } = await import("../graphql/resolvers/dmx");
+      await dmxResolvers.Mutation.playCue(
+        null,
+        { cueId: nextCue.id },
+        { prisma: this.prisma, pubsub: this.pubsub } as Context,
+      );
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error handling follow time:", error);

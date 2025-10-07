@@ -7,7 +7,9 @@
  * Parse channel values from database string to number array
  */
 export function parseChannelValues(channelValues: string | null | undefined): number[] {
-  if (!channelValues) return [];
+  if (!channelValues) {
+    return [];
+  }
   try {
     const parsed = JSON.parse(channelValues);
     return Array.isArray(parsed) ? parsed : [];
@@ -27,7 +29,9 @@ export function serializeChannelValues(channelValues: number[]): string {
  * Parse tags from database string to string array
  */
 export function parseTags(tags: string | null | undefined): string[] {
-  if (!tags) return [];
+  if (!tags) {
+    return [];
+  }
   try {
     const parsed = JSON.parse(tags);
     return Array.isArray(parsed) ? parsed : [];

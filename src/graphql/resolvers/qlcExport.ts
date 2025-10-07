@@ -5,7 +5,7 @@ import {
   FixtureMapping,
 } from "../../services/qlcFixtureLibrary";
 import { ChannelType } from "../../types/enums";
-import { parseChannelValues, serializeChannelValues, parseTags, serializeTags } from "../../utils/db-helpers";
+import { parseChannelValues, serializeChannelValues, serializeTags } from "../../utils/db-helpers";
 
 // Constants
 const FIXTURE_INDEX_DELIMITER = "|||";
