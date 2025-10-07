@@ -129,7 +129,7 @@ export const sceneResolvers = {
           fixtureValues: {
             create: input.fixtureValues.map((fv: any) => ({
               fixtureId: fv.fixtureId,
-              channelValues: fv.channelValues, // Now just a simple array of integers
+              channelValues: serializeChannelValues(fv.channelValues),
               sceneOrder: fv.sceneOrder,
             })),
           },
@@ -182,7 +182,7 @@ export const sceneResolvers = {
         updateData.fixtureValues = {
           create: input.fixtureValues.map((fv: any) => ({
             fixtureId: fv.fixtureId,
-            channelValues: fv.channelValues, // Now just a simple array of integers
+            channelValues: serializeChannelValues(fv.channelValues),
             sceneOrder: fv.sceneOrder,
           })),
         };
