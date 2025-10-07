@@ -472,26 +472,26 @@ export class DMXService {
     // Update broadcast address
     this.broadcastAddress = newAddress;
 
-    // Create new socket with error handling
-    this.socket = dgram.createSocket("udp4");
+    // Create new socket with error handling - use local reference to avoid race conditions
+    const socket = dgram.createSocket("udp4");
 
     // Add error event listener - dgram bind errors are emitted via 'error' event, not callback
-    this.socket.on("error", (err: Error) => {
+    socket.on("error", (err: Error) => {
       logger.error(`❌ Art-Net socket error: ${err.message}`);
-      this.socket?.close();
+      socket.close();
       this.socket = undefined;
     });
 
     // Bind socket with try-catch for additional safety
     try {
-      this.socket.bind(() => {
-        this.socket?.setBroadcast(true);
+      socket.bind(() => {
+        socket.setBroadcast(true);
         logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
       });
+      this.socket = socket;
     } catch (error) {
       logger.error(`❌ Failed to bind Art-Net socket: ${error}`);
-      this.socket?.close();
-      this.socket = undefined;
+      socket.close();
       throw error;
     }
   }

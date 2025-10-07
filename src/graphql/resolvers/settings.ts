@@ -59,7 +59,12 @@ export const settingsResolvers = {
         try {
           await dmxService.reloadBroadcastAddress(input.value);
         } catch (error) {
-          // Log the error but don't fail the mutation
+          // Log the error but don't fail the mutation.
+          // Design decision: We don't throw here because the database update succeeded.
+          // Throwing would make the mutation appear to fail when the database was actually updated.
+          // The new value will be used on next server restart.
+          // This creates a temporary inconsistency (DB has new value, runtime has old value),
+          // but allows the setting to be persisted even if hot-reload fails.
           logger.error(
             "Error reloading Art-Net broadcast address. The database setting was saved, but the Art-Net service failed to reload and will continue using the previous broadcast address.",
             {
