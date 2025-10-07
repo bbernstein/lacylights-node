@@ -105,6 +105,11 @@ else
     cd backend
 fi
 
+# Create temp directory for backend
+echo "Creating backend temp directory..."
+mkdir -p "$DEPLOY_DIR/backend/temp"
+chown $PI_USER:$PI_USER "$DEPLOY_DIR/backend/temp"
+
 # Create .env file for backend
 echo "Creating backend .env file..."
 cat > "$DEPLOY_DIR/backend/.env" <<EOF
