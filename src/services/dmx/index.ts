@@ -480,8 +480,9 @@ export class DMXService {
       // Add error event listener - dgram bind errors are emitted via 'error' event, not callback
       socket.once("error", (err: Error) => {
         logger.error(`❌ Art-Net socket error during bind: ${err.message}`);
-        socket.close();
-        reject(err);
+        socket.close(() => {
+          reject(err);
+        });
       });
 
       socket.bind(() => {
