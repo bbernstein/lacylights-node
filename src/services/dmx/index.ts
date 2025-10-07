@@ -4,6 +4,7 @@ import {
   saveInterfacePreference,
 } from "../../utils/interfaceSelector";
 import { logger } from "../../utils/logger";
+import { prisma } from "../../context";
 
 export interface UniverseOutput {
   universe: number;
@@ -57,12 +58,23 @@ export class DMXService {
 
     // Select network interface for Art-Net broadcast
     if (this.artNetEnabled) {
-      const selectedInterface = await selectNetworkInterface();
-      if (selectedInterface) {
-        this.broadcastAddress = selectedInterface;
-        saveInterfacePreference(selectedInterface);
-      } else {
-        this.broadcastAddress = "255.255.255.255";
+      // First check if there's a setting in the database
+      try {
+        const setting = await prisma.setting.findUnique({
+          where: { key: "artnet_broadcast_address" },
+        });
+
+        if (setting) {
+          this.broadcastAddress = setting.value;
+          logger.info(`📡 Using Art-Net broadcast address from settings: ${this.broadcastAddress}`);
+        } else {
+          // Fall back to interface selection
+          await this.setFallbackBroadcastAddress();
+        }
+      } catch (error) {
+        logger.warn(`Failed to query Art-Net broadcast address ("artnet_broadcast_address") from database settings: ${error}`);
+        // Fall back to interface selection
+        await this.setFallbackBroadcastAddress();
       }
     }
 
@@ -401,6 +413,91 @@ export class DMXService {
     }
 
     return outputs;
+  }
+
+  /**
+   * Private method to set fallback broadcast address via interface selection
+   */
+  private async setFallbackBroadcastAddress(): Promise<void> {
+    const selectedInterface = await selectNetworkInterface();
+    if (selectedInterface) {
+      this.broadcastAddress = selectedInterface;
+      saveInterfacePreference(selectedInterface);
+    } else {
+      this.broadcastAddress = "255.255.255.255";
+    }
+  }
+
+  /**
+   * Private method to close the UDP socket safely
+   */
+  private closeSocket(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.socket) {
+        try {
+          this.socket.close(() => {
+            this.socket = undefined;
+            resolve();
+          });
+        } catch (error) {
+          logger.warn(`Error closing Art-Net socket: ${error}`);
+          this.socket = undefined;
+          resolve();
+        }
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  getBroadcastAddress(): string {
+    return this.broadcastAddress;
+  }
+
+  isArtNetEnabled(): boolean {
+    return this.artNetEnabled;
+  }
+
+  async reloadBroadcastAddress(newAddress: string): Promise<void> {
+    if (!this.artNetEnabled) {
+      logger.warn("Art-Net is disabled, cannot reload broadcast address");
+      return;
+    }
+
+    logger.info(`🔄 Reloading Art-Net broadcast address from ${this.broadcastAddress} to ${newAddress}`);
+
+    // Close existing socket safely
+    await this.closeSocket();
+
+    // Update broadcast address
+    this.broadcastAddress = newAddress;
+
+    // Create new socket with error handling - use local reference to avoid race conditions
+    const socket = dgram.createSocket("udp4");
+
+    // Bind socket and wait for completion to avoid race conditions
+    await new Promise<void>((resolve, reject) => {
+      // Add error event listener - dgram bind errors are emitted via 'error' event, not callback
+      socket.once("error", (err: Error) => {
+        logger.error(`❌ Art-Net socket error during bind: ${err.message}`);
+        socket.close(() => {
+          reject(err);
+        });
+      });
+
+      socket.bind(() => {
+        try {
+          socket.setBroadcast(true);
+          logger.info(`✅ Art-Net broadcast address updated to ${this.broadcastAddress}:${this.artNetPort}`);
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+
+    // Only assign socket after successful bind
+    this.socket = socket;
   }
 
   stop() {
