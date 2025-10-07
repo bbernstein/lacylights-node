@@ -1,6 +1,6 @@
 import { fixtureResolvers } from "../fixture";
 import type { Context } from "../../../context";
-import { FixtureType, ChannelType } from "@prisma/client";
+import { FixtureType, ChannelType } from "../../../types/enums";
 
 const mockContext: Context = {
   prisma: {

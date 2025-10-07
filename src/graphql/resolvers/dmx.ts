@@ -2,6 +2,7 @@ import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { fadeEngine, EasingType } from "../../services/fadeEngine";
 import { getPlaybackStateService } from "../../services/playbackStateService";
+import { parseChannelValues } from "../../utils/db-helpers";
 
 export const dmxResolvers = {
   Query: {
@@ -80,14 +81,15 @@ export const dmxResolvers = {
 
       for (const fixtureValue of scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
+        const channelValues = parseChannelValues(fixtureValue.channelValues);
 
         // Iterate through channelValues array by index
         for (
           let channelIndex = 0;
-          channelIndex < fixtureValue.channelValues.length;
+          channelIndex < channelValues.length;
           channelIndex++
         ) {
-          const value = fixtureValue.channelValues[channelIndex];
+          const value = channelValues[channelIndex];
           const dmxChannel = fixture.startChannel + channelIndex;
 
           sceneChannels.push({
@@ -152,14 +154,15 @@ export const dmxResolvers = {
 
       for (const fixtureValue of cue.scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
+        const channelValues = parseChannelValues(fixtureValue.channelValues);
 
         // Iterate through channelValues array by index
         for (
           let channelIndex = 0;
-          channelIndex < fixtureValue.channelValues.length;
+          channelIndex < channelValues.length;
           channelIndex++
         ) {
-          const value = fixtureValue.channelValues[channelIndex];
+          const value = channelValues[channelIndex];
           const dmxChannel = fixture.startChannel + channelIndex;
 
           sceneChannels.push({

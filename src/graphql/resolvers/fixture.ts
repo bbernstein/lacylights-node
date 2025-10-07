@@ -1,5 +1,5 @@
 import { Context } from "../../context";
-import { ChannelType, FixtureType } from "@prisma/client";
+import { ChannelType, FixtureType } from "../../types/enums";
 
 // Input types for GraphQL queries and mutations
 export interface FixtureDefinitionFilter {

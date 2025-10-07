@@ -1,0 +1,42 @@
+[Unit]
+Description=LacyLights DMX Lighting Control System
+Documentation=https://github.com/bbernstein/lacylights-node
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/opt/lacylights/backend
+ExecStart=/usr/bin/node dist/index.js
+Restart=always
+RestartSec=10
+
+# Environment
+Environment=NODE_ENV=production
+Environment=DATABASE_URL=file:/var/lib/lacylights/db.sqlite
+Environment=PORT=4000
+Environment=NON_INTERACTIVE=true
+Environment=ARTNET_BROADCAST=255.255.255.255
+Environment=DMX_UNIVERSE_COUNT=4
+Environment=DMX_REFRESH_RATE=44
+Environment=DMX_IDLE_RATE=1
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=lacylights
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/lacylights
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=512
+
+[Install]
+WantedBy=multi-user.target

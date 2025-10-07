@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -14,7 +14,7 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String?
-  role      UserRole @default(USER)
+  role      String   @default("USER") // UserRole enum stored as string
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -44,7 +44,7 @@ model ProjectUser {
   id       String      @id @default(cuid())
   userId   String      @map("user_id")
   projectId String     @map("project_id")
-  role     ProjectRole @default(VIEWER)
+  role     String      @default("VIEWER") // ProjectRole enum stored as string
   joinedAt DateTime    @default(now()) @map("joined_at")
 
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -58,7 +58,7 @@ model FixtureDefinition {
   id           String      @id @default(cuid())
   manufacturer String
   model        String
-  type         FixtureType
+  type         String      // FixtureType enum stored as string
   isBuiltIn    Boolean     @default(false) @map("is_built_in")
   createdAt    DateTime    @default(now()) @map("created_at")
   updatedAt    DateTime    @updatedAt @map("updated_at")
@@ -74,7 +74,7 @@ model FixtureDefinition {
 model ChannelDefinition {
   id           String      @id @default(cuid())
   name         String
-  type         ChannelType
+  type         String      // ChannelType enum stored as string
   offset       Int
   minValue     Int         @default(0) @map("min_value")
   maxValue     Int         @default(255) @map("max_value")
@@ -118,13 +118,13 @@ model FixtureInstance {
   id           String       @id @default(cuid())
   name         String
   description  String?
-  
+
   // Fixture Definition Reference
   definitionId String       @map("definition_id")
   manufacturer String?      // Denormalized from definition
   model        String?      // Denormalized from definition
-  type         FixtureType? // Denormalized from definition
-  
+  type         String?      // FixtureType enum stored as string
+
   // Flattened Mode Information
   modeName     String?      @map("mode_name")
   channelCount Int?         @map("channel_count")
@@ -133,11 +133,11 @@ model FixtureInstance {
   projectId    String       @map("project_id")
   universe     Int
   startChannel Int          @map("start_channel")
-  tags         String[]     @default([])
-  
+  tags         String?      @default("[]") // JSON array stored as string
+
   // Ordering
   projectOrder Int?         @map("project_order") // Order within project fixture list
-  
+
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
@@ -170,7 +170,7 @@ model FixtureValue {
   id            String @id @default(cuid())
   sceneId       String @map("scene_id")
   fixtureId     String @map("fixture_id")
-  channelValues Int[]  @default([]) // Array of 0-255 values, index = channel offset
+  channelValues String @default("[]") // JSON array of 0-255 values stored as string
   sceneOrder    Int?   @map("scene_order") // Order within this scene's fixture list
 
   scene   Scene           @relation(fields: [sceneId], references: [id], onDelete: Cascade)
@@ -185,7 +185,7 @@ model InstanceChannel {
   fixtureId    String      @map("fixture_id")
   offset       Int
   name         String
-  type         ChannelType
+  type         String      // ChannelType enum stored as string
   minValue     Int         @default(0) @map("min_value")
   maxValue     Int         @default(255) @map("max_value")
   defaultValue Int         @default(0) @map("default_value")
@@ -220,7 +220,7 @@ model Cue {
   fadeInTime  Float       @default(0) @map("fade_in_time")
   fadeOutTime Float       @default(0) @map("fade_out_time")
   followTime  Float?      @map("follow_time")
-  easingType  EasingType? @map("easing_type")
+  easingType  String?     @map("easing_type") // EasingType enum stored as string
   notes       String?
   createdAt   DateTime    @default(now()) @map("created_at")
   updatedAt   DateTime    @updatedAt @map("updated_at")
@@ -257,51 +257,11 @@ model Setting {
   @@map("settings")
 }
 
-enum UserRole {
-  ADMIN
-  USER
-}
+// SQLite doesn't support enums, so we store them as strings
+// The application layer validates these values
 
-enum ProjectRole {
-  OWNER
-  EDITOR
-  VIEWER
-}
-
-enum FixtureType {
-  LED_PAR
-  MOVING_HEAD
-  STROBE
-  DIMMER
-  OTHER
-}
-
-enum ChannelType {
-  INTENSITY
-  RED
-  GREEN
-  BLUE
-  WHITE
-  AMBER
-  UV
-  PAN
-  TILT
-  ZOOM
-  FOCUS
-  IRIS
-  GOBO
-  COLOR_WHEEL
-  EFFECT
-  STROBE
-  MACRO
-  OTHER
-}
-
-enum EasingType {
-  LINEAR
-  EASE_IN_OUT_CUBIC
-  EASE_IN_OUT_SINE
-  EASE_OUT_EXPONENTIAL
-  BEZIER
-  S_CURVE
-}
+// UserRole: "ADMIN" | "USER"
+// ProjectRole: "OWNER" | "EDITOR" | "VIEWER"
+// FixtureType: "LED_PAR" | "MOVING_HEAD" | "STROBE" | "DIMMER" | "OTHER"
+// ChannelType: "INTENSITY" | "RED" | "GREEN" | "BLUE" | "WHITE" | "AMBER" | "UV" | "PAN" | "TILT" | "ZOOM" | "FOCUS" | "IRIS" | "GOBO" | "COLOR_WHEEL" | "EFFECT" | "STROBE" | "MACRO" | "OTHER"
+// EasingType: "LINEAR" | "EASE_IN_OUT_CUBIC" | "EASE_IN_OUT_SINE" | "EASE_OUT_EXPONENTIAL" | "BEZIER" | "S_CURVE"

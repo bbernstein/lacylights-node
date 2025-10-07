@@ -2,7 +2,7 @@ import { cueResolvers } from "../cue";
 import { playbackService } from "../../../services/playbackService";
 import { getPlaybackStateService } from "../../../services/playbackStateService";
 import type { Context } from "../../../context";
-import { EasingType } from "@prisma/client";
+import { EasingType } from "../../../types/enums";
 
 // Mock the playback service
 jest.mock("../../../services/playbackService", () => ({

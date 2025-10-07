@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PubSub } from "graphql-subscriptions";
 import { dmxService } from "./dmx";
+import { parseChannelValues } from "../utils/db-helpers";
 
 export interface PreviewSession {
   id: string;
@@ -152,7 +153,7 @@ export class PreviewService {
 
       // Apply all fixture values from the scene to the preview session
       for (const fixtureValue of scene.fixtureValues) {
-        const channelValues = fixtureValue.channelValues || [];
+        const channelValues = parseChannelValues(fixtureValue.channelValues);
 
         for (
           let channelIndex = 0;

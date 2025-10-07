@@ -3,7 +3,7 @@
  * A normalized JSON format for exporting and importing complete project data
  */
 
-import type { FixtureType, ChannelType, EasingType } from '@prisma/client';
+import type { FixtureType, ChannelType, EasingType } from './enums';
 
 /**
  * Root export format containing all project data

@@ -3,7 +3,7 @@ import { withFilter } from "graphql-subscriptions";
 import { logger } from "../../utils/logger";
 import { playbackService } from "../../services/playbackService";
 import { getPlaybackStateService } from "../../services/playbackStateService";
-import type { EasingType } from "@prisma/client";
+import type { EasingType } from "../../types/enums";
 
 // Input types for GraphQL mutations
 export interface CreateCueListInput {

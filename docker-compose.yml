@@ -1,49 +1,62 @@
+# Docker services for LacyLights development
+# NOTE: For production Raspberry Pi deployment, we use SQLite instead of PostgreSQL
+# and do not require Docker services
+
 services:
-  postgres:
-    image: postgres:15-alpine
-    container_name: lacylights-postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_DB: lacylights
-      POSTGRES_USER: lacylights
-      POSTGRES_PASSWORD: lacylights_dev_password
-      PGDATA: /var/lib/postgresql/data/pgdata
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U lacylights -d lacylights"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # PostgreSQL - Legacy database (use SQLite for production)
+  # Uncomment if you need to test with PostgreSQL
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: lacylights-postgres
+  #   restart: unless-stopped
+  #   environment:
+  #     POSTGRES_DB: lacylights
+  #     POSTGRES_USER: lacylights
+  #     POSTGRES_PASSWORD: lacylights_dev_password
+  #     PGDATA: /var/lib/postgresql/data/pgdata
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #     - ./docker/postgres/init:/docker-entrypoint-initdb.d
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U lacylights -d lacylights"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
-  redis:
-    image: redis:7-alpine
-    container_name: lacylights-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+  # Redis - Not currently used
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: lacylights-redis
+  #   restart: unless-stopped
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
 
-  adminer:
-    image: adminer:4.8.1
-    container_name: lacylights-adminer
-    restart: unless-stopped
-    ports:
-      - "8080:8080"
-    environment:
-      ADMINER_DEFAULT_SERVER: postgres
-    depends_on:
-      postgres:
-        condition: service_healthy
+  # Adminer - Database admin UI (only useful with PostgreSQL)
+  # adminer:
+  #   image: adminer:4.8.1
+  #   container_name: lacylights-adminer
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8080:8080"
+  #   environment:
+  #     ADMINER_DEFAULT_SERVER: postgres
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+
+# Placeholder service to keep docker-compose valid
+  placeholder:
+    image: hello-world
+    container_name: lacylights-placeholder
 
 volumes:
   postgres_data:

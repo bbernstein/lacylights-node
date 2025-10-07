@@ -1,6 +1,7 @@
 import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { fadeEngine } from "../../services/fadeEngine";
+import { parseChannelValues, serializeChannelValues } from "../../utils/db-helpers";
 
 // Type definitions for fixture values
 export interface FixtureValueInput {
@@ -35,8 +36,15 @@ async function upsertFixtureValues(
   });
 
   // Create a Map from fixtureId to existing fixtureValue for O(1) lookups
+  // Parse channelValues from JSON string to number array
   const existingValueMap = new Map(
-    existingValues.map((ev) => [ev.fixtureId, ev as ExistingFixtureValue]),
+    existingValues.map((ev) => [
+      ev.fixtureId,
+      {
+        ...ev,
+        channelValues: parseChannelValues(ev.channelValues),
+      } as ExistingFixtureValue,
+    ]),
   );
 
   // Batch operations for better performance
@@ -53,7 +61,7 @@ async function upsertFixtureValues(
           prisma.fixtureValue.update({
             where: { id: existingValue.id },
             data: {
-              channelValues: fv.channelValues,
+              channelValues: serializeChannelValues(fv.channelValues),
               sceneOrder: fv.sceneOrder,
             },
           }),
@@ -65,7 +73,7 @@ async function upsertFixtureValues(
       creates.push({
         sceneId: sceneId,
         fixtureId: fv.fixtureId,
-        channelValues: fv.channelValues,
+        channelValues: serializeChannelValues(fv.channelValues),
         sceneOrder: fv.sceneOrder,
       });
     }
@@ -219,14 +227,15 @@ export const sceneResolvers = {
 
           for (const fixtureValue of updatedScene.fixtureValues) {
             const fixture = fixtureValue.fixture;
+            const channelValues = parseChannelValues(fixtureValue.channelValues);
 
             // Iterate through channelValues array by index
             for (
               let channelIndex = 0;
-              channelIndex < fixtureValue.channelValues.length;
+              channelIndex < channelValues.length;
               channelIndex++
             ) {
-              const value = fixtureValue.channelValues[channelIndex];
+              const value = channelValues[channelIndex];
               const dmxChannel = fixture.startChannel + channelIndex;
 
               sceneChannels.push({
@@ -457,7 +466,7 @@ export const sceneResolvers = {
             data: fixtureValues.map((fv) => ({
               sceneId: sceneId,
               fixtureId: fv.fixtureId,
-              channelValues: fv.channelValues,
+              channelValues: serializeChannelValues(fv.channelValues),
               sceneOrder: fv.sceneOrder,
             })),
           });
@@ -500,14 +509,15 @@ export const sceneResolvers = {
 
         for (const fixtureValue of updatedScene.fixtureValues) {
           const fixture = fixtureValue.fixture;
+          const channelValues = parseChannelValues(fixtureValue.channelValues);
 
           // Iterate through channelValues array by index
           for (
             let channelIndex = 0;
-            channelIndex < fixtureValue.channelValues.length;
+            channelIndex < channelValues.length;
             channelIndex++
           ) {
-            const value = fixtureValue.channelValues[channelIndex];
+            const value = channelValues[channelIndex];
             const dmxChannel = fixture.startChannel + channelIndex;
 
             sceneChannels.push({

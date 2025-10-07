@@ -3,8 +3,10 @@
  * Imports project data from LacyLights native JSON format
  */
 
-import { PrismaClient, FixtureType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { FixtureType } from '../types/enums';
 import type { LacyLightsExport } from '../types/export.js';
+import { serializeTags, serializeChannelValues } from '../utils/db-helpers.js';
 
 /**
  * Options for importing a project
@@ -278,7 +280,7 @@ export class ImportService {
       // Check cache first, then query database if not found
       let definition = definitionCache.get(definitionId);
       if (definition === undefined) {
-        definition = await this.prisma.fixtureDefinition.findUnique({
+        const dbDefinition = await this.prisma.fixtureDefinition.findUnique({
           where: { id: definitionId },
           select: {
             manufacturer: true,
@@ -286,6 +288,11 @@ export class ImportService {
             type: true,
           },
         });
+        definition = dbDefinition ? {
+          manufacturer: dbDefinition.manufacturer,
+          model: dbDefinition.model,
+          type: dbDefinition.type as FixtureType,
+        } : null;
         definitionCache.set(definitionId, definition);
       }
 
@@ -331,7 +338,7 @@ export class ImportService {
           channelCount: exportFixture.channelCount,
           universe: exportFixture.universe,
           startChannel: exportFixture.startChannel,
-          tags: exportFixture.tags,
+          tags: serializeTags(exportFixture.tags),
           projectOrder: exportFixture.projectOrder,
           channels: {
             create: exportFixture.instanceChannels.map((ic) => ({
@@ -383,7 +390,7 @@ export class ImportService {
           fixtureValues: {
             create: fixtureValues.map((fv) => ({
               fixtureId: fixtureIdMap.get(fv.fixtureRefId)!,
-              channelValues: fv.channelValues,
+              channelValues: serializeChannelValues(fv.channelValues),
               sceneOrder: fv.sceneOrder,
             })),
           },
