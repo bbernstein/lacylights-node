@@ -109,6 +109,10 @@ fi
 echo "Installing backend dependencies..."
 sudo -u $PI_USER npm install
 
+# Generate Prisma Client (must be done before build)
+echo "Generating Prisma Client..."
+DATABASE_URL="file:$DATA_DIR/db.sqlite" sudo -u $PI_USER npm run db:generate
+
 # Build backend
 echo "Building backend..."
 sudo -u $PI_USER npm run build
