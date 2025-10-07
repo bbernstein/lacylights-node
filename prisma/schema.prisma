@@ -201,6 +201,7 @@ model CueList {
   id          String   @id @default(cuid())
   name        String
   description String?
+  loop        Boolean  @default(false) // Whether to loop back to first cue after last cue
   projectId   String   @map("project_id")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

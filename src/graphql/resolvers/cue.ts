@@ -9,12 +9,14 @@ import type { EasingType } from "../../types/enums";
 export interface CreateCueListInput {
   name: string;
   description?: string;
+  loop?: boolean;
   projectId: string;
 }
 
 export interface UpdateCueListInput {
   name?: string;
   description?: string;
+  loop?: boolean;
 }
 
 export interface CreateCueInput {
@@ -105,6 +107,7 @@ export const cueResolvers = {
         data: {
           name: input.name,
           description: input.description,
+          loop: input.loop ?? false,
           projectId: input.projectId,
         },
         include: {
@@ -126,12 +129,20 @@ export const cueResolvers = {
       { id, input }: { id: string; input: UpdateCueListInput },
       { prisma }: Context,
     ) => {
+      const updateData: { name?: string; description?: string; loop?: boolean } = {};
+      if (input.name !== undefined) {
+        updateData.name = input.name;
+      }
+      if (input.description !== undefined) {
+        updateData.description = input.description;
+      }
+      if (input.loop !== undefined) {
+        updateData.loop = input.loop;
+      }
+
       return prisma.cueList.update({
         where: { id },
-        data: {
-          name: input.name,
-          description: input.description,
-        },
+        data: updateData,
         include: {
           project: true,
           cues: {
@@ -350,8 +361,6 @@ export const cueResolvers = {
         throw new Error("No active playback for this cue list");
       }
 
-      const nextIndex = currentState.currentCueIndex + 1;
-
       // Get the cue list to check bounds and get next cue
       const cueList = await prisma.cueList.findUnique({
         where: { id: cueListId },
@@ -363,8 +372,20 @@ export const cueResolvers = {
         },
       });
 
-      if (!cueList || nextIndex >= cueList.cues.length) {
-        throw new Error("Already at last cue");
+      if (!cueList) {
+        throw new Error("Cue list not found");
+      }
+
+      let nextIndex = currentState.currentCueIndex + 1;
+
+      // Handle loop logic
+      if (nextIndex >= cueList.cues.length) {
+        if (cueList.loop && cueList.cues.length > 0) {
+          // Loop back to first cue
+          nextIndex = 0;
+        } else {
+          throw new Error("Already at last cue");
+        }
       }
 
       const nextCue = cueList.cues[nextIndex];

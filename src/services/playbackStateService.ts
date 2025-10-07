@@ -128,8 +128,8 @@ class PlaybackStateService {
         },
       });
 
-      if (!cueList || currentCueIndex + 1 >= cueList.cues.length) {
-        // No next cue, mark as stopped
+      if (!cueList) {
+        // Cue list not found, mark as stopped
         const state = this.states.get(cueListId);
         if (state) {
           state.isPlaying = false;
@@ -139,7 +139,28 @@ class PlaybackStateService {
         return;
       }
 
-      const nextCue = cueList.cues[currentCueIndex + 1];
+      // Determine next cue index
+      let nextCueIndex = currentCueIndex + 1;
+
+      // If we've reached the end of the cue list
+      if (nextCueIndex >= cueList.cues.length) {
+        // Check if loop is enabled
+        if (cueList.loop && cueList.cues.length > 0) {
+          // Loop back to the first cue
+          nextCueIndex = 0;
+        } else {
+          // No loop, mark as stopped
+          const state = this.states.get(cueListId);
+          if (state) {
+            state.isPlaying = false;
+            state.lastUpdated = new Date();
+            this.emitUpdate(cueListId);
+          }
+          return;
+        }
+      }
+
+      const nextCue = cueList.cues[nextCueIndex];
 
       // Call playCue through the dmx resolver to actually trigger DMX output
       // This ensures auto-follow behaves exactly like manual advance
