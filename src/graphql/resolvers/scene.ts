@@ -541,5 +541,11 @@ export const sceneResolvers = {
     },
   },
 
-  types: {},
+  types: {
+    FixtureValue: {
+      channelValues: (parent: any) => {
+        return parseChannelValues(parent.channelValues);
+      },
+    },
+  },
 };
