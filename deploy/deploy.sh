@@ -105,13 +105,43 @@ else
     cd backend
 fi
 
+# Create .env file for backend
+echo "Creating backend .env file..."
+cat > "$DEPLOY_DIR/backend/.env" <<EOF
+# Database
+DATABASE_URL="file:$DATA_DIR/db.sqlite"
+
+# Server Configuration
+PORT=4000
+NODE_ENV=production
+
+# CORS Configuration
+CORS_ORIGIN=*
+
+# DMX Configuration
+DMX_UNIVERSE_COUNT=4
+DMX_REFRESH_RATE=44
+
+# Art-Net Configuration
+ARTNET_ENABLED=true
+# ARTNET_BROADCAST=192.168.1.255
+
+# Session Configuration
+SESSION_SECRET=$(openssl rand -hex 32)
+
+# Docker Configuration
+DOCKER_MODE=false
+EOF
+chown $PI_USER:$PI_USER "$DEPLOY_DIR/backend/.env"
+echo "✓ Backend .env file created"
+
 # Install backend dependencies
 echo "Installing backend dependencies..."
 sudo -u $PI_USER npm install
 
 # Generate Prisma Client (must be done before build)
 echo "Generating Prisma Client..."
-DATABASE_URL="file:$DATA_DIR/db.sqlite" sudo -u $PI_USER npm run db:generate
+sudo -u $PI_USER npm run db:generate
 
 # Build backend
 echo "Building backend..."
@@ -119,7 +149,7 @@ sudo -u $PI_USER npm run build
 
 # Run database migrations
 echo "Running database migrations..."
-DATABASE_URL="file:$DATA_DIR/db.sqlite" sudo -u $PI_USER npm run db:migrate
+sudo -u $PI_USER npm run db:migrate
 
 echo "✓ Backend setup complete"
 
