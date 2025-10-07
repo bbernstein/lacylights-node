@@ -394,11 +394,10 @@ describe("Fixture Resolvers", () => {
             name: input.name,
             description: input.description,
             definitionId: input.definitionId,
-            modeId: undefined,
             projectId: input.projectId,
             universe: input.universe,
             startChannel: input.startChannel,
-            tags: input.tags,
+            tags: '["front","wash"]',
             manufacturer: mockDefinition.manufacturer,
             model: mockDefinition.model,
             type: mockDefinition.type,
@@ -562,7 +561,13 @@ describe("Fixture Resolvers", () => {
         expect(result).toEqual(mockResult);
         expect(mockContext.prisma.fixtureInstance.update).toHaveBeenCalledWith({
           where: { id: "fixture-1" },
-          data: input,
+          data: {
+            name: "Updated Fixture",
+            description: "Updated description",
+            universe: 2,
+            startChannel: 10,
+            tags: '["updated"]',
+          },
           include: expect.any(Object),
         });
       });
