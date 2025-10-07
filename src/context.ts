@@ -34,6 +34,89 @@ let sharedPubSub: PubSub | null = null;
 export function getSharedPrisma(): PrismaClient {
   if (!sharedPrisma) {
     sharedPrisma = new PrismaClient();
+
+    // Middleware to automatically serialize/deserialize channelValues for SQLite
+    sharedPrisma.$use(async (params, next) => {
+      const serializeChannelValues = (item: any) => {
+        if (item && item.channelValues && Array.isArray(item.channelValues)) {
+          item.channelValues = JSON.stringify(item.channelValues);
+        }
+      };
+
+      const serializeFixtureValues = (data: any) => {
+        if (!data) {return;}
+
+        // Handle direct FixtureValue operations
+        if (params.model === 'FixtureValue') {
+          if (Array.isArray(data)) {
+            data.forEach(serializeChannelValues);
+          } else {
+            serializeChannelValues(data);
+          }
+        }
+
+        // Handle nested FixtureValue in Scene operations
+        if (params.model === 'Scene' && data.fixtureValues) {
+          if (data.fixtureValues.create) {
+            const creates = Array.isArray(data.fixtureValues.create) ? data.fixtureValues.create : [data.fixtureValues.create];
+            creates.forEach(serializeChannelValues);
+          }
+          if (data.fixtureValues.update) {
+            const updates = Array.isArray(data.fixtureValues.update) ? data.fixtureValues.update : [data.fixtureValues.update];
+            updates.forEach((u: any) => serializeChannelValues(u.data || u));
+          }
+        }
+      };
+
+      // Serialize before write operations
+      if (params.action === 'create' || params.action === 'update' || params.action === 'createMany' || params.action === 'updateMany') {
+        serializeFixtureValues(params.args.data);
+      }
+
+      const result = await next(params);
+
+      // Deserialize after read operations
+      const deserialize = (item: any) => {
+        if (item && item.channelValues && typeof item.channelValues === 'string') {
+          try {
+            item.channelValues = JSON.parse(item.channelValues);
+          } catch {
+            item.channelValues = [];
+          }
+        }
+        return item;
+      };
+
+      const deserializeResult = (result: any) => {
+        if (!result) {return result;}
+
+        // Handle FixtureValue results
+        if (params.model === 'FixtureValue') {
+          if (Array.isArray(result)) {
+            result.forEach(deserialize);
+          } else {
+            deserialize(result);
+          }
+        }
+
+        // Handle Scene results with nested fixtureValues
+        if (params.model === 'Scene') {
+          if (Array.isArray(result)) {
+            result.forEach((scene: any) => {
+              if (scene.fixtureValues) {
+                scene.fixtureValues.forEach(deserialize);
+              }
+            });
+          } else if (result.fixtureValues) {
+            result.fixtureValues.forEach(deserialize);
+          }
+        }
+
+        return result;
+      };
+
+      return deserializeResult(result);
+    });
   }
   return sharedPrisma;
 }
