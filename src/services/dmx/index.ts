@@ -357,6 +357,13 @@ export class DMXService {
       logger.info(
         `📡 DMX transmission: manual trigger to high rate (${this.refreshRate}Hz)`,
       );
+      // Immediately process and send current DMX state, then reschedule at high rate
+      // This prevents the "first frame delay" issue where fades appear to skip ahead
+      if (this.isDirty && this.artNetEnabled && this.socket) {
+        this.outputDMX();
+        this.lastTransmissionTime = Date.now();
+      }
+      this.scheduleNextTransmission();
     }
   }
 
