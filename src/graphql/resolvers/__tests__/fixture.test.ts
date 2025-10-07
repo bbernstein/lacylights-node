@@ -101,7 +101,6 @@ describe("Fixture Resolvers", () => {
           where: {
             manufacturer: {
               contains: "Chauvet",
-              mode: "insensitive",
             },
           },
           include: expect.any(Object),
@@ -125,7 +124,6 @@ describe("Fixture Resolvers", () => {
           where: {
             model: {
               contains: "SlimPAR",
-              mode: "insensitive",
             },
           },
           include: expect.any(Object),
@@ -224,7 +222,6 @@ describe("Fixture Resolvers", () => {
           where: {
             manufacturer: {
               contains: "Chauvet",
-              mode: "insensitive",
             },
             type: FixtureType.LED_PAR,
             isBuiltIn: false,

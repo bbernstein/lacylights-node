@@ -26,14 +26,12 @@ export const fixtureResolvers = {
         if (filter.manufacturer) {
           where.manufacturer = {
             contains: filter.manufacturer,
-            mode: "insensitive",
           };
         }
 
         if (filter.model) {
           where.model = {
             contains: filter.model,
-            mode: "insensitive",
           };
         }
 
