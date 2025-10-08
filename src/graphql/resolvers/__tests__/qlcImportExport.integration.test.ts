@@ -7,6 +7,7 @@
 
 import fs from 'fs';
 import path from 'path';
+import { execSync } from 'child_process';
 import { PrismaClient } from '@prisma/client';
 import { qlcExportResolvers } from '../qlcExport';
 import * as xml2js from 'xml2js';
@@ -31,16 +32,13 @@ describe('QLC+ Import/Export Integration Tests', () => {
       }
 
       // Run migrations to set up the schema
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { execSync } = require('child_process');
       try {
         execSync('npx prisma migrate deploy', {
           stdio: 'pipe',
           env: { ...process.env, DATABASE_URL: testDbUrl },
         });
       } catch (error) {
-        console.error('Migration failed:', error);
-        throw error;
+        throw new Error(`Migration failed: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
 

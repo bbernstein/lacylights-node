@@ -38,6 +38,10 @@ jest.mock('../graphql/resolvers', () => ({
 }));
 
 describe('LacyLightsServer', () => {
+  // Test timeout constants for performance optimization
+  const TEST_OPERATION_TIMEOUT_MS = 100;
+  const TEST_TIMEOUT_DELAY_MS = 200; // Exceeds TEST_OPERATION_TIMEOUT_MS
+
   let mockDependencies: ServerDependencies;
   let mockLogger: any;
 
@@ -465,15 +469,15 @@ describe('LacyLightsServer', () => {
     });
 
     it('should handle WebSocket disposal timeout', async () => {
-      // Create server with short timeout for faster testing (100ms instead of default 5000ms)
-      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: 100 }, mockDependencies);
+      // Create server with short timeout for faster testing
+      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: TEST_OPERATION_TIMEOUT_MS }, mockDependencies);
       (fastTimeoutServer as any).serverInstances = {
         server: { close: jest.fn() },
         wsServer: mockWsServer
       };
 
       mockWsServer.dispose = jest.fn().mockImplementation(() =>
-        new Promise((resolve) => setTimeout(resolve, 200)) // 200ms exceeds the 100ms timeout
+        new Promise((resolve) => setTimeout(resolve, TEST_TIMEOUT_DELAY_MS))
       );
 
       await fastTimeoutServer.shutdownWebSocket();
@@ -544,8 +548,8 @@ describe('LacyLightsServer', () => {
     });
 
     it('should handle HTTP server close timeout', async () => {
-      // Create server with short timeout for faster testing (100ms instead of default 5000ms)
-      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: 100 }, mockDependencies);
+      // Create server with short timeout for faster testing
+      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: TEST_OPERATION_TIMEOUT_MS }, mockDependencies);
       const slowHttpServer = {
         close: jest.fn().mockImplementation(() => {
           // Never call callback to simulate timeout
