@@ -20,7 +20,7 @@ import type {
   ExportCue,
 } from '../types/export.js';
 import { ChannelType, FixtureType, EasingType } from '../types/enums.js';
-import { parseTags } from '../utils/db-helpers.js';
+import { parseTags } from '../utils/db-helpers';
 
 const EXPORT_FORMAT_VERSION = '1.0.0';
 

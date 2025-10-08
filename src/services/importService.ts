@@ -6,7 +6,7 @@
 import { PrismaClient } from '@prisma/client';
 import { FixtureType } from '../types/enums';
 import type { LacyLightsExport } from '../types/export.js';
-import { serializeTags } from '../utils/db-helpers.js';
+import { serializeTags } from '../utils/db-helpers';
 
 /**
  * Options for importing a project

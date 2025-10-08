@@ -6,6 +6,7 @@ import { ImportService } from '../importService';
 import { PrismaClient } from '@prisma/client';
 import { mockDeep, DeepMockProxy } from 'jest-mock-extended';
 import type { LacyLightsExport } from '../../types/export';
+import { FixtureType, ChannelType, EasingType } from '../../types/enums';
 
 describe('ImportService', () => {
   let importService: ImportService;
@@ -34,7 +35,7 @@ describe('ImportService', () => {
         refId: 'def-0',
         manufacturer: 'Test Mfg',
         model: 'Test Model',
-        type: 'LED_PAR',
+        type: FixtureType.LED_PAR,
         isBuiltIn: false,
         modes: [
           {
@@ -49,7 +50,7 @@ describe('ImportService', () => {
           {
             refId: 'ch-0',
             name: 'Red',
-            type: 'RED',
+            type: ChannelType.RED,
             offset: 0,
             minValue: 0,
             maxValue: 255,
@@ -74,7 +75,7 @@ describe('ImportService', () => {
         instanceChannels: [
           {
             name: 'Red',
-            type: 'RED',
+            type: ChannelType.RED,
             offset: 0,
             minValue: 0,
             maxValue: 255,
@@ -117,7 +118,7 @@ describe('ImportService', () => {
             fadeInTime: 3.0,
             fadeOutTime: 3.0,
             followTime: undefined,
-            easingType: 'LINEAR',
+            easingType: EasingType.LINEAR,
             notes: 'Test cue',
             createdAt: '2025-01-01T00:00:00.000Z',
             updatedAt: '2025-01-01T00:00:00.000Z',

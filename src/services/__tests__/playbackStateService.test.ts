@@ -6,6 +6,9 @@ const mockPrisma = {
   cueList: {
     findUnique: jest.fn(),
   },
+  cue: {
+    findUnique: jest.fn(),
+  },
 } as unknown as PrismaClient;
 
 const mockPubSub = {
@@ -27,6 +30,10 @@ describe("PlaybackStateService", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+
+    // Reset mock implementations
+    mockPrisma.cueList.findUnique = jest.fn();
+    mockPrisma.cue.findUnique = jest.fn();
 
     // Get the service instance for testing
     playbackStateService = getPlaybackStateService();
@@ -171,6 +178,22 @@ describe("PlaybackStateService", () => {
         .fn()
         .mockResolvedValue(mockCueListForFollow);
 
+      // Mock cue.findUnique for when playCue is called during follow time
+      mockPrisma.cue.findUnique = jest.fn().mockResolvedValue({
+        id: "cue-2",
+        name: "Test Cue 2",
+        cueNumber: 2.0,
+        fadeInTime: 2.0,
+        fadeOutTime: 2.0,
+        followTime: null,
+        easingType: null,
+        scene: {
+          id: "scene-2",
+          fixtureValues: [],
+        },
+        cueList: mockCueListForFollow,
+      });
+
       await playbackStateService.startCue("test-cue-list", 0, cueWithFollow);
 
       // Verify initial state
@@ -178,8 +201,10 @@ describe("PlaybackStateService", () => {
       expect(state!.currentCueIndex).toBe(0);
 
       // Fast-forward past fade + follow time (3s fade + 2s follow = 5s)
-      // Use runAllTimers to handle async operations in the follow timeout
-      await jest.runAllTimersAsync();
+      // Note: advanceTimersByTime doesn't trigger the async callback immediately
+      // We need to use runOnlyPendingTimersAsync to execute the callbacks
+      jest.advanceTimersByTime(5000);
+      await jest.runOnlyPendingTimersAsync();
 
       // Should have automatically moved to next cue
       state = playbackStateService.getPlaybackState("test-cue-list");

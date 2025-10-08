@@ -629,6 +629,7 @@ describe("Cue Resolvers", () => {
         data: {
           name: "Test Cue List",
           description: "Test Description",
+          loop: false,
           projectId: "project-123"
         },
         include: {
