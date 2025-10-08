@@ -239,7 +239,9 @@ class PlaybackStateService {
       });
 
       if (!nextCue) {
-        throw new Error(`Next cue not found at index ${nextCueIndex}`);
+        throw new Error(
+          `Next cue not found in cue list '${cueListId}' at index ${nextCueIndex} (cueId: ${cueList.cues[nextCueIndex]?.id}). Total cues: ${cueList.cues.length}`,
+        );
       }
 
       // Execute the cue's DMX output

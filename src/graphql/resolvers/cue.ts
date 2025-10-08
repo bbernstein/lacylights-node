@@ -129,16 +129,10 @@ export const cueResolvers = {
       { id, input }: { id: string; input: UpdateCueListInput },
       { prisma }: Context,
     ) => {
-      const updateData: { name?: string; description?: string; loop?: boolean } = {};
-      if (input.name !== undefined) {
-        updateData.name = input.name;
-      }
-      if (input.description !== undefined) {
-        updateData.description = input.description;
-      }
-      if (input.loop !== undefined) {
-        updateData.loop = input.loop;
-      }
+      // Filter out undefined values to only update provided fields
+      const updateData = Object.fromEntries(
+        Object.entries(input).filter(([, v]) => v !== undefined),
+      ) as { name?: string; description?: string; loop?: boolean };
 
       return prisma.cueList.update({
         where: { id },

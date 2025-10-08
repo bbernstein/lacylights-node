@@ -13,7 +13,9 @@ export function parseChannelValues(channelValues: string | null | undefined): nu
   try {
     const parsed = JSON.parse(channelValues);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to parse channel values:', error);
     return [];
   }
 }
@@ -35,7 +37,9 @@ export function parseTags(tags: string | null | undefined): string[] {
   try {
     const parsed = JSON.parse(tags);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (error) {
+    // eslint-disable-next-line no-console
+    console.warn('Failed to parse tags:', error);
     return [];
   }
 }
