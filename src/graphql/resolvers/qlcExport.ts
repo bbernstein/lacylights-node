@@ -819,12 +819,17 @@ export const qlcExportResolvers = {
               const cueListName = func.$.Name || "Imported Cue List";
               const steps = func.Step || [];
 
+              // Check if RunOrder is "Loop" (QLC+ uses <RunOrder>Loop</RunOrder> or <RunOrder>Single</RunOrder>)
+              const runOrder = func.RunOrder?.[0] || "Single";
+              const loop = runOrder === "Loop";
+
               // Create cue list
               const cueList = await prisma.cueList.create({
                 data: {
                   name: cueListName,
                   description: "Imported from QLC+",
                   projectId: project.id,
+                  loop: loop,
                 },
               });
 

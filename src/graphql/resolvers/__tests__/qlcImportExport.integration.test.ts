@@ -403,6 +403,7 @@ describe('QLC+ Import/Export Integration Tests', () => {
       expect(project!.cueLists).toHaveLength(1);
       const cueList = project!.cueLists[0];
       expect(cueList.name).toBe('Full Show Cuelist');
+      expect(cueList.loop).toBe(true); // Verify RunOrder:Loop was imported
       expect(cueList.cues).toHaveLength(4);
 
       // Verify cue timing (QLC+ stores in milliseconds, we store in seconds)
