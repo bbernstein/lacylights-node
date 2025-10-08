@@ -1,5 +1,6 @@
 import { mockDeep } from 'jest-mock-extended';
-import { PrismaClient, FixtureType, ChannelType } from '@prisma/client';
+import { PrismaClient } from '@prisma/client';
+import { FixtureType, ChannelType } from '../../../types/enums';
 import { DatabaseService, FixtureDefinition } from '../DatabaseService';
 
 describe('DatabaseService', () => {

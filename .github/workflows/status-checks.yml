@@ -34,31 +34,6 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lacylights_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
 
     steps:
       - uses: actions/checkout@v4
@@ -71,9 +46,10 @@ jobs:
       - name: Setup test environment
         run: |
           cp .env.example .env
-          sed -i 's/postgresql:\/\/lacylights:lacylights_dev_password@localhost:5432\/lacylights/postgresql:\/\/postgres:postgres@localhost:5432\/lacylights_test/' .env
+          sed -i 's|file:./dev.db|file:./test.db|' .env
           echo "ARTNET_ENABLED=false" >> .env
           echo "DMX_UNIVERSE_COUNT=2" >> .env
+          echo "NON_INTERACTIVE=true" >> .env
 
       - name: Setup database
         run: |
@@ -83,7 +59,7 @@ jobs:
       - run: npm test
         env:
           NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lacylights_test
+          DATABASE_URL: file:./test.db
 
   # Combine all checks into a single status check
   all-checks:

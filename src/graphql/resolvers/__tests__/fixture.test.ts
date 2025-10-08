@@ -1,6 +1,6 @@
 import { fixtureResolvers } from "../fixture";
 import type { Context } from "../../../context";
-import { FixtureType, ChannelType } from "@prisma/client";
+import { FixtureType, ChannelType } from "../../../types/enums";
 
 const mockContext: Context = {
   prisma: {
@@ -101,7 +101,6 @@ describe("Fixture Resolvers", () => {
           where: {
             manufacturer: {
               contains: "Chauvet",
-              mode: "insensitive",
             },
           },
           include: expect.any(Object),
@@ -125,7 +124,6 @@ describe("Fixture Resolvers", () => {
           where: {
             model: {
               contains: "SlimPAR",
-              mode: "insensitive",
             },
           },
           include: expect.any(Object),
@@ -224,7 +222,6 @@ describe("Fixture Resolvers", () => {
           where: {
             manufacturer: {
               contains: "Chauvet",
-              mode: "insensitive",
             },
             type: FixtureType.LED_PAR,
             isBuiltIn: false,
@@ -397,11 +394,10 @@ describe("Fixture Resolvers", () => {
             name: input.name,
             description: input.description,
             definitionId: input.definitionId,
-            modeId: undefined,
             projectId: input.projectId,
             universe: input.universe,
             startChannel: input.startChannel,
-            tags: input.tags,
+            tags: '["front","wash"]',
             manufacturer: mockDefinition.manufacturer,
             model: mockDefinition.model,
             type: mockDefinition.type,
@@ -565,7 +561,13 @@ describe("Fixture Resolvers", () => {
         expect(result).toEqual(mockResult);
         expect(mockContext.prisma.fixtureInstance.update).toHaveBeenCalledWith({
           where: { id: "fixture-1" },
-          data: input,
+          data: {
+            name: "Updated Fixture",
+            description: "Updated description",
+            universe: 2,
+            startChannel: 10,
+            tags: '["updated"]',
+          },
           include: expect.any(Object),
         });
       });

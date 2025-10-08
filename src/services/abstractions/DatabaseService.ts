@@ -1,4 +1,5 @@
-import { PrismaClient, FixtureType, ChannelType } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { FixtureType, ChannelType } from "../../types/enums";
 
 export interface ChannelDefinition {
   name: string;

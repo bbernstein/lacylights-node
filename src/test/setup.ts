@@ -12,6 +12,7 @@ const mockPrismaClient = {
   $executeRaw: jest.fn().mockResolvedValue({ count: 0 }),
   $executeRawUnsafe: jest.fn().mockResolvedValue({ count: 0 }),
   $transaction: jest.fn(),
+  $use: jest.fn().mockReturnValue(undefined), // Mock middleware registration
   project: {
     findMany: jest.fn().mockResolvedValue([]),
     findUnique: jest.fn().mockResolvedValue(null),

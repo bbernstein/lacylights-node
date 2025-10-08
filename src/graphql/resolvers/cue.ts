@@ -3,18 +3,20 @@ import { withFilter } from "graphql-subscriptions";
 import { logger } from "../../utils/logger";
 import { playbackService } from "../../services/playbackService";
 import { getPlaybackStateService } from "../../services/playbackStateService";
-import type { EasingType } from "@prisma/client";
+import type { EasingType } from "../../types/enums";
 
 // Input types for GraphQL mutations
 export interface CreateCueListInput {
   name: string;
   description?: string;
+  loop?: boolean;
   projectId: string;
 }
 
 export interface UpdateCueListInput {
   name?: string;
   description?: string;
+  loop?: boolean;
 }
 
 export interface CreateCueInput {
@@ -105,6 +107,7 @@ export const cueResolvers = {
         data: {
           name: input.name,
           description: input.description,
+          loop: input.loop ?? false,
           projectId: input.projectId,
         },
         include: {
@@ -126,12 +129,14 @@ export const cueResolvers = {
       { id, input }: { id: string; input: UpdateCueListInput },
       { prisma }: Context,
     ) => {
+      // Filter out undefined values to only update provided fields
+      const updateData = Object.fromEntries(
+        Object.entries(input).filter(([, v]) => v !== undefined),
+      ) as { name?: string; description?: string; loop?: boolean };
+
       return prisma.cueList.update({
         where: { id },
-        data: {
-          name: input.name,
-          description: input.description,
-        },
+        data: updateData,
         include: {
           project: true,
           cues: {
@@ -350,8 +355,6 @@ export const cueResolvers = {
         throw new Error("No active playback for this cue list");
       }
 
-      const nextIndex = currentState.currentCueIndex + 1;
-
       // Get the cue list to check bounds and get next cue
       const cueList = await prisma.cueList.findUnique({
         where: { id: cueListId },
@@ -363,8 +366,20 @@ export const cueResolvers = {
         },
       });
 
-      if (!cueList || nextIndex >= cueList.cues.length) {
-        throw new Error("Already at last cue");
+      if (!cueList) {
+        throw new Error("Cue list not found");
+      }
+
+      let nextIndex = currentState.currentCueIndex + 1;
+
+      // Handle loop logic
+      if (nextIndex >= cueList.cues.length) {
+        if (cueList.loop && cueList.cues.length > 0) {
+          // Loop back to first cue
+          nextIndex = 0;
+        } else {
+          throw new Error("Already at last cue");
+        }
       }
 
       const nextCue = cueList.cues[nextIndex];

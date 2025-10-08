@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
-import { FixtureType, ChannelType, PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@prisma/client";
+import { FixtureType, ChannelType } from "../types/enums";
 import {
   IFileSystemService,
   FileSystemService,

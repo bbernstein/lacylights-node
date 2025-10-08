@@ -236,6 +236,7 @@ describe("DMX Resolvers", () => {
 
     describe("playCue", () => {
       const mockPlaybackService = {
+        executeCueDmx: jest.fn(),
         startCue: jest.fn(),
       };
 
@@ -284,16 +285,10 @@ describe("DMX Resolvers", () => {
         );
 
         expect(result).toBe(true);
-        expect(fadeEngine.fadeToScene).toHaveBeenCalledWith(
-          [
-            { universe: 1, channel: 5, value: 255 },
-            { universe: 1, channel: 6, value: 128 },
-          ],
-          3.0,
-          "cue-cue-1",
-          "linear",
+        expect(mockPlaybackService.executeCueDmx).toHaveBeenCalledWith(
+          mockCue,
+          undefined,
         );
-        expect(dmxService.setActiveScene).toHaveBeenCalledWith("scene-1");
         expect(mockPlaybackService.startCue).toHaveBeenCalledWith(
           "cuelist-1",
           0,
@@ -328,11 +323,9 @@ describe("DMX Resolvers", () => {
         );
 
         expect(result).toBe(true);
-        expect(fadeEngine.fadeToScene).toHaveBeenCalledWith(
-          [],
+        expect(mockPlaybackService.executeCueDmx).toHaveBeenCalledWith(
+          mockCue,
           1.5,
-          "cue-cue-1",
-          null,
         );
       });
 
@@ -375,8 +368,10 @@ describe("DMX Resolvers", () => {
         );
 
         expect(result).toBe(true);
-        expect(fadeEngine.fadeToScene).toHaveBeenCalled();
-        expect(dmxService.setActiveScene).toHaveBeenCalledWith("scene-1");
+        expect(mockPlaybackService.executeCueDmx).toHaveBeenCalledWith(
+          mockCue,
+          undefined,
+        );
         expect(mockPlaybackService.startCue).not.toHaveBeenCalled();
       });
     });

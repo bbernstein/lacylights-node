@@ -4,7 +4,8 @@ import {
   QLCFixtureLibrary,
   FixtureMapping,
 } from "../../services/qlcFixtureLibrary";
-import { ChannelType } from "@prisma/client";
+import { ChannelType } from "../../types/enums";
+import { serializeTags } from "../../utils/db-helpers";
 
 // Constants
 const FIXTURE_INDEX_DELIMITER = "|||";
@@ -189,10 +190,12 @@ export const qlcExportResolvers = {
                     (fv) => fv.fixtureId === fixture.id,
                   );
 
-                  if (fixtureValue && fixtureValue.channelValues.length > 0) {
+                  // Middleware automatically deserializes channelValues to array
+                  const channelValues = (fixtureValue?.channelValues || []) as number[];
+                  if (fixtureValue && channelValues.length > 0) {
                     // Convert channel values array to comma-separated string
-                    const channelValuesStr = fixtureValue.channelValues
-                      .map((value, channelIndex) => `${channelIndex},${value}`)
+                    const channelValuesStr = channelValues
+                      .map((value: number, channelIndex: number) => `${channelIndex},${value}`)
                       .join(",");
 
                     return {
@@ -645,7 +648,7 @@ export const qlcExportResolvers = {
                 channelsToCreate.push({
                   offset: i,
                   name: `Channel ${i + 1}`,
-                  type: i === 0 ? "INTENSITY" : "OTHER",
+                  type: (i === 0 ? ChannelType.INTENSITY : ChannelType.OTHER) as ChannelType,
                   minValue: 0,
                   maxValue: 255,
                   defaultValue: 0,
@@ -667,7 +670,7 @@ export const qlcExportResolvers = {
                 projectId: project.id,
                 universe,
                 startChannel,
-                tags: ["imported"],
+                tags: serializeTags(["imported"]),
                 channels: {
                   create: channelsToCreate,
                 },
@@ -766,9 +769,10 @@ export const qlcExportResolvers = {
                     }
                     // If no channel data (fv._ is empty/undefined), channelValues remains all zeros
 
+                    // Middleware automatically serializes channelValues array to string
                     sceneFixtureValues.push({
                       fixtureId: lacyFixtureId,
-                      channelValues: channelValues,
+                      channelValues: channelValues as any,
                     });
                   }
                 } else if (qlcFixtureId) {

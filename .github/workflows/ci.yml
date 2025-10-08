@@ -14,31 +14,6 @@ jobs:
     strategy:
       matrix:
         node-version: [22.x, 24.x]
-    
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: lacylights_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 5432:5432
-      
-      redis:
-        image: redis:7
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-        ports:
-          - 6379:6379
 
     steps:
       - name: Checkout code
@@ -63,14 +38,14 @@ jobs:
         run: |
           cp .env.example .env || echo "No .env.example found, creating .env"
           cat > .env << EOF
-          DATABASE_URL="postgresql://postgres:postgres@localhost:5432/lacylights_test"
-          REDIS_URL="redis://localhost:6379"
+          DATABASE_URL="file:./test.db"
           PORT=4000
           NODE_ENV=test
           CORS_ORIGIN="http://localhost:3000"
           ARTNET_ENABLED=false
           DMX_UNIVERSE_COUNT=2
           DMX_REFRESH_RATE=44
+          NON_INTERACTIVE=true
           EOF
 
       - name: Run database migrations
@@ -83,8 +58,7 @@ jobs:
         run: npm test
         env:
           NODE_ENV: test
-          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lacylights_test
-          REDIS_URL: redis://localhost:6379
+          DATABASE_URL: file:./test.db
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3

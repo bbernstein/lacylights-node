@@ -1,4 +1,4 @@
-import { FixtureType, ChannelType } from "@prisma/client";
+import { FixtureType, ChannelType } from "../../types/enums";
 import { FixtureSetupService } from "../fixtureSetupService";
 import { IFileSystemService } from "../abstractions/FileSystemService";
 import { IHttpService, HttpRequest } from "../abstractions/HttpService";

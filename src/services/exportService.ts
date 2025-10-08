@@ -19,6 +19,8 @@ import type {
   ExportCueList,
   ExportCue,
 } from '../types/export.js';
+import { ChannelType, FixtureType, EasingType } from '../types/enums.js';
+import { parseTags } from '../utils/db-helpers';
 
 const EXPORT_FORMAT_VERSION = '1.0.0';
 
@@ -189,7 +191,7 @@ export class ExportService {
         exportChannels.push({
           refId: channelRefId,
           name: channel.name,
-          type: channel.type,
+          type: channel.type as ChannelType,
           offset: channel.offset,
           minValue: channel.minValue,
           maxValue: channel.maxValue,
@@ -227,7 +229,7 @@ export class ExportService {
         refId: defRefId,
         manufacturer: definition.manufacturer,
         model: definition.model,
-        type: definition.type,
+        type: definition.type as FixtureType,
         isBuiltIn: definition.isBuiltIn,
         modes: exportModes,
         channels: exportChannels,
@@ -242,7 +244,7 @@ export class ExportService {
 
       const exportInstanceChannels: ExportInstanceChannel[] = instance.channels.map((ic) => ({
         name: ic.name,
-        type: ic.type,
+        type: ic.type as ChannelType,
         offset: ic.offset,
         minValue: ic.minValue,
         maxValue: ic.maxValue,
@@ -259,7 +261,7 @@ export class ExportService {
         channelCount: instance.channelCount ?? undefined,
         universe: instance.universe,
         startChannel: instance.startChannel,
-        tags: instance.tags,
+        tags: parseTags(instance.tags),
         projectOrder: instance.projectOrder ?? undefined,
         instanceChannels: exportInstanceChannels,
         createdAt: instance.createdAt.toISOString(),
@@ -301,9 +303,10 @@ export class ExportService {
         if (!fixtureRefId) {
           throw new Error(`Missing fixture reference for fixture ${fv.fixtureId} in scene: ${scene.name}`);
         }
+        // Middleware automatically deserializes channelValues to array
         return {
           fixtureRefId,
-          channelValues: fv.channelValues,
+          channelValues: fv.channelValues as unknown as number[],
           sceneOrder: fv.sceneOrder ?? undefined,
         };
       });
@@ -358,7 +361,7 @@ export class ExportService {
           fadeInTime: cue.fadeInTime,
           fadeOutTime: cue.fadeOutTime,
           followTime: cue.followTime ?? undefined,
-          easingType: cue.easingType ?? undefined,
+          easingType: (cue.easingType as EasingType) ?? undefined,
           notes: cue.notes ?? undefined,
           createdAt: cue.createdAt.toISOString(),
           updatedAt: cue.updatedAt.toISOString(),

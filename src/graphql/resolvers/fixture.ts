@@ -1,5 +1,6 @@
 import { Context } from "../../context";
-import { ChannelType, FixtureType } from "@prisma/client";
+import { ChannelType, FixtureType } from "../../types/enums";
+import { parseTags, serializeTags } from "../../utils/db-helpers";
 
 // Input types for GraphQL queries and mutations
 export interface FixtureDefinitionFilter {
@@ -23,17 +24,17 @@ export const fixtureResolvers = {
       const where: Record<string, unknown> = {};
 
       if (filter) {
+        // Note: SQLite LIKE (used by contains) is case-insensitive for ASCII characters by default
+        // Unlike PostgreSQL's mode:'insensitive', this may be case-sensitive for non-ASCII characters
         if (filter.manufacturer) {
           where.manufacturer = {
             contains: filter.manufacturer,
-            mode: "insensitive",
           };
         }
 
         if (filter.model) {
           where.model = {
             contains: filter.model,
-            mode: "insensitive",
           };
         }
 
@@ -193,7 +194,7 @@ export const fixtureResolvers = {
           projectId: input.projectId,
           universe: input.universe,
           startChannel: input.startChannel,
-          tags: input.tags,
+          tags: input.tags ? serializeTags(input.tags) : null,
           manufacturer: definition.manufacturer,
           model: definition.model,
           type: definition.type,
@@ -237,7 +238,7 @@ export const fixtureResolvers = {
       }
 
       if (input.tags !== undefined) {
-        updateData.tags = input.tags;
+        updateData.tags = input.tags ? serializeTags(input.tags) : null;
       }
 
       // If definitionId or modeId is changed, update flattened fields
@@ -368,6 +369,9 @@ export const fixtureResolvers = {
           where: { fixtureId: parent.id },
           orderBy: { offset: "asc" },
         });
+      },
+      tags: (parent: any) => {
+        return parseTags(parent.tags);
       },
     },
 

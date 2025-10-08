@@ -1,6 +1,6 @@
 import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
-import { fadeEngine, EasingType } from "../../services/fadeEngine";
+import { fadeEngine } from "../../services/fadeEngine";
 import { getPlaybackStateService } from "../../services/playbackStateService";
 
 export const dmxResolvers = {
@@ -80,14 +80,16 @@ export const dmxResolvers = {
 
       for (const fixtureValue of scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
+        // Middleware automatically deserializes channelValues to array
+        const channelValues = fixtureValue.channelValues as unknown as number[];
 
         // Iterate through channelValues array by index
         for (
           let channelIndex = 0;
-          channelIndex < fixtureValue.channelValues.length;
+          channelIndex < channelValues.length;
           channelIndex++
         ) {
-          const value = fixtureValue.channelValues[channelIndex];
+          const value = channelValues[channelIndex];
           const dmxChannel = fixture.startChannel + channelIndex;
 
           sceneChannels.push({
@@ -139,50 +141,11 @@ export const dmxResolvers = {
         throw new Error(`Cue with ID ${cueId} not found`);
       }
 
-      // Use provided fadeInTime or default to cue's fadeInTime
-      const actualFadeTime =
-        fadeInTime !== undefined ? fadeInTime : cue.fadeInTime;
-
-      // Build array of all channel values for the scene
-      const sceneChannels: Array<{
-        universe: number;
-        channel: number;
-        value: number;
-      }> = [];
-
-      for (const fixtureValue of cue.scene.fixtureValues) {
-        const fixture = fixtureValue.fixture;
-
-        // Iterate through channelValues array by index
-        for (
-          let channelIndex = 0;
-          channelIndex < fixtureValue.channelValues.length;
-          channelIndex++
-        ) {
-          const value = fixtureValue.channelValues[channelIndex];
-          const dmxChannel = fixture.startChannel + channelIndex;
-
-          sceneChannels.push({
-            universe: fixture.universe,
-            channel: dmxChannel,
-            value: value,
-          });
-        }
-      }
-
-      // Use fade engine to transition to the scene with the cue's easing type
-      fadeEngine.fadeToScene(
-        sceneChannels,
-        actualFadeTime,
-        `cue-${cueId}`,
-        cue.easingType as EasingType | undefined,
-      );
-
-      // Track the currently active scene (from the cue)
-      dmxService.setActiveScene(cue.scene.id);
+      // Get playback service and execute the cue's DMX output
+      const playbackService = getPlaybackStateService();
+      await playbackService.executeCueDmx(cue, fadeInTime);
 
       // Update playback state service to track cue execution
-      const playbackService = getPlaybackStateService();
       const cueIndex = cue.cueList.cues.findIndex((c) => c.id === cueId);
 
       if (cueIndex !== -1) {

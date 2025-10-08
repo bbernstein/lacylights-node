@@ -104,6 +104,7 @@ export const typeDefs = gql`
     id: ID!
     name: String!
     description: String
+    loop: Boolean!
     project: Project!
     cues: [Cue!]!
     createdAt: String!
@@ -401,6 +402,7 @@ export const typeDefs = gql`
   input CreateCueListInput {
     name: String!
     description: String
+    loop: Boolean
     projectId: ID!
   }
 

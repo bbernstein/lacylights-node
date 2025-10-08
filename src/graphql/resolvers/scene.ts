@@ -35,8 +35,15 @@ async function upsertFixtureValues(
   });
 
   // Create a Map from fixtureId to existing fixtureValue for O(1) lookups
+  // Note: Prisma middleware deserializes channelValues from string to array
   const existingValueMap = new Map(
-    existingValues.map((ev) => [ev.fixtureId, ev as ExistingFixtureValue]),
+    existingValues.map((ev) => [
+      ev.fixtureId,
+      {
+        ...ev,
+        channelValues: ev.channelValues as unknown as number[],
+      } as ExistingFixtureValue,
+    ]),
   );
 
   // Batch operations for better performance
@@ -49,11 +56,12 @@ async function upsertFixtureValues(
     if (existingValue) {
       if (overwrite) {
         // Add to update batch
+        // Note: Prisma middleware serializes channelValues array to string
         updates.push(
           prisma.fixtureValue.update({
             where: { id: existingValue.id },
             data: {
-              channelValues: fv.channelValues,
+              channelValues: fv.channelValues as any,
               sceneOrder: fv.sceneOrder,
             },
           }),
@@ -121,7 +129,7 @@ export const sceneResolvers = {
           fixtureValues: {
             create: input.fixtureValues.map((fv: any) => ({
               fixtureId: fv.fixtureId,
-              channelValues: fv.channelValues, // Now just a simple array of integers
+              channelValues: fv.channelValues,
               sceneOrder: fv.sceneOrder,
             })),
           },
@@ -174,7 +182,7 @@ export const sceneResolvers = {
         updateData.fixtureValues = {
           create: input.fixtureValues.map((fv: any) => ({
             fixtureId: fv.fixtureId,
-            channelValues: fv.channelValues, // Now just a simple array of integers
+            channelValues: fv.channelValues,
             sceneOrder: fv.sceneOrder,
           })),
         };
@@ -219,14 +227,16 @@ export const sceneResolvers = {
 
           for (const fixtureValue of updatedScene.fixtureValues) {
             const fixture = fixtureValue.fixture;
+            // Note: Prisma middleware deserializes channelValues from string to array
+            const channelValues = fixtureValue.channelValues as unknown as number[];
 
             // Iterate through channelValues array by index
             for (
               let channelIndex = 0;
-              channelIndex < fixtureValue.channelValues.length;
+              channelIndex < channelValues.length;
               channelIndex++
             ) {
-              const value = fixtureValue.channelValues[channelIndex];
+              const value = channelValues[channelIndex];
               const dmxChannel = fixture.startChannel + channelIndex;
 
               sceneChannels.push({
@@ -453,11 +463,12 @@ export const sceneResolvers = {
             where: { sceneId: sceneId },
           });
 
+          // Note: Prisma middleware serializes channelValues arrays to strings
           await prisma.fixtureValue.createMany({
             data: fixtureValues.map((fv) => ({
               sceneId: sceneId,
               fixtureId: fv.fixtureId,
-              channelValues: fv.channelValues,
+              channelValues: fv.channelValues as any,
               sceneOrder: fv.sceneOrder,
             })),
           });
@@ -500,14 +511,16 @@ export const sceneResolvers = {
 
         for (const fixtureValue of updatedScene.fixtureValues) {
           const fixture = fixtureValue.fixture;
+          // Note: Prisma middleware deserializes channelValues from string to array
+          const channelValues = fixtureValue.channelValues as unknown as number[];
 
           // Iterate through channelValues array by index
           for (
             let channelIndex = 0;
-            channelIndex < fixtureValue.channelValues.length;
+            channelIndex < channelValues.length;
             channelIndex++
           ) {
-            const value = fixtureValue.channelValues[channelIndex];
+            const value = channelValues[channelIndex];
             const dmxChannel = fixture.startChannel + channelIndex;
 
             sceneChannels.push({
@@ -531,5 +544,11 @@ export const sceneResolvers = {
     },
   },
 
-  types: {},
+  types: {
+    FixtureValue: {
+      channelValues: (parent: { channelValues: number[] | string }) => {
+        return parent.channelValues as number[];
+      },
+    },
+  },
 };
