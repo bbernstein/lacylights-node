@@ -147,7 +147,8 @@ class PlaybackStateService {
           channelValues = JSON.parse(fixtureValue.channelValues);
         } catch (error) {
           logger.warn('Failed to parse channelValues as JSON', {
-            fixtureValueId: fixtureValue,
+            fixtureUniverse: fixture.universe,
+            fixtureStartChannel: fixture.startChannel,
             error,
           });
           channelValues = [];

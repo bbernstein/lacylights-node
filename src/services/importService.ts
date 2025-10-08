@@ -390,8 +390,8 @@ export class ImportService {
           fixtureValues: {
             create: fixtureValues.map((fv) => ({
               fixtureId: fixtureIdMap.get(fv.fixtureRefId)!,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              channelValues: fv.channelValues as any, // Middleware serializes to string
+              // Explicitly serialize channelValues array to string for database storage
+              channelValues: JSON.stringify(fv.channelValues),
               sceneOrder: fv.sceneOrder,
             })),
           },
