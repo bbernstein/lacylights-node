@@ -465,11 +465,18 @@ describe('LacyLightsServer', () => {
     });
 
     it('should handle WebSocket disposal timeout', async () => {
+      // Create server with short timeout for faster testing (100ms instead of default 5000ms)
+      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: 100 }, mockDependencies);
+      (fastTimeoutServer as any).serverInstances = {
+        server: { close: jest.fn() },
+        wsServer: mockWsServer
+      };
+
       mockWsServer.dispose = jest.fn().mockImplementation(() =>
-        new Promise((resolve) => setTimeout(resolve, 6000))
+        new Promise((resolve) => setTimeout(resolve, 200)) // 200ms exceeds the 100ms timeout
       );
 
-      await server.shutdownWebSocket();
+      await fastTimeoutServer.shutdownWebSocket();
 
       expect(mockLogger.info).toHaveBeenCalledWith('✅ WebSocket server closed (with expected cleanup warnings)');
     });
@@ -537,11 +544,19 @@ describe('LacyLightsServer', () => {
     });
 
     it('should handle HTTP server close timeout', async () => {
-      mockHttpServer.close = jest.fn().mockImplementation(() => {
-        // Never call callback to simulate timeout
-      });
+      // Create server with short timeout for faster testing (100ms instead of default 5000ms)
+      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: 100 }, mockDependencies);
+      const slowHttpServer = {
+        close: jest.fn().mockImplementation(() => {
+          // Never call callback to simulate timeout
+        })
+      };
+      (fastTimeoutServer as any).serverInstances = {
+        server: slowHttpServer,
+        wsServer: { dispose: jest.fn() }
+      };
 
-      await server.shutdownHttpServer();
+      await fastTimeoutServer.shutdownHttpServer();
 
       expect(mockLogger.info).toHaveBeenCalledWith('✅ HTTP server closed (timeout - likely closed)');
     });

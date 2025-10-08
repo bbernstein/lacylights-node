@@ -80,8 +80,18 @@ export const dmxResolvers = {
 
       for (const fixtureValue of scene.fixtureValues) {
         const fixture = fixtureValue.fixture;
-        // Middleware automatically deserializes channelValues to array
-        const channelValues = fixtureValue.channelValues as unknown as number[];
+
+        // channelValues might be a string (from DB) or array (if middleware deserialized it)
+        let channelValues: number[] = [];
+        if (typeof fixtureValue.channelValues === 'string') {
+          try {
+            channelValues = JSON.parse(fixtureValue.channelValues);
+          } catch {
+            channelValues = [];
+          }
+        } else {
+          channelValues = fixtureValue.channelValues as unknown as number[];
+        }
 
         // Iterate through channelValues array by index
         for (

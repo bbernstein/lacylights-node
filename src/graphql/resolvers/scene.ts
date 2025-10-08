@@ -35,15 +35,28 @@ async function upsertFixtureValues(
   });
 
   // Create a Map from fixtureId to existing fixtureValue for O(1) lookups
-  // Note: Prisma middleware deserializes channelValues from string to array
   const existingValueMap = new Map(
-    existingValues.map((ev) => [
-      ev.fixtureId,
-      {
-        ...ev,
-        channelValues: ev.channelValues as unknown as number[],
-      } as ExistingFixtureValue,
-    ]),
+    existingValues.map((ev) => {
+      // channelValues might be a string (from DB) or array (if middleware deserialized it)
+      let channelValues: number[] = [];
+      if (typeof ev.channelValues === 'string') {
+        try {
+          channelValues = JSON.parse(ev.channelValues);
+        } catch {
+          channelValues = [];
+        }
+      } else {
+        channelValues = ev.channelValues as unknown as number[];
+      }
+
+      return [
+        ev.fixtureId,
+        {
+          ...ev,
+          channelValues,
+        } as ExistingFixtureValue,
+      ];
+    }),
   );
 
   // Batch operations for better performance
@@ -227,8 +240,18 @@ export const sceneResolvers = {
 
           for (const fixtureValue of updatedScene.fixtureValues) {
             const fixture = fixtureValue.fixture;
-            // Note: Prisma middleware deserializes channelValues from string to array
-            const channelValues = fixtureValue.channelValues as unknown as number[];
+
+            // channelValues might be a string (from DB) or array (if middleware deserialized it)
+            let channelValues: number[] = [];
+            if (typeof fixtureValue.channelValues === 'string') {
+              try {
+                channelValues = JSON.parse(fixtureValue.channelValues);
+              } catch {
+                channelValues = [];
+              }
+            } else {
+              channelValues = fixtureValue.channelValues as unknown as number[];
+            }
 
             // Iterate through channelValues array by index
             for (
@@ -511,8 +534,18 @@ export const sceneResolvers = {
 
         for (const fixtureValue of updatedScene.fixtureValues) {
           const fixture = fixtureValue.fixture;
-          // Note: Prisma middleware deserializes channelValues from string to array
-          const channelValues = fixtureValue.channelValues as unknown as number[];
+
+          // channelValues might be a string (from DB) or array (if middleware deserialized it)
+          let channelValues: number[] = [];
+          if (typeof fixtureValue.channelValues === 'string') {
+            try {
+              channelValues = JSON.parse(fixtureValue.channelValues);
+            } catch {
+              channelValues = [];
+            }
+          } else {
+            channelValues = fixtureValue.channelValues as unknown as number[];
+          }
 
           // Iterate through channelValues array by index
           for (

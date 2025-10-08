@@ -215,6 +215,8 @@ export interface ExportCueList {
   name: string;
   /** Cue list description */
   description?: string;
+  /** Whether to loop back to first cue after last cue */
+  loop: boolean;
   /** Cues in this list */
   cues: ExportCue[];
   /** Creation date */

@@ -190,8 +190,20 @@ export const qlcExportResolvers = {
                     (fv) => fv.fixtureId === fixture.id,
                   );
 
-                  // Middleware automatically deserializes channelValues to array
-                  const channelValues = (fixtureValue?.channelValues || []) as number[];
+                  // channelValues might be a string (from DB) or array (if middleware deserialized it)
+                  let channelValues: number[] = [];
+                  if (fixtureValue?.channelValues) {
+                    if (typeof fixtureValue.channelValues === 'string') {
+                      try {
+                        channelValues = JSON.parse(fixtureValue.channelValues);
+                      } catch {
+                        channelValues = [];
+                      }
+                    } else {
+                      channelValues = fixtureValue.channelValues as number[];
+                    }
+                  }
+
                   if (fixtureValue && channelValues.length > 0) {
                     // Convert channel values array to comma-separated string
                     const channelValuesStr = channelValues

@@ -390,6 +390,7 @@ export class ImportService {
           fixtureValues: {
             create: fixtureValues.map((fv) => ({
               fixtureId: fixtureIdMap.get(fv.fixtureRefId)!,
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               channelValues: fv.channelValues as any, // Middleware serializes to string
               sceneOrder: fv.sceneOrder,
             })),
@@ -430,6 +431,7 @@ export class ImportService {
           projectId,
           name: exportCueList.name,
           description: exportCueList.description,
+          loop: exportCueList.loop ?? false,
           cues: {
             create: cues.map((cue) => ({
               name: cue.name,
