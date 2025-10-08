@@ -1,4 +1,5 @@
 -- RedefineTables
+BEGIN TRANSACTION;
 PRAGMA defer_foreign_keys=ON;
 PRAGMA foreign_keys=OFF;
 CREATE TABLE "new_cue_lists" (
@@ -16,3 +17,4 @@ DROP TABLE "cue_lists";
 ALTER TABLE "new_cue_lists" RENAME TO "cue_lists";
 PRAGMA foreign_keys=ON;
 PRAGMA defer_foreign_keys=OFF;
+COMMIT;

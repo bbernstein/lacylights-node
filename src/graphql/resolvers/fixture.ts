@@ -24,6 +24,8 @@ export const fixtureResolvers = {
       const where: Record<string, unknown> = {};
 
       if (filter) {
+        // Note: SQLite LIKE (used by contains) is case-insensitive for ASCII characters by default
+        // Unlike PostgreSQL's mode:'insensitive', this may be case-sensitive for non-ASCII characters
         if (filter.manufacturer) {
           where.manufacturer = {
             contains: filter.manufacturer,

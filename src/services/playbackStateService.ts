@@ -1,6 +1,8 @@
 import { PubSub } from "graphql-subscriptions";
 import { PrismaClient } from "@prisma/client";
-import { prisma, pubsub, type Context } from "../context";
+import { prisma, pubsub } from "../context";
+import { dmxService } from "./dmx";
+import { fadeEngine, EasingType } from "./fadeEngine";
 
 export interface PlaybackState {
   cueListId: string;
@@ -101,27 +103,87 @@ class PlaybackStateService {
     }
   }
 
+  /**
+   * Execute a cue's DMX output without managing playback state.
+   * This is called by both the playCue resolver and handleFollowTime.
+   */
+  async executeCueDmx(
+    cue: {
+      id: string;
+      fadeInTime: number;
+      easingType?: string | null;
+      scene: {
+        id: string;
+        fixtureValues: Array<{
+          channelValues: number[] | string;
+          fixture: {
+            universe: number;
+            startChannel: number;
+          };
+        }>;
+      };
+    },
+    fadeInTime?: number,
+  ): Promise<void> {
+    // Use provided fadeInTime or default to cue's fadeInTime
+    const actualFadeTime =
+      fadeInTime !== undefined ? fadeInTime : cue.fadeInTime;
+
+    // Build array of all channel values for the scene
+    const sceneChannels: Array<{
+      universe: number;
+      channel: number;
+      value: number;
+    }> = [];
+
+    for (const fixtureValue of cue.scene.fixtureValues) {
+      const fixture = fixtureValue.fixture;
+      // Middleware automatically deserializes channelValues to array
+      const channelValues = fixtureValue.channelValues as number[];
+
+      // Iterate through channelValues array by index
+      for (
+        let channelIndex = 0;
+        channelIndex < channelValues.length;
+        channelIndex++
+      ) {
+        const value = channelValues[channelIndex];
+        const dmxChannel = fixture.startChannel + channelIndex;
+
+        sceneChannels.push({
+          universe: fixture.universe,
+          channel: dmxChannel,
+          value: value,
+        });
+      }
+    }
+
+    // Use fade engine to transition to the scene with the cue's easing type
+    fadeEngine.fadeToScene(
+      sceneChannels,
+      actualFadeTime,
+      `cue-${cue.id}`,
+      cue.easingType as EasingType | undefined,
+    );
+
+    // Track the currently active scene (from the cue)
+    dmxService.setActiveScene(cue.scene.id);
+  }
+
   // Handle automatic follow to next cue
   private async handleFollowTime(
     cueListId: string,
     currentCueIndex: number,
   ): Promise<void> {
     try {
-      // Get the cue list and find the next cue with full scene data
+      // First, get just the cue list with basic cue info (no scene data) to determine next cue
       const cueList = await this.prisma.cueList.findUnique({
         where: { id: cueListId },
         include: {
           cues: {
-            include: {
-              scene: {
-                include: {
-                  fixtureValues: {
-                    include: {
-                      fixture: true,
-                    },
-                  },
-                },
-              },
+            select: {
+              id: true,
+              cueNumber: true,
             },
             orderBy: { cueNumber: "asc" },
           },
@@ -160,16 +222,31 @@ class PlaybackStateService {
         }
       }
 
-      const nextCue = cueList.cues[nextCueIndex];
+      // Now fetch only the next cue with full scene data
+      const nextCue = await this.prisma.cue.findUnique({
+        where: { id: cueList.cues[nextCueIndex].id },
+        include: {
+          scene: {
+            include: {
+              fixtureValues: {
+                include: {
+                  fixture: true,
+                },
+              },
+            },
+          },
+        },
+      });
 
-      // Call playCue through the dmx resolver to actually trigger DMX output
-      // This ensures auto-follow behaves exactly like manual advance
-      const { dmxResolvers } = await import("../graphql/resolvers/dmx");
-      await dmxResolvers.Mutation.playCue(
-        null,
-        { cueId: nextCue.id },
-        { prisma: this.prisma, pubsub: this.pubsub } as Context,
-      );
+      if (!nextCue) {
+        throw new Error(`Next cue not found at index ${nextCueIndex}`);
+      }
+
+      // Execute the cue's DMX output
+      await this.executeCueDmx(nextCue);
+
+      // Update playback state for the new cue
+      await this.startCue(cueListId, nextCueIndex, nextCue);
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error handling follow time:", error);

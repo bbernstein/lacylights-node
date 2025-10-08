@@ -133,7 +133,7 @@ model FixtureInstance {
   projectId    String       @map("project_id")
   universe     Int
   startChannel Int          @map("start_channel")
-  tags         String?      @default("[]") // JSON array stored as string
+  tags         String?      @default("[]") // JSON-serialized string array stored as string
 
   // Ordering
   projectOrder Int?         @map("project_order") // Order within project fixture list

@@ -46,7 +46,7 @@ export function getSharedPrisma(): PrismaClient {
       };
 
       const serializeFixtureValues = (data: any) => {
-        if (!data) {return;}
+        if (!data) { return; }
 
         // Handle direct FixtureValue operations
         if (params.model === 'FixtureValue') {
@@ -90,7 +90,7 @@ export function getSharedPrisma(): PrismaClient {
       };
 
       const deserializeResult = (result: any) => {
-        if (!result) {return result;}
+        if (!result) { return result; }
 
         // Handle FixtureValue results
         if (params.model === 'FixtureValue') {

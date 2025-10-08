@@ -546,7 +546,7 @@ export const sceneResolvers = {
 
   types: {
     FixtureValue: {
-      channelValues: (parent: any) => {
+      channelValues: (parent: { channelValues: number[] | string }) => {
         return parent.channelValues as number[];
       },
     },
