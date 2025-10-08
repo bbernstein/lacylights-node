@@ -152,8 +152,17 @@ export class PreviewService {
 
       // Apply all fixture values from the scene to the preview session
       for (const fixtureValue of scene.fixtureValues) {
-        // Middleware automatically deserializes channelValues to array
-        const channelValues = fixtureValue.channelValues as unknown as number[];
+        // channelValues might be a string (from DB) or array (if middleware deserialized it)
+        let channelValues: number[] = [];
+        if (typeof fixtureValue.channelValues === 'string') {
+          try {
+            channelValues = JSON.parse(fixtureValue.channelValues);
+          } catch {
+            channelValues = [];
+          }
+        } else {
+          channelValues = fixtureValue.channelValues as unknown as number[];
+        }
 
         for (
           let channelIndex = 0;

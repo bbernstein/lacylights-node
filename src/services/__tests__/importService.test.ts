@@ -109,6 +109,7 @@ describe('ImportService', () => {
         originalId: 'cuelist-1',
         name: 'Test Cue List',
         description: 'Test cue list',
+        loop: false,
         cues: [
           {
             originalId: 'cue-1',

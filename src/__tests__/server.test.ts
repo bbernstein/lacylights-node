@@ -38,6 +38,10 @@ jest.mock('../graphql/resolvers', () => ({
 }));
 
 describe('LacyLightsServer', () => {
+  // Test timeout constants for performance optimization
+  const FAST_TIMEOUT_FOR_TESTING_MS = 100;
+  const SLOW_OPERATION_DELAY_MS = 200; // Exceeds FAST_TIMEOUT_FOR_TESTING_MS
+
   let mockDependencies: ServerDependencies;
   let mockLogger: any;
 
@@ -465,11 +469,18 @@ describe('LacyLightsServer', () => {
     });
 
     it('should handle WebSocket disposal timeout', async () => {
+      // Create server with short timeout for faster testing
+      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: FAST_TIMEOUT_FOR_TESTING_MS }, mockDependencies);
+      (fastTimeoutServer as any).serverInstances = {
+        server: { close: jest.fn() },
+        wsServer: mockWsServer
+      };
+
       mockWsServer.dispose = jest.fn().mockImplementation(() =>
-        new Promise((resolve) => setTimeout(resolve, 6000))
+        new Promise((resolve) => setTimeout(resolve, SLOW_OPERATION_DELAY_MS))
       );
 
-      await server.shutdownWebSocket();
+      await fastTimeoutServer.shutdownWebSocket();
 
       expect(mockLogger.info).toHaveBeenCalledWith('✅ WebSocket server closed (with expected cleanup warnings)');
     });
@@ -537,11 +548,19 @@ describe('LacyLightsServer', () => {
     });
 
     it('should handle HTTP server close timeout', async () => {
-      mockHttpServer.close = jest.fn().mockImplementation(() => {
-        // Never call callback to simulate timeout
-      });
+      // Create server with short timeout for faster testing
+      const fastTimeoutServer = new LacyLightsServer({ operationTimeout: FAST_TIMEOUT_FOR_TESTING_MS }, mockDependencies);
+      const slowHttpServer = {
+        close: jest.fn().mockImplementation(() => {
+          // Never call callback to simulate timeout
+        })
+      };
+      (fastTimeoutServer as any).serverInstances = {
+        server: slowHttpServer,
+        wsServer: { dispose: jest.fn() }
+      };
 
-      await server.shutdownHttpServer();
+      await fastTimeoutServer.shutdownHttpServer();
 
       expect(mockLogger.info).toHaveBeenCalledWith('✅ HTTP server closed (timeout - likely closed)');
     });

@@ -73,14 +73,17 @@ describe("Server imports and constants", () => {
     process.exit = originalServerProcessExit;
   });
 
-  it("should define server constants", () => {
-    // This will import the module and cover the constant definitions
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const serverModule = require("../index");
-      expect(serverModule).toBeDefined();
-      expect(serverModule.LacyLightsServer).toBeDefined();
-    });
+  it("should import server module and class successfully", () => {
+    // Import both modules in a single test to avoid slow jest.isolateModules() calls
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const serverModule = require("../index");
+    expect(serverModule).toBeDefined();
+    expect(serverModule.LacyLightsServer).toBeDefined();
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { LacyLightsServer } = require("../server");
+    expect(LacyLightsServer).toBeDefined();
+    expect(typeof LacyLightsServer).toBe("function");
   });
 
   it("should handle graceful shutdown timeout constants", () => {
@@ -88,14 +91,5 @@ describe("Server imports and constants", () => {
     const SHUTDOWN_OPERATION_TIMEOUT = 5000;
     expect(GRACEFUL_SHUTDOWN_TIMEOUT).toBe(10000);
     expect(SHUTDOWN_OPERATION_TIMEOUT).toBe(5000);
-  });
-
-  it("should import server class successfully", () => {
-    jest.isolateModules(() => {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { LacyLightsServer } = require("../server");
-      expect(LacyLightsServer).toBeDefined();
-      expect(typeof LacyLightsServer).toBe("function");
-    });
   });
 });

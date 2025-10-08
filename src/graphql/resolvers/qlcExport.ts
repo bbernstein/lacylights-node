@@ -190,8 +190,20 @@ export const qlcExportResolvers = {
                     (fv) => fv.fixtureId === fixture.id,
                   );
 
-                  // Middleware automatically deserializes channelValues to array
-                  const channelValues = (fixtureValue?.channelValues || []) as number[];
+                  // channelValues might be a string (from DB) or array (if middleware deserialized it)
+                  let channelValues: number[] = [];
+                  if (fixtureValue?.channelValues) {
+                    if (typeof fixtureValue.channelValues === 'string') {
+                      try {
+                        channelValues = JSON.parse(fixtureValue.channelValues);
+                      } catch {
+                        channelValues = [];
+                      }
+                    } else {
+                      channelValues = fixtureValue.channelValues as number[];
+                    }
+                  }
+
                   if (fixtureValue && channelValues.length > 0) {
                     // Convert channel values array to comma-separated string
                     const channelValuesStr = channelValues
@@ -807,12 +819,17 @@ export const qlcExportResolvers = {
               const cueListName = func.$.Name || "Imported Cue List";
               const steps = func.Step || [];
 
+              // Check if RunOrder is "Loop" (QLC+ uses <RunOrder>Loop</RunOrder> or <RunOrder>Single</RunOrder>)
+              const runOrder = func.RunOrder?.[0] || "Single";
+              const loop = runOrder === "Loop";
+
               // Create cue list
               const cueList = await prisma.cueList.create({
                 data: {
                   name: cueListName,
                   description: "Imported from QLC+",
                   projectId: project.id,
+                  loop: loop,
                 },
               });
 

@@ -303,10 +303,22 @@ export class ExportService {
         if (!fixtureRefId) {
           throw new Error(`Missing fixture reference for fixture ${fv.fixtureId} in scene: ${scene.name}`);
         }
-        // Middleware automatically deserializes channelValues to array
+
+        // channelValues might be a string (from DB) or array (if middleware deserialized it)
+        let channelValues: number[] = [];
+        if (typeof fv.channelValues === 'string') {
+          try {
+            channelValues = JSON.parse(fv.channelValues);
+          } catch {
+            channelValues = [];
+          }
+        } else {
+          channelValues = fv.channelValues as unknown as number[];
+        }
+
         return {
           fixtureRefId,
-          channelValues: fv.channelValues as unknown as number[],
+          channelValues,
           sceneOrder: fv.sceneOrder ?? undefined,
         };
       });
@@ -373,6 +385,7 @@ export class ExportService {
         originalId: cueList.id,
         name: cueList.name,
         description: cueList.description ?? undefined,
+        loop: cueList.loop,
         cues: exportCues,
         createdAt: cueList.createdAt.toISOString(),
         updatedAt: cueList.updatedAt.toISOString(),

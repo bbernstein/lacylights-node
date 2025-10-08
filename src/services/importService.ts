@@ -390,7 +390,8 @@ export class ImportService {
           fixtureValues: {
             create: fixtureValues.map((fv) => ({
               fixtureId: fixtureIdMap.get(fv.fixtureRefId)!,
-              channelValues: fv.channelValues as any, // Middleware serializes to string
+              // Explicitly serialize channelValues array to string for database storage
+              channelValues: JSON.stringify(fv.channelValues),
               sceneOrder: fv.sceneOrder,
             })),
           },
@@ -430,6 +431,7 @@ export class ImportService {
           projectId,
           name: exportCueList.name,
           description: exportCueList.description,
+          loop: exportCueList.loop ?? false,
           cues: {
             create: cues.map((cue) => ({
               name: cue.name,
