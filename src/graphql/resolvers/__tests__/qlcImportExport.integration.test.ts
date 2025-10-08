@@ -22,7 +22,7 @@ describe('QLC+ Import/Export Integration Tests', () => {
     const testDbUrl = `file:${testDbPath}`;
     process.env.DATABASE_URL = testDbUrl;
 
-    // Only run migrations if database doesn't exist or is empty
+    // Only run migrations if database doesn't exist
     const needsMigration = !fs.existsSync(testDbPath);
 
     if (needsMigration) {

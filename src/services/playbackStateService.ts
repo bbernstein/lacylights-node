@@ -3,7 +3,6 @@ import { PrismaClient } from "@prisma/client";
 import { prisma, pubsub } from "../context";
 import { dmxService } from "./dmx";
 import { fadeEngine, EasingType } from "./fadeEngine";
-import { logger } from "../utils/logger";
 
 export interface PlaybackState {
   cueListId: string;
@@ -146,11 +145,11 @@ class PlaybackStateService {
         try {
           channelValues = JSON.parse(fixtureValue.channelValues);
         } catch (error) {
-          logger.warn('Failed to parse channelValues as JSON', {
-            fixtureUniverse: fixture.universe,
-            fixtureStartChannel: fixture.startChannel,
-            error,
-          });
+          // eslint-disable-next-line no-console
+          console.warn(
+            `Failed to parse channelValues as JSON for fixture at universe ${fixture.universe}, channel ${fixture.startChannel}:`,
+            error
+          );
           channelValues = [];
         }
       } else {
