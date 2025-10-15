@@ -241,6 +241,19 @@ export const fixtureResolvers = {
         updateData.tags = input.tags ? serializeTags(input.tags) : null;
       }
 
+      // Update layout position fields
+      if (input.layoutX !== undefined) {
+        updateData.layoutX = input.layoutX;
+      }
+
+      if (input.layoutY !== undefined) {
+        updateData.layoutY = input.layoutY;
+      }
+
+      if (input.layoutRotation !== undefined) {
+        updateData.layoutRotation = input.layoutRotation;
+      }
+
       // If definitionId or modeId is changed, update flattened fields
       if (input.definitionId !== undefined || input.modeId !== undefined) {
         // Get current fixture to preserve values if only one is being changed
@@ -358,6 +371,27 @@ export const fixtureResolvers = {
       await prisma.fixtureInstance.delete({
         where: { id },
       });
+      return true;
+    },
+
+    updateFixturePositions: async (
+      _: any,
+      { positions }: { positions: Array<{ fixtureId: string; layoutX: number; layoutY: number; layoutRotation?: number }> },
+      { prisma }: Context,
+    ) => {
+      // Update all fixtures in a transaction
+      await prisma.$transaction(
+        positions.map((pos) =>
+          prisma.fixtureInstance.update({
+            where: { id: pos.fixtureId },
+            data: {
+              layoutX: pos.layoutX,
+              layoutY: pos.layoutY,
+              layoutRotation: pos.layoutRotation !== undefined ? pos.layoutRotation : null,
+            },
+          })
+        )
+      );
       return true;
     },
   },

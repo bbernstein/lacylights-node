@@ -71,6 +71,12 @@ export const typeDefs = gql`
     startChannel: Int!
     tags: [String!]!
     projectOrder: Int
+
+    # 2D Layout Position (normalized 0-1 coordinates)
+    layoutX: Float
+    layoutY: Float
+    layoutRotation: Float
+
     createdAt: String!
   }
 
@@ -360,6 +366,16 @@ export const typeDefs = gql`
     startChannel: Int
     tags: [String!]
     projectOrder: Int
+    layoutX: Float
+    layoutY: Float
+    layoutRotation: Float
+  }
+
+  input FixturePositionInput {
+    fixtureId: ID!
+    layoutX: Float!
+    layoutY: Float!
+    layoutRotation: Float
   }
 
   input FixtureOrderInput {
@@ -539,6 +555,9 @@ export const typeDefs = gql`
       sceneId: ID!
       fixtureOrders: [FixtureOrderInput!]!
     ): Boolean!
+
+    # Fixture Layout Positions
+    updateFixturePositions(positions: [FixturePositionInput!]!): Boolean!
 
     # Scenes
     createScene(input: CreateSceneInput!): Scene!

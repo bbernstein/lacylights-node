@@ -138,6 +138,11 @@ model FixtureInstance {
   // Ordering
   projectOrder Int?         @map("project_order") // Order within project fixture list
 
+  // 2D Layout Position (normalized 0-1 coordinates)
+  layoutX       Float?      @map("layout_x")       // X position 0-1, null = auto-layout
+  layoutY       Float?      @map("layout_y")       // Y position 0-1, null = auto-layout
+  layoutRotation Float?     @map("layout_rotation") // Rotation in degrees (0-360)
+
   createdAt    DateTime     @default(now()) @map("created_at")
   updatedAt    DateTime     @updatedAt @map("updated_at")
 
