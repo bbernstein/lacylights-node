@@ -152,9 +152,9 @@ sudo -u $PI_USER npm run db:generate
 echo "Building backend..."
 sudo -u $PI_USER npm run build
 
-# Run database migrations
+# Run database migrations (non-interactive deployment)
 echo "Running database migrations..."
-sudo -u $PI_USER npm run db:migrate
+sudo -u $PI_USER npx prisma migrate deploy
 
 echo "✓ Backend setup complete"
 
@@ -165,6 +165,10 @@ echo "==========================================="
 if [ -d "$DEPLOY_DIR/frontend-src" ]; then
     echo "Frontend source directory exists, pulling latest changes..."
     cd "$DEPLOY_DIR/frontend-src"
+    # Stash any local changes to avoid conflicts
+    sudo -u $PI_USER git stash push -m "Auto-stash before deployment $(date +%Y%m%d_%H%M%S)" 2>/dev/null || true
+    # Remove untracked files that could conflict with pull
+    sudo -u $PI_USER git clean -fd
     sudo -u $PI_USER git fetch origin
     sudo -u $PI_USER git checkout $FRONTEND_BRANCH
     sudo -u $PI_USER git pull origin $FRONTEND_BRANCH
