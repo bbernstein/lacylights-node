@@ -85,6 +85,7 @@ export class LacyLightsServer {
     const apolloServer = new ApolloServer<any>({
       typeDefs,
       resolvers,
+      introspection: true, // Enable introspection for private local server - allows MCP and tools to discover API
       plugins: [
         ApolloServerPluginDrainHttpServer({ httpServer }),
         {
