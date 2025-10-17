@@ -13,8 +13,10 @@ const mockContext: Context = {
       create: jest.fn(),
       update: jest.fn(),
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       delete: jest.fn(),
     },
+    $transaction: jest.fn(),
     fixtureMode: {
       findUnique: jest.fn(),
     },
@@ -704,6 +706,265 @@ describe("Fixture Resolvers", () => {
         expect(mockContext.prisma.fixtureInstance.delete).toHaveBeenCalledWith({
           where: { id: "fixture-1" },
         });
+      });
+    });
+
+    describe("bulkUpdateFixtures", () => {
+      it("should update multiple fixtures with different values", async () => {
+        const existingFixtures = [
+          {
+            id: "fixture-1",
+            name: "Old Name 1",
+            channels: [],
+            project: {},
+          },
+          {
+            id: "fixture-2",
+            name: "Old Name 2",
+            channels: [],
+            project: {},
+          },
+        ];
+
+        const updatedFixtures = [
+          {
+            id: "fixture-1",
+            name: "New Name 1",
+            description: "Updated fixture 1",
+            channels: [],
+            project: {},
+          },
+          {
+            id: "fixture-2",
+            name: "New Name 2",
+            tags: '["updated"]',
+            channels: [],
+            project: {},
+          },
+        ];
+
+        mockContext.prisma.fixtureInstance.findMany = jest
+          .fn()
+          .mockResolvedValue(existingFixtures);
+
+        // Mock $transaction to execute the callback and return the results
+        mockContext.prisma.$transaction = jest.fn().mockImplementation(() => {
+          return Promise.resolve(updatedFixtures);
+        });
+
+        const input = {
+          fixtures: [
+            {
+              fixtureId: "fixture-1",
+              name: "New Name 1",
+              description: "Updated fixture 1",
+            },
+            {
+              fixtureId: "fixture-2",
+              name: "New Name 2",
+              tags: ["updated"],
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkUpdateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual(updatedFixtures);
+        expect(mockContext.prisma.fixtureInstance.findMany).toHaveBeenCalledWith({
+          where: {
+            id: {
+              in: ["fixture-1", "fixture-2"],
+            },
+          },
+          include: {
+            channels: {
+              orderBy: { offset: "asc" },
+            },
+            project: true,
+          },
+        });
+        expect(mockContext.prisma.$transaction).toHaveBeenCalled();
+      });
+
+      it("should update only provided fields", async () => {
+        const existingFixtures = [
+          {
+            id: "fixture-1",
+            name: "Existing Name",
+            channels: [],
+            project: {},
+          },
+        ];
+
+        const updatedFixtures = [
+          {
+            id: "fixture-1",
+            name: "Existing Name",
+            universe: 2,
+            startChannel: 100,
+            channels: [],
+            project: {},
+          },
+        ];
+
+        mockContext.prisma.fixtureInstance.findMany = jest
+          .fn()
+          .mockResolvedValue(existingFixtures);
+
+        mockContext.prisma.$transaction = jest.fn().mockImplementation(() => {
+          return Promise.resolve(updatedFixtures);
+        });
+
+        const input = {
+          fixtures: [
+            {
+              fixtureId: "fixture-1",
+              universe: 2,
+              startChannel: 100,
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkUpdateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual(updatedFixtures);
+      });
+
+      it("should update layout positions", async () => {
+        const existingFixtures = [
+          {
+            id: "fixture-1",
+            layoutX: 0.5,
+            layoutY: 0.5,
+            layoutRotation: 0,
+            channels: [],
+            project: {},
+          },
+        ];
+
+        const updatedFixtures = [
+          {
+            id: "fixture-1",
+            layoutX: 0.3,
+            layoutY: 0.7,
+            layoutRotation: 45,
+            channels: [],
+            project: {},
+          },
+        ];
+
+        mockContext.prisma.fixtureInstance.findMany = jest
+          .fn()
+          .mockResolvedValue(existingFixtures);
+
+        mockContext.prisma.$transaction = jest.fn().mockImplementation(() => {
+          return Promise.resolve(updatedFixtures);
+        });
+
+        const input = {
+          fixtures: [
+            {
+              fixtureId: "fixture-1",
+              layoutX: 0.3,
+              layoutY: 0.7,
+              layoutRotation: 45,
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkUpdateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual(updatedFixtures);
+      });
+
+      it("should throw error when fixtures not found", async () => {
+        mockContext.prisma.fixtureInstance.findMany = jest
+          .fn()
+          .mockResolvedValue([
+            {
+              id: "fixture-1",
+              channels: [],
+              project: {},
+            },
+          ]);
+
+        const input = {
+          fixtures: [
+            {
+              fixtureId: "fixture-1",
+              name: "Name 1",
+            },
+            {
+              fixtureId: "fixture-2",
+              name: "Name 2",
+            },
+          ],
+        };
+
+        await expect(
+          fixtureResolvers.Mutation.bulkUpdateFixtures(
+            {},
+            { input },
+            mockContext,
+          ),
+        ).rejects.toThrow("Fixtures not found: fixture-2");
+      });
+
+      it("should handle tags serialization", async () => {
+        const existingFixtures = [
+          {
+            id: "fixture-1",
+            tags: null,
+            channels: [],
+            project: {},
+          },
+        ];
+
+        const updatedFixtures = [
+          {
+            id: "fixture-1",
+            tags: '["tag1","tag2"]',
+            channels: [],
+            project: {},
+          },
+        ];
+
+        mockContext.prisma.fixtureInstance.findMany = jest
+          .fn()
+          .mockResolvedValue(existingFixtures);
+
+        mockContext.prisma.$transaction = jest.fn().mockImplementation(() => {
+          return Promise.resolve(updatedFixtures);
+        });
+
+        const input = {
+          fixtures: [
+            {
+              fixtureId: "fixture-1",
+              tags: ["tag1", "tag2"],
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkUpdateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual(updatedFixtures);
       });
     });
   });

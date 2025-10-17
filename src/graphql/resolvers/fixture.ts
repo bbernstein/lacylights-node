@@ -11,6 +11,22 @@ export interface FixtureDefinitionFilter {
   channelTypes?: ChannelType[];
 }
 
+export interface FixtureUpdateItem {
+  fixtureId: string;
+  name?: string;
+  description?: string;
+  universe?: number;
+  startChannel?: number;
+  tags?: string[];
+  layoutX?: number;
+  layoutY?: number;
+  layoutRotation?: number;
+}
+
+export interface BulkFixtureUpdateInput {
+  fixtures: FixtureUpdateItem[];
+}
+
 // Note: Interface definitions removed as they are not used in current resolvers
 // They would be needed when implementing create/update mutations
 
@@ -393,6 +409,82 @@ export const fixtureResolvers = {
         )
       );
       return true;
+    },
+
+    bulkUpdateFixtures: async (
+      _: any,
+      { input }: { input: BulkFixtureUpdateInput },
+      { prisma }: Context,
+    ) => {
+      // Extract all fixture IDs for validation
+      const fixtureIds = input.fixtures.map((f) => f.fixtureId);
+
+      // Verify all fixtures exist first
+      const existingFixtures = await prisma.fixtureInstance.findMany({
+        where: {
+          id: {
+            in: fixtureIds,
+          },
+        },
+        include: {
+          channels: {
+            orderBy: { offset: "asc" },
+          },
+          project: true,
+        },
+      });
+
+      if (existingFixtures.length !== fixtureIds.length) {
+        const foundIds = new Set(existingFixtures.map((fixture) => fixture.id));
+        const missingIds = fixtureIds.filter((id) => !foundIds.has(id));
+        throw new Error(`Fixtures not found: ${missingIds.join(", ")}`);
+      }
+
+      // Perform bulk update using transaction for consistency
+      const updatedFixtures = await prisma.$transaction(
+        input.fixtures.map((fixtureUpdate) => {
+          // Build update data - only include fields that are provided
+          const updateData: any = {};
+
+          if (fixtureUpdate.name !== undefined) {
+            updateData.name = fixtureUpdate.name;
+          }
+          if (fixtureUpdate.description !== undefined) {
+            updateData.description = fixtureUpdate.description;
+          }
+          if (fixtureUpdate.universe !== undefined) {
+            updateData.universe = fixtureUpdate.universe;
+          }
+          if (fixtureUpdate.startChannel !== undefined) {
+            updateData.startChannel = fixtureUpdate.startChannel;
+          }
+          if (fixtureUpdate.tags !== undefined) {
+            updateData.tags = fixtureUpdate.tags ? serializeTags(fixtureUpdate.tags) : null;
+          }
+          if (fixtureUpdate.layoutX !== undefined) {
+            updateData.layoutX = fixtureUpdate.layoutX;
+          }
+          if (fixtureUpdate.layoutY !== undefined) {
+            updateData.layoutY = fixtureUpdate.layoutY;
+          }
+          if (fixtureUpdate.layoutRotation !== undefined) {
+            updateData.layoutRotation = fixtureUpdate.layoutRotation;
+          }
+
+          return prisma.fixtureInstance.update({
+            where: { id: fixtureUpdate.fixtureId },
+            data: updateData,
+            include: {
+              channels: {
+                orderBy: { offset: "asc" },
+              },
+              project: true,
+            },
+          });
+        }),
+      );
+
+      return updatedFixtures;
     },
   },
 

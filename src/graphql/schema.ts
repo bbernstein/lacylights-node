@@ -442,6 +442,22 @@ export const typeDefs = gql`
     easingType: EasingType
   }
 
+  input FixtureUpdateItem {
+    fixtureId: ID!
+    name: String
+    description: String
+    universe: Int
+    startChannel: Int
+    tags: [String!]
+    layoutX: Float
+    layoutY: Float
+    layoutRotation: Float
+  }
+
+  input BulkFixtureUpdateInput {
+    fixtures: [FixtureUpdateItem!]!
+  }
+
   input FixtureMappingInput {
     lacyLightsKey: String!
     qlcManufacturer: String!
@@ -544,6 +560,7 @@ export const typeDefs = gql`
       id: ID!
       input: UpdateFixtureInstanceInput!
     ): FixtureInstance!
+    bulkUpdateFixtures(input: BulkFixtureUpdateInput!): [FixtureInstance!]!
     deleteFixtureInstance(id: ID!): Boolean!
 
     # Fixture Ordering
