@@ -486,6 +486,108 @@ export const fixtureResolvers = {
 
       return updatedFixtures;
     },
+
+    bulkCreateFixtures: async (
+      _: any,
+      { input }: { input: { fixtures: any[] } },
+      { prisma }: Context,
+    ) => {
+      // Process each fixture input and create them in a transaction
+      const createdFixtures = await prisma.$transaction(async (tx) => {
+        const results = [];
+
+        for (const fixtureInput of input.fixtures) {
+          // First, get the definition and mode to determine channels
+          const definition = await tx.fixtureDefinition.findUnique({
+            where: { id: fixtureInput.definitionId },
+            include: { channels: true },
+          });
+
+          if (!definition) {
+            throw new Error(`Fixture definition not found: ${fixtureInput.definitionId}`);
+          }
+
+          let mode = null;
+          let channelsToCreate: Array<{
+            offset: number;
+            name: string;
+            type: any;
+            minValue: number;
+            maxValue: number;
+            defaultValue: number;
+          }> = [];
+
+          if (fixtureInput.modeId) {
+            mode = await tx.fixtureMode.findUnique({
+              where: { id: fixtureInput.modeId },
+              include: {
+                modeChannels: {
+                  include: { channel: true },
+                  orderBy: { offset: "asc" },
+                },
+              },
+            });
+
+            if (mode) {
+              channelsToCreate = mode.modeChannels.map((mc: any) => ({
+                offset: mc.offset,
+                name: mc.channel.name,
+                type: mc.channel.type,
+                minValue: mc.channel.minValue,
+                maxValue: mc.channel.maxValue,
+                defaultValue: mc.channel.defaultValue,
+              }));
+            }
+          }
+
+          // If no mode channels, use definition channels
+          if (channelsToCreate.length === 0) {
+            channelsToCreate = definition.channels
+              .sort((a: any, b: any) => a.offset - b.offset)
+              .map((ch: any) => ({
+                offset: ch.offset,
+                name: ch.name,
+                type: ch.type,
+                minValue: ch.minValue,
+                maxValue: ch.maxValue,
+                defaultValue: ch.defaultValue,
+              }));
+          }
+
+          const createdFixture = await tx.fixtureInstance.create({
+            data: {
+              name: fixtureInput.name,
+              description: fixtureInput.description,
+              definitionId: fixtureInput.definitionId,
+              projectId: fixtureInput.projectId,
+              universe: fixtureInput.universe,
+              startChannel: fixtureInput.startChannel,
+              tags: fixtureInput.tags ? serializeTags(fixtureInput.tags) : null,
+              manufacturer: definition.manufacturer,
+              model: definition.model,
+              type: definition.type,
+              modeName: mode?.name || "Default",
+              channelCount: mode?.channelCount || definition.channels.length,
+              channels: {
+                create: channelsToCreate,
+              },
+            },
+            include: {
+              channels: {
+                orderBy: { offset: "asc" },
+              },
+              project: true,
+            },
+          });
+
+          results.push(createdFixture);
+        }
+
+        return results;
+      });
+
+      return createdFixtures;
+    },
   },
 
   types: {

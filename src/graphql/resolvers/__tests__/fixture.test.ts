@@ -967,6 +967,400 @@ describe("Fixture Resolvers", () => {
         expect(result).toEqual(updatedFixtures);
       });
     });
+
+    describe("bulkCreateFixtures", () => {
+      const mockDefinition = {
+        id: "def-1",
+        manufacturer: "Chauvet",
+        model: "SlimPAR Pro H",
+        type: FixtureType.LED_PAR,
+        channels: [
+          {
+            offset: 0,
+            name: "Red",
+            type: ChannelType.RED,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0,
+          },
+          {
+            offset: 1,
+            name: "Green",
+            type: ChannelType.GREEN,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0,
+          },
+        ],
+      };
+
+      it("should create multiple fixtures in a transaction", async () => {
+        const createdFixtures = [
+          {
+            id: "fixture-1",
+            name: "Fixture 1",
+            manufacturer: "Chauvet",
+            model: "SlimPAR Pro H",
+            type: FixtureType.LED_PAR,
+            universe: 1,
+            startChannel: 1,
+            modeName: "Default",
+            channelCount: 2,
+            channels: mockDefinition.channels,
+            project: {},
+          },
+          {
+            id: "fixture-2",
+            name: "Fixture 2",
+            manufacturer: "Chauvet",
+            model: "SlimPAR Pro H",
+            type: FixtureType.LED_PAR,
+            universe: 1,
+            startChannel: 10,
+            modeName: "Default",
+            channelCount: 2,
+            channels: mockDefinition.channels,
+            project: {},
+          },
+        ];
+
+        // Mock $transaction to execute the callback and return the results
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => {
+            // Simulate the transaction callback execution
+            const tx = {
+              fixtureDefinition: {
+                findUnique: jest.fn().mockResolvedValue(mockDefinition),
+              },
+              fixtureMode: {
+                findUnique: jest.fn().mockResolvedValue(null),
+              },
+              fixtureInstance: {
+                create: jest
+                  .fn()
+                  .mockResolvedValueOnce(createdFixtures[0])
+                  .mockResolvedValueOnce(createdFixtures[1]),
+              },
+            };
+            return await callback(tx);
+          });
+
+        const input = {
+          fixtures: [
+            {
+              name: "Fixture 1",
+              definitionId: "def-1",
+              projectId: "proj-1",
+              universe: 1,
+              startChannel: 1,
+            },
+            {
+              name: "Fixture 2",
+              definitionId: "def-1",
+              projectId: "proj-1",
+              universe: 1,
+              startChannel: 10,
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkCreateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual(createdFixtures);
+        expect(mockContext.prisma.$transaction).toHaveBeenCalled();
+      });
+
+      it("should create fixtures with mode channels", async () => {
+        const mockMode = {
+          id: "mode-1",
+          name: "RGB Mode",
+          channelCount: 3,
+          modeChannels: [
+            {
+              offset: 0,
+              channel: {
+                name: "Red",
+                type: ChannelType.RED,
+                minValue: 0,
+                maxValue: 255,
+                defaultValue: 0,
+              },
+            },
+            {
+              offset: 1,
+              channel: {
+                name: "Green",
+                type: ChannelType.GREEN,
+                minValue: 0,
+                maxValue: 255,
+                defaultValue: 0,
+              },
+            },
+            {
+              offset: 2,
+              channel: {
+                name: "Blue",
+                type: ChannelType.BLUE,
+                minValue: 0,
+                maxValue: 255,
+                defaultValue: 0,
+              },
+            },
+          ],
+        };
+
+        const createdFixture = {
+          id: "fixture-1",
+          name: "Fixture with Mode",
+          manufacturer: "Chauvet",
+          model: "SlimPAR Pro H",
+          type: FixtureType.LED_PAR,
+          universe: 1,
+          startChannel: 1,
+          modeName: "RGB Mode",
+          channelCount: 3,
+          channels: [
+            {
+              offset: 0,
+              name: "Red",
+              type: ChannelType.RED,
+              minValue: 0,
+              maxValue: 255,
+              defaultValue: 0,
+            },
+            {
+              offset: 1,
+              name: "Green",
+              type: ChannelType.GREEN,
+              minValue: 0,
+              maxValue: 255,
+              defaultValue: 0,
+            },
+            {
+              offset: 2,
+              name: "Blue",
+              type: ChannelType.BLUE,
+              minValue: 0,
+              maxValue: 255,
+              defaultValue: 0,
+            },
+          ],
+          project: {},
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => {
+            const tx = {
+              fixtureDefinition: {
+                findUnique: jest.fn().mockResolvedValue(mockDefinition),
+              },
+              fixtureMode: {
+                findUnique: jest.fn().mockResolvedValue(mockMode),
+              },
+              fixtureInstance: {
+                create: jest.fn().mockResolvedValue(createdFixture),
+              },
+            };
+            return await callback(tx);
+          });
+
+        const input = {
+          fixtures: [
+            {
+              name: "Fixture with Mode",
+              definitionId: "def-1",
+              modeId: "mode-1",
+              projectId: "proj-1",
+              universe: 1,
+              startChannel: 1,
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkCreateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual([createdFixture]);
+      });
+
+      it("should create fixtures with tags", async () => {
+        const createdFixture = {
+          id: "fixture-1",
+          name: "Tagged Fixture",
+          manufacturer: "Chauvet",
+          model: "SlimPAR Pro H",
+          type: FixtureType.LED_PAR,
+          tags: '["front","wash","blue"]',
+          universe: 1,
+          startChannel: 1,
+          modeName: "Default",
+          channelCount: 2,
+          channels: mockDefinition.channels,
+          project: {},
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => {
+            const tx = {
+              fixtureDefinition: {
+                findUnique: jest.fn().mockResolvedValue(mockDefinition),
+              },
+              fixtureMode: {
+                findUnique: jest.fn().mockResolvedValue(null),
+              },
+              fixtureInstance: {
+                create: jest.fn().mockResolvedValue(createdFixture),
+              },
+            };
+            return await callback(tx);
+          });
+
+        const input = {
+          fixtures: [
+            {
+              name: "Tagged Fixture",
+              definitionId: "def-1",
+              projectId: "proj-1",
+              universe: 1,
+              startChannel: 1,
+              tags: ["front", "wash", "blue"],
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkCreateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual([createdFixture]);
+      });
+
+      it("should throw error when definition not found", async () => {
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => {
+            const tx = {
+              fixtureDefinition: {
+                findUnique: jest.fn().mockResolvedValue(null),
+              },
+            };
+            return await callback(tx);
+          });
+
+        const input = {
+          fixtures: [
+            {
+              name: "Fixture 1",
+              definitionId: "non-existent",
+              projectId: "proj-1",
+              universe: 1,
+              startChannel: 1,
+            },
+          ],
+        };
+
+        await expect(
+          fixtureResolvers.Mutation.bulkCreateFixtures(
+            {},
+            { input },
+            mockContext,
+          ),
+        ).rejects.toThrow("Fixture definition not found: non-existent");
+      });
+
+      it("should handle transaction rollback on error", async () => {
+        mockContext.prisma.$transaction = jest.fn().mockRejectedValue(
+          new Error("Transaction failed"),
+        );
+
+        const input = {
+          fixtures: [
+            {
+              name: "Fixture 1",
+              definitionId: "def-1",
+              projectId: "proj-1",
+              universe: 1,
+              startChannel: 1,
+            },
+          ],
+        };
+
+        await expect(
+          fixtureResolvers.Mutation.bulkCreateFixtures(
+            {},
+            { input },
+            mockContext,
+          ),
+        ).rejects.toThrow("Transaction failed");
+      });
+
+      it("should create fixtures with optional description", async () => {
+        const createdFixture = {
+          id: "fixture-1",
+          name: "Fixture 1",
+          description: "Test Description",
+          manufacturer: "Chauvet",
+          model: "SlimPAR Pro H",
+          type: FixtureType.LED_PAR,
+          universe: 1,
+          startChannel: 1,
+          modeName: "Default",
+          channelCount: 2,
+          channels: mockDefinition.channels,
+          project: {},
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => {
+            const tx = {
+              fixtureDefinition: {
+                findUnique: jest.fn().mockResolvedValue(mockDefinition),
+              },
+              fixtureMode: {
+                findUnique: jest.fn().mockResolvedValue(null),
+              },
+              fixtureInstance: {
+                create: jest.fn().mockResolvedValue(createdFixture),
+              },
+            };
+            return await callback(tx);
+          });
+
+        const input = {
+          fixtures: [
+            {
+              name: "Fixture 1",
+              description: "Test Description",
+              definitionId: "def-1",
+              projectId: "proj-1",
+              universe: 1,
+              startChannel: 1,
+            },
+          ],
+        };
+
+        const result = await fixtureResolvers.Mutation.bulkCreateFixtures(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toEqual([createdFixture]);
+      });
+    });
   });
 
   describe("types", () => {

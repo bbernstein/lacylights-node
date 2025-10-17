@@ -458,6 +458,10 @@ export const typeDefs = gql`
     fixtures: [FixtureUpdateItem!]!
   }
 
+  input BulkFixtureCreateInput {
+    fixtures: [CreateFixtureInstanceInput!]!
+  }
+
   input FixtureMappingInput {
     lacyLightsKey: String!
     qlcManufacturer: String!
@@ -561,6 +565,7 @@ export const typeDefs = gql`
       input: UpdateFixtureInstanceInput!
     ): FixtureInstance!
     bulkUpdateFixtures(input: BulkFixtureUpdateInput!): [FixtureInstance!]!
+    bulkCreateFixtures(input: BulkFixtureCreateInput!): [FixtureInstance!]!
     deleteFixtureInstance(id: ID!): Boolean!
 
     # Fixture Ordering
