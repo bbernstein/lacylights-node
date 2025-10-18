@@ -27,6 +27,22 @@ export interface BulkFixtureUpdateInput {
   fixtures: FixtureUpdateItem[];
 }
 
+// Input type for bulk fixture creation
+export interface CreateFixtureInstanceInput {
+  projectId: string;
+  name: string;
+  description?: string;
+  definitionId: string;
+  modeId?: string;
+  universe: number;
+  startChannel: number;
+  tags?: string[];
+}
+
+export interface BulkFixtureCreateInput {
+  fixtures: CreateFixtureInstanceInput[];
+}
+
 // Shared type for fixture update data to reduce duplication
 export interface FixtureUpdateData {
   name?: string;
@@ -516,7 +532,7 @@ export const fixtureResolvers = {
 
     bulkCreateFixtures: async (
       _: any,
-      { input }: { input: { fixtures: any[] } },
+      { input }: { input: BulkFixtureCreateInput },
       { prisma }: Context,
     ) => {
       // Process each fixture input and create them in a transaction
