@@ -27,8 +27,49 @@ export interface BulkFixtureUpdateInput {
   fixtures: FixtureUpdateItem[];
 }
 
-// Note: Interface definitions removed as they are not used in current resolvers
-// They would be needed when implementing create/update mutations
+// Shared type for fixture update data to reduce duplication
+export interface FixtureUpdateData {
+  name?: string;
+  description?: string | null;
+  universe?: number;
+  startChannel?: number;
+  tags?: string | null;
+  layoutX?: number | null;
+  layoutY?: number | null;
+  layoutRotation?: number | null;
+}
+
+// Type for channel creation data
+export interface ChannelCreateData {
+  offset: number;
+  name: string;
+  type: ChannelType;
+  minValue: number;
+  maxValue: number;
+  defaultValue: number;
+}
+
+// Type for mode channel with nested channel data
+interface ModeChannelWithChannel {
+  offset: number;
+  channel: {
+    name: string;
+    type: ChannelType;
+    minValue: number;
+    maxValue: number;
+    defaultValue: number;
+  };
+}
+
+// Type for definition channel data
+interface DefinitionChannel {
+  offset: number;
+  name: string;
+  type: ChannelType;
+  minValue: number;
+  maxValue: number;
+  defaultValue: number;
+}
 
 export const fixtureResolvers = {
   Query: {
@@ -156,14 +197,7 @@ export const fixtureResolvers = {
       }
 
       let mode = null;
-      let channelsToCreate: Array<{
-        offset: number;
-        name: string;
-        type: any;
-        minValue: number;
-        maxValue: number;
-        defaultValue: number;
-      }> = [];
+      let channelsToCreate: ChannelCreateData[] = [];
 
       if (input.modeId) {
         mode = await prisma.fixtureMode.findUnique({
@@ -177,7 +211,7 @@ export const fixtureResolvers = {
         });
 
         if (mode) {
-          channelsToCreate = mode.modeChannels.map((mc: any) => ({
+          channelsToCreate = (mode.modeChannels as ModeChannelWithChannel[]).map((mc) => ({
             offset: mc.offset,
             name: mc.channel.name,
             type: mc.channel.type,
@@ -190,9 +224,9 @@ export const fixtureResolvers = {
 
       // If no mode channels, use definition channels
       if (channelsToCreate.length === 0) {
-        channelsToCreate = definition.channels
-          .sort((a: any, b: any) => a.offset - b.offset)
-          .map((ch: any) => ({
+        channelsToCreate = (definition.channels as DefinitionChannel[])
+          .sort((a, b) => a.offset - b.offset)
+          .map((ch) => ({
             offset: ch.offset,
             name: ch.name,
             type: ch.type,
@@ -302,14 +336,7 @@ export const fixtureResolvers = {
 
           // Handle mode update
           let mode = null;
-          let channelsToUpdate: Array<{
-            offset: number;
-            name: string;
-            type: ChannelType;
-            minValue: number;
-            maxValue: number;
-            defaultValue: number;
-          }> = [];
+          let channelsToUpdate: ChannelCreateData[] = [];
 
           if (modeId) {
             mode = await prisma.fixtureMode.findUnique({
@@ -326,10 +353,10 @@ export const fixtureResolvers = {
               updateData.modeName = mode.name;
               updateData.channelCount = mode.channelCount;
 
-              channelsToUpdate = mode.modeChannels.map((mc: any) => ({
+              channelsToUpdate = (mode.modeChannels as ModeChannelWithChannel[]).map((mc) => ({
                 offset: mc.offset,
                 name: mc.channel.name,
-                type: mc.channel.type as ChannelType,
+                type: mc.channel.type,
                 minValue: mc.channel.minValue,
                 maxValue: mc.channel.maxValue,
                 defaultValue: mc.channel.defaultValue,
@@ -343,12 +370,12 @@ export const fixtureResolvers = {
 
           // If no mode channels, use definition channels
           if (channelsToUpdate.length === 0) {
-            channelsToUpdate = definition.channels
-              .sort((a: any, b: any) => a.offset - b.offset)
-              .map((ch: any) => ({
+            channelsToUpdate = (definition.channels as DefinitionChannel[])
+              .sort((a, b) => a.offset - b.offset)
+              .map((ch) => ({
                 offset: ch.offset,
                 name: ch.name,
-                type: ch.type as ChannelType,
+                type: ch.type,
                 minValue: ch.minValue,
                 maxValue: ch.maxValue,
                 defaultValue: ch.defaultValue,
@@ -444,16 +471,7 @@ export const fixtureResolvers = {
       const updatedFixtures = await prisma.$transaction(
         input.fixtures.map((fixtureUpdate) => {
           // Build update data - only include fields that are provided
-          const updateData: {
-            name?: string;
-            description?: string | null;
-            universe?: number;
-            startChannel?: number;
-            tags?: string | null;
-            layoutX?: number | null;
-            layoutY?: number | null;
-            layoutRotation?: number | null;
-          } = {};
+          const updateData: FixtureUpdateData = {};
 
           if (fixtureUpdate.name !== undefined) {
             updateData.name = fixtureUpdate.name;
@@ -517,14 +535,7 @@ export const fixtureResolvers = {
           }
 
           let mode = null;
-          let channelsToCreate: Array<{
-            offset: number;
-            name: string;
-            type: any;
-            minValue: number;
-            maxValue: number;
-            defaultValue: number;
-          }> = [];
+          let channelsToCreate: ChannelCreateData[] = [];
 
           if (fixtureInput.modeId) {
             mode = await tx.fixtureMode.findUnique({
@@ -538,7 +549,7 @@ export const fixtureResolvers = {
             });
 
             if (mode) {
-              channelsToCreate = mode.modeChannels.map((mc: any) => ({
+              channelsToCreate = (mode.modeChannels as ModeChannelWithChannel[]).map((mc) => ({
                 offset: mc.offset,
                 name: mc.channel.name,
                 type: mc.channel.type,
@@ -551,9 +562,9 @@ export const fixtureResolvers = {
 
           // If no mode channels, use definition channels
           if (channelsToCreate.length === 0) {
-            channelsToCreate = definition.channels
-              .sort((a: any, b: any) => a.offset - b.offset)
-              .map((ch: any) => ({
+            channelsToCreate = (definition.channels as DefinitionChannel[])
+              .sort((a, b) => a.offset - b.offset)
+              .map((ch) => ({
                 offset: ch.offset,
                 name: ch.name,
                 type: ch.type,
