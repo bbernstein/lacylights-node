@@ -444,7 +444,16 @@ export const fixtureResolvers = {
       const updatedFixtures = await prisma.$transaction(
         input.fixtures.map((fixtureUpdate) => {
           // Build update data - only include fields that are provided
-          const updateData: any = {};
+          const updateData: {
+            name?: string;
+            description?: string | null;
+            universe?: number;
+            startChannel?: number;
+            tags?: string | null;
+            layoutX?: number | null;
+            layoutY?: number | null;
+            layoutRotation?: number | null;
+          } = {};
 
           if (fixtureUpdate.name !== undefined) {
             updateData.name = fixtureUpdate.name;
@@ -459,7 +468,7 @@ export const fixtureResolvers = {
             updateData.startChannel = fixtureUpdate.startChannel;
           }
           if (fixtureUpdate.tags !== undefined) {
-            updateData.tags = fixtureUpdate.tags ? serializeTags(fixtureUpdate.tags) : null;
+            updateData.tags = serializeTags(fixtureUpdate.tags);
           }
           if (fixtureUpdate.layoutX !== undefined) {
             updateData.layoutX = fixtureUpdate.layoutX;
