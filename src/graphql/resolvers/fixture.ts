@@ -11,8 +11,81 @@ export interface FixtureDefinitionFilter {
   channelTypes?: ChannelType[];
 }
 
-// Note: Interface definitions removed as they are not used in current resolvers
-// They would be needed when implementing create/update mutations
+export interface FixtureUpdateItem {
+  fixtureId: string;
+  name?: string;
+  description?: string;
+  universe?: number;
+  startChannel?: number;
+  tags?: string[];
+  layoutX?: number;
+  layoutY?: number;
+  layoutRotation?: number;
+}
+
+export interface BulkFixtureUpdateInput {
+  fixtures: FixtureUpdateItem[];
+}
+
+// Input type for bulk fixture creation
+export interface CreateFixtureInstanceInput {
+  projectId: string;
+  name: string;
+  description?: string;
+  definitionId: string;
+  modeId?: string;
+  universe: number;
+  startChannel: number;
+  tags?: string[];
+}
+
+export interface BulkFixtureCreateInput {
+  fixtures: CreateFixtureInstanceInput[];
+}
+
+// Shared type for fixture update data to reduce duplication
+export interface FixtureUpdateData {
+  name?: string;
+  description?: string | null;
+  universe?: number;
+  startChannel?: number;
+  tags?: string | null;
+  layoutX?: number | null;
+  layoutY?: number | null;
+  layoutRotation?: number | null;
+}
+
+// Type for channel creation data
+export interface ChannelCreateData {
+  offset: number;
+  name: string;
+  type: ChannelType;
+  minValue: number;
+  maxValue: number;
+  defaultValue: number;
+}
+
+// Type for mode channel with nested channel data
+interface ModeChannelWithChannel {
+  offset: number;
+  channel: {
+    name: string;
+    type: ChannelType;
+    minValue: number;
+    maxValue: number;
+    defaultValue: number;
+  };
+}
+
+// Type for definition channel data
+interface DefinitionChannel {
+  offset: number;
+  name: string;
+  type: ChannelType;
+  minValue: number;
+  maxValue: number;
+  defaultValue: number;
+}
 
 export const fixtureResolvers = {
   Query: {
@@ -140,14 +213,7 @@ export const fixtureResolvers = {
       }
 
       let mode = null;
-      let channelsToCreate: Array<{
-        offset: number;
-        name: string;
-        type: any;
-        minValue: number;
-        maxValue: number;
-        defaultValue: number;
-      }> = [];
+      let channelsToCreate: ChannelCreateData[] = [];
 
       if (input.modeId) {
         mode = await prisma.fixtureMode.findUnique({
@@ -161,7 +227,7 @@ export const fixtureResolvers = {
         });
 
         if (mode) {
-          channelsToCreate = mode.modeChannels.map((mc: any) => ({
+          channelsToCreate = (mode.modeChannels as ModeChannelWithChannel[]).map((mc) => ({
             offset: mc.offset,
             name: mc.channel.name,
             type: mc.channel.type,
@@ -174,9 +240,9 @@ export const fixtureResolvers = {
 
       // If no mode channels, use definition channels
       if (channelsToCreate.length === 0) {
-        channelsToCreate = definition.channels
-          .sort((a: any, b: any) => a.offset - b.offset)
-          .map((ch: any) => ({
+        channelsToCreate = (definition.channels as DefinitionChannel[])
+          .sort((a, b) => a.offset - b.offset)
+          .map((ch) => ({
             offset: ch.offset,
             name: ch.name,
             type: ch.type,
@@ -286,14 +352,7 @@ export const fixtureResolvers = {
 
           // Handle mode update
           let mode = null;
-          let channelsToUpdate: Array<{
-            offset: number;
-            name: string;
-            type: ChannelType;
-            minValue: number;
-            maxValue: number;
-            defaultValue: number;
-          }> = [];
+          let channelsToUpdate: ChannelCreateData[] = [];
 
           if (modeId) {
             mode = await prisma.fixtureMode.findUnique({
@@ -310,10 +369,10 @@ export const fixtureResolvers = {
               updateData.modeName = mode.name;
               updateData.channelCount = mode.channelCount;
 
-              channelsToUpdate = mode.modeChannels.map((mc: any) => ({
+              channelsToUpdate = (mode.modeChannels as ModeChannelWithChannel[]).map((mc) => ({
                 offset: mc.offset,
                 name: mc.channel.name,
-                type: mc.channel.type as ChannelType,
+                type: mc.channel.type,
                 minValue: mc.channel.minValue,
                 maxValue: mc.channel.maxValue,
                 defaultValue: mc.channel.defaultValue,
@@ -327,12 +386,12 @@ export const fixtureResolvers = {
 
           // If no mode channels, use definition channels
           if (channelsToUpdate.length === 0) {
-            channelsToUpdate = definition.channels
-              .sort((a: any, b: any) => a.offset - b.offset)
-              .map((ch: any) => ({
+            channelsToUpdate = (definition.channels as DefinitionChannel[])
+              .sort((a, b) => a.offset - b.offset)
+              .map((ch) => ({
                 offset: ch.offset,
                 name: ch.name,
-                type: ch.type as ChannelType,
+                type: ch.type,
                 minValue: ch.minValue,
                 maxValue: ch.maxValue,
                 defaultValue: ch.defaultValue,
@@ -393,6 +452,177 @@ export const fixtureResolvers = {
         )
       );
       return true;
+    },
+
+    bulkUpdateFixtures: async (
+      _: any,
+      { input }: { input: BulkFixtureUpdateInput },
+      { prisma }: Context,
+    ) => {
+      // Extract all fixture IDs for validation
+      const fixtureIds = input.fixtures.map((f) => f.fixtureId);
+
+      // Verify all fixtures exist first
+      const existingFixtures = await prisma.fixtureInstance.findMany({
+        where: {
+          id: {
+            in: fixtureIds,
+          },
+        },
+        include: {
+          channels: {
+            orderBy: { offset: "asc" },
+          },
+          project: true,
+        },
+      });
+
+      if (existingFixtures.length !== fixtureIds.length) {
+        const foundIds = new Set(existingFixtures.map((fixture) => fixture.id));
+        const missingIds = fixtureIds.filter((id) => !foundIds.has(id));
+        throw new Error(`Fixtures not found: ${missingIds.join(", ")}`);
+      }
+
+      // Perform bulk update using transaction for consistency
+      const updatedFixtures = await prisma.$transaction(
+        input.fixtures.map((fixtureUpdate) => {
+          // Build update data - only include fields that are provided
+          const updateData: FixtureUpdateData = {};
+
+          if (fixtureUpdate.name !== undefined) {
+            updateData.name = fixtureUpdate.name;
+          }
+          if (fixtureUpdate.description !== undefined) {
+            updateData.description = fixtureUpdate.description;
+          }
+          if (fixtureUpdate.universe !== undefined) {
+            updateData.universe = fixtureUpdate.universe;
+          }
+          if (fixtureUpdate.startChannel !== undefined) {
+            updateData.startChannel = fixtureUpdate.startChannel;
+          }
+          if (fixtureUpdate.tags !== undefined) {
+            updateData.tags = serializeTags(fixtureUpdate.tags);
+          }
+          if (fixtureUpdate.layoutX !== undefined) {
+            updateData.layoutX = fixtureUpdate.layoutX;
+          }
+          if (fixtureUpdate.layoutY !== undefined) {
+            updateData.layoutY = fixtureUpdate.layoutY;
+          }
+          if (fixtureUpdate.layoutRotation !== undefined) {
+            updateData.layoutRotation = fixtureUpdate.layoutRotation;
+          }
+
+          return prisma.fixtureInstance.update({
+            where: { id: fixtureUpdate.fixtureId },
+            data: updateData,
+            include: {
+              channels: {
+                orderBy: { offset: "asc" },
+              },
+              project: true,
+            },
+          });
+        }),
+      );
+
+      return updatedFixtures;
+    },
+
+    bulkCreateFixtures: async (
+      _: any,
+      { input }: { input: BulkFixtureCreateInput },
+      { prisma }: Context,
+    ) => {
+      // Process each fixture input and create them in a transaction
+      const createdFixtures = await prisma.$transaction(async (tx) => {
+        const results = [];
+
+        for (const fixtureInput of input.fixtures) {
+          // First, get the definition and mode to determine channels
+          const definition = await tx.fixtureDefinition.findUnique({
+            where: { id: fixtureInput.definitionId },
+            include: { channels: true },
+          });
+
+          if (!definition) {
+            throw new Error(`Fixture definition not found: ${fixtureInput.definitionId}`);
+          }
+
+          let mode = null;
+          let channelsToCreate: ChannelCreateData[] = [];
+
+          if (fixtureInput.modeId) {
+            mode = await tx.fixtureMode.findUnique({
+              where: { id: fixtureInput.modeId },
+              include: {
+                modeChannels: {
+                  include: { channel: true },
+                  orderBy: { offset: "asc" },
+                },
+              },
+            });
+
+            if (mode) {
+              channelsToCreate = (mode.modeChannels as ModeChannelWithChannel[]).map((mc) => ({
+                offset: mc.offset,
+                name: mc.channel.name,
+                type: mc.channel.type,
+                minValue: mc.channel.minValue,
+                maxValue: mc.channel.maxValue,
+                defaultValue: mc.channel.defaultValue,
+              }));
+            }
+          }
+
+          // If no mode channels, use definition channels
+          if (channelsToCreate.length === 0) {
+            channelsToCreate = (definition.channels as DefinitionChannel[])
+              .sort((a, b) => a.offset - b.offset)
+              .map((ch) => ({
+                offset: ch.offset,
+                name: ch.name,
+                type: ch.type,
+                minValue: ch.minValue,
+                maxValue: ch.maxValue,
+                defaultValue: ch.defaultValue,
+              }));
+          }
+
+          const createdFixture = await tx.fixtureInstance.create({
+            data: {
+              name: fixtureInput.name,
+              description: fixtureInput.description,
+              definitionId: fixtureInput.definitionId,
+              projectId: fixtureInput.projectId,
+              universe: fixtureInput.universe,
+              startChannel: fixtureInput.startChannel,
+              tags: fixtureInput.tags ? serializeTags(fixtureInput.tags) : null,
+              manufacturer: definition.manufacturer,
+              model: definition.model,
+              type: definition.type,
+              modeName: mode?.name || "Default",
+              channelCount: mode?.channelCount || definition.channels.length,
+              channels: {
+                create: channelsToCreate,
+              },
+            },
+            include: {
+              channels: {
+                orderBy: { offset: "asc" },
+              },
+              project: true,
+            },
+          });
+
+          results.push(createdFixture);
+        }
+
+        return results;
+      });
+
+      return createdFixtures;
     },
   },
 
