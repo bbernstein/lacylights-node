@@ -1,4 +1,4 @@
-import { Context } from "../../context";
+import { Context, pubsub, WebSocketContext } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { getNetworkInterfaces } from "../../utils/networkInterfaces";
 import { logger } from "../../utils/logger";
@@ -73,9 +73,25 @@ export const settingsResolvers = {
             }
           );
         }
+
+        // Publish system info update to all subscribed clients
+        await pubsub.publish("SYSTEM_INFO_UPDATED", {
+          systemInfoUpdated: {
+            artnetBroadcastAddress: dmxService.getBroadcastAddress(),
+            artnetEnabled: dmxService.isArtNetEnabled(),
+          },
+        });
       }
 
       return result;
+    },
+  },
+
+  Subscription: {
+    systemInfoUpdated: {
+      subscribe: (_: unknown, __: unknown, { pubsub }: WebSocketContext) => {
+        return pubsub.asyncIterator(["SYSTEM_INFO_UPDATED"]);
+      },
     },
   },
 };

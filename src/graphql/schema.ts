@@ -663,5 +663,6 @@ export const typeDefs = gql`
     projectUpdated(projectId: ID!): Project!
     previewSessionUpdated(projectId: ID!): PreviewSession!
     cueListPlaybackUpdated(cueListId: ID!): CueListPlaybackStatus!
+    systemInfoUpdated: SystemInfo!
   }
 `;
