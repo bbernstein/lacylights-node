@@ -106,11 +106,9 @@ if ! run_on_pi "[ -f $DEPLOY_DIR/.env ]"; then
     # Configure for Pi environment
     run_on_pi "cd $DEPLOY_DIR && sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env"
     run_on_pi "cd $DEPLOY_DIR && sed -i 's/# NON_INTERACTIVE=false/NON_INTERACTIVE=true/' .env"
-    run_on_pi "cd $DEPLOY_DIR && sed -i 's/# ARTNET_BROADCAST=192.168.1.255/ARTNET_BROADCAST=255.255.255.255/' .env"
 
-    echo "IMPORTANT: Review and edit .env file on the Pi as needed"
-    echo "  SSH to Pi: ssh $PI_USER@$PI_HOST"
-    echo "  Edit .env: nano $DEPLOY_DIR/.env"
+    echo "IMPORTANT: Configure Art-Net broadcast address via the Settings UI after deployment"
+    echo "  Access web UI at: http://$PI_HOST"
 else
     echo ".env file already exists"
 fi

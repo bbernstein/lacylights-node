@@ -95,21 +95,17 @@ This will:
 
 ### Configure Art-Net Network
 
-Edit the backend environment file:
-```bash
-sudo nano /opt/lacylights/backend/.env
-```
+**Art-Net broadcast address is now configured through the Settings page in the web UI.**
 
-Set the Art-Net broadcast address:
-```
-ARTNET_ENABLED=true
-ARTNET_BROADCAST=192.168.1.255  # Your subnet broadcast address
-```
+1. Access the web interface at `http://raspberrypi.local` (or your Pi's IP address)
+2. Navigate to the Settings page
+3. Configure your Art-Net broadcast address:
+   - Subnet broadcast (recommended): `192.168.1.255`
+   - Unicast to specific device: `192.168.1.100`
+   - Global broadcast: `255.255.255.255`
+4. Changes are saved to the database and applied immediately
 
-Restart the service:
-```bash
-sudo systemctl restart lacylights
-```
+The current broadcast address is always visible in the system status bar at the top of the web UI.
 
 ## System Architecture
 

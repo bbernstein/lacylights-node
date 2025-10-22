@@ -71,8 +71,8 @@ If you need more control, you can run the scripts separately:
    Important settings for Pi:
    - `NODE_ENV=production` - Run in production mode
    - `NON_INTERACTIVE=true` - Skip interactive prompts
-   - `ARTNET_BROADCAST=255.255.255.255` - Broadcast to all interfaces
-   - Or set specific IP: `ARTNET_BROADCAST=192.168.1.255`
+
+   **Note:** Art-Net broadcast address is now configured via the Settings UI and persisted in the database.
 
 3. **Redeploy After Changes**:
    ```bash
@@ -173,10 +173,13 @@ ssh pi@lacylights.local 'sudo netstat -tulpn | grep :5432'
 
 ### Art-Net Not Working
 
-1. Check the network interface configuration in `.env`
-2. Try broadcast to all: `ARTNET_BROADCAST=255.255.255.255`
-3. Or use subnet broadcast: `ARTNET_BROADCAST=192.168.1.255`
-4. Verify firewall settings on the Pi
+1. Check the Art-Net broadcast address in the Settings UI
+2. Try different broadcast addresses:
+   - Global broadcast: `255.255.255.255`
+   - Subnet broadcast: `192.168.1.255`
+   - Unicast to specific device: `192.168.1.100`
+3. Verify firewall settings on the Pi
+4. Check that Art-Net is enabled in the Settings UI
 
 ## Updating the Deployment
 
