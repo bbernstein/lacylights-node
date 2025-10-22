@@ -113,13 +113,16 @@ echo ""
 print_status "Fetching latest release version..."
 API_URL="https://api.github.com/repos/$ORG_NAME/$REPO_NAME/releases/latest"
 
+# Fetch API response once to avoid multiple network calls
+API_RESPONSE=$(curl -s "$API_URL")
+
 # Try with jq first, fallback to grep
 if run_on_pi "command -v jq &> /dev/null"; then
-    LATEST_VERSION=$(curl -s "$API_URL" | jq -r '.tag_name // empty')
-    TARBALL_URL=$(curl -s "$API_URL" | jq -r '.tarball_url // empty')
+    LATEST_VERSION=$(echo "$API_RESPONSE" | jq -r '.tag_name // empty')
+    TARBALL_URL=$(echo "$API_RESPONSE" | jq -r '.tarball_url // empty')
 else
-    LATEST_VERSION=$(curl -s "$API_URL" | grep '"tag_name"' | cut -d '"' -f 4)
-    TARBALL_URL=$(curl -s "$API_URL" | grep '"tarball_url"' | cut -d '"' -f 4)
+    LATEST_VERSION=$(echo "$API_RESPONSE" | grep '"tag_name"' | cut -d '"' -f 4)
+    TARBALL_URL=$(echo "$API_RESPONSE" | grep '"tarball_url"' | cut -d '"' -f 4)
 fi
 
 if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
@@ -152,6 +155,7 @@ echo ""
 print_status "Downloading and extracting release on Pi..."
 
 # Create a deployment script that will run on the Pi
+# Use single quotes in the heredoc to prevent variable expansion for security
 DEPLOY_SCRIPT=$(cat <<'REMOTE_SCRIPT'
 #!/bin/bash
 set -e
@@ -163,7 +167,8 @@ LATEST_VERSION="$3"
 # Create temporary directory for download
 TEMP_DIR=$(mktemp -d)
 if [ -z "$TEMP_DIR" ] || [ ! -d "$TEMP_DIR" ]; then
-    echo "Failed to create temporary directory"
+    echo "Failed to create temporary directory at path: '$TEMP_DIR'."
+    echo "Possible causes: insufficient disk space, lack of permissions, or system limits on temporary files."
     exit 1
 fi
 
