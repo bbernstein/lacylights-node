@@ -1,4 +1,4 @@
-import { Context } from "../../context";
+import { Context, WebSocketContext } from "../../context";
 
 export const projectResolvers = {
   Query: {
@@ -84,9 +84,12 @@ export const projectResolvers = {
   },
   Subscription: {
     projectUpdated: {
-      // TODO: Implement subscription logic
-      subscribe: () => {
-        // Placeholder - will be implemented with GraphQL subscriptions
+      subscribe: (
+        _: unknown,
+        __: { projectId: string },
+        { pubsub }: WebSocketContext,
+      ) => {
+        return pubsub.asyncIterator(["PROJECT_UPDATED"]);
       },
     },
   },
