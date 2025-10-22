@@ -1,22 +1,46 @@
 #!/bin/bash
 
 # Raspberry Pi Deployment Script
-# Deploys LacyLights Node.js server to a Raspberry Pi
+# Deploys LacyLights Node.js server to a Raspberry Pi using GitHub releases
 
 set -e  # Exit on any error
 
 # Configuration
 PI_HOST="${PI_HOST:-lacylights.local}"
 PI_USER="${PI_USER:-pi}"
-REPO_URL="https://github.com/bbernstein/lacylights-node.git"
-BRANCH_NAME="${BRANCH_NAME:-main}"
+ORG_NAME="bbernstein"
+REPO_NAME="lacylights-node"
 DEPLOY_DIR="/home/$PI_USER/lacylights-node"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to print colored output
+print_status() {
+    echo -e "${BLUE}==>${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}✓${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}✗${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}!${NC} $1"
+}
 
 echo "=========================================="
 echo "LacyLights Raspberry Pi Deployment"
 echo "=========================================="
 echo "Target: $PI_USER@$PI_HOST"
-echo "Branch: $BRANCH_NAME"
+echo "Repository: $ORG_NAME/$REPO_NAME"
 echo "=========================================="
 
 # Function to run commands on Pi
@@ -31,9 +55,9 @@ copy_to_pi() {
 
 # Test SSH connection
 echo ""
-echo "Testing SSH connection..."
+print_status "Testing SSH connection..."
 if ! run_on_pi "echo 'SSH connection successful'"; then
-    echo "ERROR: Cannot connect to $PI_USER@$PI_HOST"
+    print_error "Cannot connect to $PI_USER@$PI_HOST"
     echo "Please ensure:"
     echo "  1. The Raspberry Pi is on the network"
     echo "  2. SSH is enabled on the Pi"
@@ -43,7 +67,7 @@ fi
 
 # Check if dependencies need to be installed
 echo ""
-echo "Checking if dependencies are installed..."
+print_status "Checking if dependencies are installed..."
 DEPS_INSTALLED=true
 
 if ! run_on_pi "command -v node &> /dev/null"; then
@@ -61,10 +85,14 @@ if ! run_on_pi "docker compose version &> /dev/null"; then
     DEPS_INSTALLED=false
 fi
 
+if ! run_on_pi "command -v jq &> /dev/null"; then
+    print_warning "jq is not installed (will use fallback JSON parsing)"
+fi
+
 # Install dependencies if needed
 if [ "$DEPS_INSTALLED" = false ]; then
     echo ""
-    echo "Dependencies are missing. Installing..."
+    print_status "Dependencies are missing. Installing..."
 
     # Copy installation script to Pi
     copy_to_pi "scripts/install-pi-deps.sh" "/tmp/install-pi-deps.sh"
@@ -73,84 +101,187 @@ if [ "$DEPS_INSTALLED" = false ]; then
     run_on_pi "chmod +x /tmp/install-pi-deps.sh && /tmp/install-pi-deps.sh"
 
     echo ""
-    echo "Dependencies installed. Please log out and back in to the Pi, then run this script again."
+    print_warning "Dependencies installed. Please log out and back in to the Pi, then run this script again."
     echo "Or run this on the Pi: newgrp docker"
     exit 0
 else
-    echo "All dependencies are installed"
+    print_success "All dependencies are installed"
 fi
 
-# Clone or update repository
+# Get the latest release version from GitHub
 echo ""
-echo "Setting up repository on Pi..."
-if run_on_pi "[ -d $DEPLOY_DIR ]"; then
-    echo "Repository already exists, updating..."
-    run_on_pi "cd $DEPLOY_DIR && git fetch origin && git checkout $BRANCH_NAME && git pull origin $BRANCH_NAME"
+print_status "Fetching latest release version..."
+API_URL="https://api.github.com/repos/$ORG_NAME/$REPO_NAME/releases/latest"
+
+# Try with jq first, fallback to grep
+if run_on_pi "command -v jq &> /dev/null"; then
+    LATEST_VERSION=$(curl -s "$API_URL" | jq -r '.tag_name // empty')
+    TARBALL_URL=$(curl -s "$API_URL" | jq -r '.tarball_url // empty')
 else
-    echo "Cloning repository..."
-    run_on_pi "git clone -b $BRANCH_NAME $REPO_URL $DEPLOY_DIR"
+    LATEST_VERSION=$(curl -s "$API_URL" | grep '"tag_name"' | cut -d '"' -f 4)
+    TARBALL_URL=$(curl -s "$API_URL" | grep '"tarball_url"' | cut -d '"' -f 4)
 fi
 
-# Install npm dependencies
+if [ -z "$LATEST_VERSION" ] || [ "$LATEST_VERSION" = "null" ]; then
+    print_error "Could not determine latest version"
+    exit 1
+fi
+
+if [ -z "$TARBALL_URL" ] || [ "$TARBALL_URL" = "null" ]; then
+    print_error "Could not find release tarball URL"
+    exit 1
+fi
+
+print_success "Latest version: $LATEST_VERSION"
+
+# Check current installed version
+INSTALLED_VERSION=$(run_on_pi "[ -f $DEPLOY_DIR/.lacylights-version ] && cat $DEPLOY_DIR/.lacylights-version || echo 'none'")
+
+if [ "$INSTALLED_VERSION" = "$LATEST_VERSION" ]; then
+    print_success "Already running latest version ($LATEST_VERSION)"
+    echo ""
+    echo "To force a reinstall, remove the version file on the Pi:"
+    echo "  ssh $PI_USER@$PI_HOST 'rm $DEPLOY_DIR/.lacylights-version'"
+    exit 0
+fi
+
+print_status "Updating from $INSTALLED_VERSION to $LATEST_VERSION"
+
+# Download and extract release on Pi
 echo ""
-echo "Installing npm dependencies..."
-run_on_pi "cd $DEPLOY_DIR && npm install"
+print_status "Downloading and extracting release on Pi..."
+
+# Create a deployment script that will run on the Pi
+DEPLOY_SCRIPT=$(cat <<'REMOTE_SCRIPT'
+#!/bin/bash
+set -e
+
+DEPLOY_DIR="$1"
+TARBALL_URL="$2"
+LATEST_VERSION="$3"
+
+# Create temporary directory for download
+TEMP_DIR=$(mktemp -d)
+if [ -z "$TEMP_DIR" ] || [ ! -d "$TEMP_DIR" ]; then
+    echo "Failed to create temporary directory"
+    exit 1
+fi
+
+# Backup existing .env file if it exists
+TEMP_BACKUP=$(mktemp -d)
+if [ -d "$DEPLOY_DIR" ] && [ -f "$DEPLOY_DIR/.env" ]; then
+    cp "$DEPLOY_DIR/.env" "$TEMP_BACKUP/.env"
+    echo "Backed up .env file"
+fi
+
+# Download the release archive
+echo "Downloading release..."
+ARCHIVE_FILE="$TEMP_DIR/lacylights-node.tar.gz"
+curl -sL "$TARBALL_URL" -o "$ARCHIVE_FILE"
+
+# Extract to temporary location
+echo "Extracting archive..."
+mkdir -p "$TEMP_DIR/extract"
+tar -xzf "$ARCHIVE_FILE" -C "$TEMP_DIR/extract" --strip-components=1
+
+# Remove old directory if it exists
+if [ -d "$DEPLOY_DIR" ]; then
+    rm -rf "$DEPLOY_DIR"
+fi
+
+# Move extracted files to deployment directory
+mv "$TEMP_DIR/extract" "$DEPLOY_DIR"
+
+# Restore .env file if it was backed up
+if [ -f "$TEMP_BACKUP/.env" ]; then
+    cp "$TEMP_BACKUP/.env" "$DEPLOY_DIR/.env"
+    echo "Restored .env file"
+fi
+
+# Write version file
+echo "$LATEST_VERSION" > "$DEPLOY_DIR/.lacylights-version"
+
+# Clean up
+rm -rf "$TEMP_DIR" "$TEMP_BACKUP"
+
+echo "Extraction complete"
+REMOTE_SCRIPT
+)
+
+# Upload and execute the deployment script on the Pi
+echo "$DEPLOY_SCRIPT" | run_on_pi "cat > /tmp/deploy-lacylights.sh"
+run_on_pi "chmod +x /tmp/deploy-lacylights.sh"
+run_on_pi "/tmp/deploy-lacylights.sh '$DEPLOY_DIR' '$TARBALL_URL' '$LATEST_VERSION'"
+
+print_success "Release downloaded and extracted"
 
 # Create .env file if it doesn't exist
 echo ""
-echo "Setting up environment configuration..."
+print_status "Setting up environment configuration..."
 if ! run_on_pi "[ -f $DEPLOY_DIR/.env ]"; then
-    echo "Creating .env file from .env.example..."
+    print_status "Creating .env file from .env.example..."
     run_on_pi "cp $DEPLOY_DIR/.env.example $DEPLOY_DIR/.env"
 
     # Configure for Pi environment
     run_on_pi "cd $DEPLOY_DIR && sed -i 's/NODE_ENV=development/NODE_ENV=production/' .env"
     run_on_pi "cd $DEPLOY_DIR && sed -i 's/# NON_INTERACTIVE=false/NON_INTERACTIVE=true/' .env"
 
-    echo "IMPORTANT: Configure Art-Net broadcast address via the Settings UI after deployment"
-    echo "  Access web UI at: http://$PI_HOST"
+    print_warning "IMPORTANT: Configure Art-Net broadcast address via the Settings UI after deployment"
+    print_warning "  Access web UI at: http://$PI_HOST:4000"
 else
-    echo ".env file already exists"
+    print_success ".env file already exists"
 fi
+
+# Install npm dependencies
+echo ""
+print_status "Installing npm dependencies..."
+run_on_pi "cd $DEPLOY_DIR && npm install"
+print_success "Dependencies installed"
 
 # Build the application
 echo ""
-echo "Building application..."
+print_status "Building application..."
 run_on_pi "cd $DEPLOY_DIR && npm run build"
+print_success "Build complete"
 
 # Start Docker services
 echo ""
-echo "Starting Docker services..."
+print_status "Starting Docker services..."
 run_on_pi "cd $DEPLOY_DIR && docker compose down || true"
 run_on_pi "cd $DEPLOY_DIR && docker compose up -d"
+print_success "Docker services started"
 
 # Wait for database to be ready
 echo ""
-echo "Waiting for database to be ready..."
+print_status "Waiting for database to be ready..."
 sleep 10
 
 # Run database migrations
 echo ""
-echo "Running database migrations..."
+print_status "Running database migrations..."
 run_on_pi "cd $DEPLOY_DIR && npm run db:migrate"
+print_success "Migrations complete"
 
 # Generate Prisma client
 echo ""
-echo "Generating Prisma client..."
+print_status "Generating Prisma client..."
 run_on_pi "cd $DEPLOY_DIR && npm run db:generate"
+print_success "Prisma client generated"
 
 # Start the application
 echo ""
-echo "Starting LacyLights server..."
+print_status "Starting LacyLights server..."
 run_on_pi "cd $DEPLOY_DIR && npm run stop || true"  # Stop any existing instance
 run_on_pi "cd $DEPLOY_DIR && npm start"
+print_success "Server started"
 
 echo ""
 echo "=========================================="
 echo "Deployment complete!"
 echo "=========================================="
 echo ""
-echo "Server should be running at: http://$PI_HOST:4000"
+echo "Deployed version: $LATEST_VERSION"
+echo "Server running at: http://$PI_HOST:4000"
 echo ""
 echo "Useful commands:"
 echo "  View logs:    ssh $PI_USER@$PI_HOST 'cd $DEPLOY_DIR && tail -f server.log'"
