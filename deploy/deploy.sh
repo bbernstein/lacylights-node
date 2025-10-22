@@ -128,8 +128,8 @@ DMX_UNIVERSE_COUNT=4
 DMX_REFRESH_RATE=44
 
 # Art-Net Configuration
-ARTNET_ENABLED=true
-# ARTNET_BROADCAST=192.168.1.255
+# Art-Net broadcast address is configured via the Settings UI
+# and persisted in the database
 
 # Session Configuration
 SESSION_SECRET=$(openssl rand -hex 32)

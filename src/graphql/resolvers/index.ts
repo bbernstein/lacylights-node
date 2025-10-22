@@ -33,10 +33,10 @@ export const resolvers = {
     ...settingsResolvers.Mutation,
   },
   Subscription: {
-    ...dmxResolvers.Subscription,
     ...projectResolvers.Subscription,
     ...previewResolvers.Subscription,
     ...cueResolvers.Subscription,
+    ...settingsResolvers.Subscription,
   },
   // Type resolvers
   ...projectResolvers.types,

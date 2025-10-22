@@ -27,7 +27,11 @@ describe("Project Resolvers", () => {
 
     mockContext = {
       prisma: mockPrisma,
-    } as Context;
+      pubsub: {
+        asyncIterator: jest.fn(),
+        publish: jest.fn(),
+      },
+    } as any;
   });
 
   describe("Query resolvers", () => {
@@ -422,14 +426,22 @@ describe("Project Resolvers", () => {
 
   describe("Subscription resolvers", () => {
     describe("projectUpdated", () => {
-      it("should have a subscribe function", () => {
-        expect(projectResolvers.Subscription.projectUpdated.subscribe).toBeDefined();
-        expect(typeof projectResolvers.Subscription.projectUpdated.subscribe).toBe("function");
-      });
+      it("should return async iterator for project updates", () => {
+        const mockAsyncIterator = jest.fn();
+        mockContext.pubsub.asyncIterator = jest
+          .fn()
+          .mockReturnValue(mockAsyncIterator);
 
-      it("should return undefined for placeholder subscription", () => {
-        const result = projectResolvers.Subscription.projectUpdated.subscribe();
-        expect(result).toBeUndefined();
+        const result = projectResolvers.Subscription.projectUpdated.subscribe(
+          {},
+          { projectId: "test-project-id" },
+          mockContext,
+        );
+
+        expect(mockContext.pubsub.asyncIterator).toHaveBeenCalledWith([
+          "PROJECT_UPDATED",
+        ]);
+        expect(result).toBe(mockAsyncIterator);
       });
     });
   });

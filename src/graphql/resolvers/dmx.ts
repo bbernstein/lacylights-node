@@ -179,10 +179,4 @@ export const dmxResolvers = {
       return true;
     },
   },
-
-  Subscription: {
-    dmxOutputChanged: {
-      // TODO: Implement DMX subscription logic
-    },
-  },
 };

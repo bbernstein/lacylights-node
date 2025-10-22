@@ -103,10 +103,8 @@ DMX_UNIVERSE_COUNT=4
 DMX_REFRESH_RATE=44
 SESSION_SECRET=your-session-secret-here
 
-# Art-Net Configuration (Optional)
-# ARTNET_BROADCAST=192.168.1.255  # Skip interface selection prompt
-# ARTNET_ENABLED=false             # Disable Art-Net output for testing
-# NON_INTERACTIVE=true             # Skip all prompts (use defaults)
+# Art-Net is now configured via the Settings UI
+# No environment variables needed for production
 ```
 
 Then set up the database:
@@ -126,50 +124,30 @@ npm run dev
 
 LacyLights supports Art-Net protocol for sending DMX data over the network to lighting consoles, visualizers (like Capture), and other Art-Net devices.
 
-### Network Interface Selection
+### Configuration via Settings UI
 
-When starting the server, you'll be prompted to select a network interface for Art-Net broadcasting:
+**Art-Net broadcast address is now configured through the Settings page in the web UI.** The setting is persisted in the database and automatically loaded on startup.
 
-```
-Available Network Interface Options:
-============================================================
-[1] Localhost (127.0.0.1)
-[2] en0 - Unicast (192.168.1.100)
-[3] en0 - Broadcast (192.168.1.255)
-[4] Global Broadcast (255.255.255.255)
-============================================================
-```
-
-#### Interface Options Explained:
-
-- **Localhost (127.0.0.1)** - For testing only, won't reach external devices
-- **Unicast** - Send directly to a specific IP address (most reliable for single device)
-- **Subnet Broadcast** - Broadcast to all devices on your local subnet
-- **Global Broadcast** - Broadcast to all devices (may be blocked by some applications)
+1. Start the server
+2. Navigate to the Settings page in the web UI
+3. Configure your Art-Net broadcast address:
+   - **Localhost (127.0.0.1)** - For testing only, won't reach external devices
+   - **Unicast (e.g., 192.168.1.100)** - Send directly to a specific IP address (most reliable for single device)
+   - **Subnet Broadcast (e.g., 192.168.1.255)** - Broadcast to all devices on your local subnet
+   - **Global Broadcast (255.255.255.255)** - Broadcast to all devices (may be blocked by some routers)
+4. Changes are saved to the database and take effect immediately via WebSocket subscription
 
 ### Working with Capture 2025
 
 If you're using Capture 2025 or similar visualization software:
 
-1. **Use Subnet Broadcast**: Select your network interface's broadcast option (e.g., `192.168.1.255`)
-2. **Or Use Unicast**: Select the unicast option and ensure it matches Capture's IP address
+1. **Use Subnet Broadcast**: Configure your network interface's broadcast address (e.g., `192.168.1.255`) in Settings
+2. **Or Use Unicast**: Configure the specific IP address matching Capture's IP
 3. **Avoid Localhost**: Capture doesn't listen to localhost (127.0.0.1)
 
-### Skipping the Interface Prompt
+### First-Time Setup
 
-To skip the interactive selection, set the `ARTNET_BROADCAST` environment variable:
-
-```bash
-# In your .env file:
-ARTNET_BROADCAST=192.168.1.255
-
-# Or when running:
-ARTNET_BROADCAST=192.168.1.255 npm run dev
-
-# Other options:
-ARTNET_ENABLED=false     # Disable Art-Net output
-NON_INTERACTIVE=true     # Use defaults, skip all prompts
-```
+On first launch, the system will detect available network interfaces and display them in the Settings UI. The current broadcast address is always visible in the system status bar at the top of the web UI.
 
 ## Docker Services
 

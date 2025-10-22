@@ -410,11 +410,4 @@ describe("DMX Resolvers", () => {
       });
     });
   });
-
-  describe("Subscription", () => {
-    it("should have dmxOutputChanged placeholder", () => {
-      expect(dmxResolvers.Subscription).toBeDefined();
-      expect(dmxResolvers.Subscription.dmxOutputChanged).toBeDefined();
-    });
-  });
 });

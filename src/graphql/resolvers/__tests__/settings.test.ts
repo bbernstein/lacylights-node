@@ -4,6 +4,7 @@ import { settingsResolvers } from "../settings";
 describe("Settings Resolvers", () => {
   let mockContext: Context;
   let mockPrisma: any;
+  let mockPubsub: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -14,9 +15,15 @@ describe("Settings Resolvers", () => {
       },
     };
 
+    mockPubsub = {
+      publish: jest.fn().mockResolvedValue(undefined),
+      asyncIterator: jest.fn(),
+    };
+
     mockContext = {
       prisma: mockPrisma,
-    } as Context;
+      pubsub: mockPubsub,
+    } as any;
   });
 
   describe("Query resolvers", () => {
@@ -196,6 +203,39 @@ describe("Settings Resolvers", () => {
         );
 
         expect(result.value).toBe("60");
+      });
+
+      it("should publish system info update when artnet_broadcast_address is updated", async () => {
+        const input = {
+          key: "artnet_broadcast_address",
+          value: "192.168.1.255",
+        };
+
+        const mockSetting = {
+          id: "setting-id",
+          key: input.key,
+          value: input.value,
+          createdAt: new Date("2024-01-01"),
+          updatedAt: new Date(),
+        };
+
+        mockPrisma.setting.upsert.mockResolvedValue(mockSetting);
+
+        await settingsResolvers.Mutation.updateSetting(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(mockPubsub.publish).toHaveBeenCalledWith(
+          "SYSTEM_INFO_UPDATED",
+          expect.objectContaining({
+            systemInfoUpdated: expect.objectContaining({
+              artnetBroadcastAddress: expect.any(String),
+              artnetEnabled: expect.any(Boolean),
+            }),
+          }),
+        );
       });
     });
   });

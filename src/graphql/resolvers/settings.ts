@@ -1,4 +1,4 @@
-import { Context } from "../../context";
+import { Context, WebSocketContext } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { getNetworkInterfaces } from "../../utils/networkInterfaces";
 import { logger } from "../../utils/logger";
@@ -43,8 +43,9 @@ export const settingsResolvers = {
     updateSetting: async (
       _: any,
       { input }: { input: UpdateSettingInput },
-      { prisma }: Context,
+      context: Context,
     ) => {
+      const { prisma, pubsub } = context;
       const result = await prisma.setting.upsert({
         where: { key: input.key },
         update: { value: input.value },
@@ -73,9 +74,26 @@ export const settingsResolvers = {
             }
           );
         }
+
+        // Publish system info update to all subscribed clients
+        // Use context.pubsub to ensure same instance as subscription resolver
+        await pubsub.publish("SYSTEM_INFO_UPDATED", {
+          systemInfoUpdated: {
+            artnetBroadcastAddress: dmxService.getBroadcastAddress(),
+            artnetEnabled: dmxService.isArtNetEnabled(),
+          },
+        });
       }
 
       return result;
+    },
+  },
+
+  Subscription: {
+    systemInfoUpdated: {
+      subscribe: (_: unknown, __: unknown, { pubsub }: WebSocketContext) => {
+        return pubsub.asyncIterator(["SYSTEM_INFO_UPDATED"]);
+      },
     },
   },
 };
