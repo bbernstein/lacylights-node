@@ -602,7 +602,7 @@ export const typeDefs = gql`
     ): FixtureInstancePage!
     fixtureInstance(id: ID!): FixtureInstance
 
-    # Search
+    # Search Queries
     searchFixtures(
       projectId: ID!
       query: String!

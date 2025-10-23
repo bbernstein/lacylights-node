@@ -6,6 +6,23 @@ import { Context } from "../../context";
  */
 
 /**
+ * Helper function to parse channelValues from database
+ * Handles both string (JSON) and array formats
+ */
+function parseChannelValues(
+  channelValues: unknown,
+): number[] {
+  if (typeof channelValues === "string") {
+    try {
+      return JSON.parse(channelValues);
+    } catch {
+      return [];
+    }
+  }
+  return channelValues as unknown as number[];
+}
+
+/**
  * Find where a fixture is used across scenes and cues
  */
 async function fixtureUsage(
@@ -228,51 +245,23 @@ async function compareScenes(
 
   // Create maps for O(1) lookup
   const scene1Map = new Map(
-    scene1.fixtureValues.map((fv) => {
-      // Parse channelValues if it's a string
-      let channelValues: number[] = [];
-      if (typeof fv.channelValues === "string") {
-        try {
-          channelValues = JSON.parse(fv.channelValues);
-        } catch {
-          channelValues = [];
-        }
-      } else {
-        channelValues = fv.channelValues as unknown as number[];
-      }
-
-      return [
-        fv.fixtureId,
-        {
-          fixtureName: fv.fixture.name,
-          channelValues,
-        },
-      ];
-    }),
+    scene1.fixtureValues.map((fv) => [
+      fv.fixtureId,
+      {
+        fixtureName: fv.fixture.name,
+        channelValues: parseChannelValues(fv.channelValues),
+      },
+    ]),
   );
 
   const scene2Map = new Map(
-    scene2.fixtureValues.map((fv) => {
-      // Parse channelValues if it's a string
-      let channelValues: number[] = [];
-      if (typeof fv.channelValues === "string") {
-        try {
-          channelValues = JSON.parse(fv.channelValues);
-        } catch {
-          channelValues = [];
-        }
-      } else {
-        channelValues = fv.channelValues as unknown as number[];
-      }
-
-      return [
-        fv.fixtureId,
-        {
-          fixtureName: fv.fixture.name,
-          channelValues,
-        },
-      ];
-    }),
+    scene2.fixtureValues.map((fv) => [
+      fv.fixtureId,
+      {
+        fixtureName: fv.fixture.name,
+        channelValues: parseChannelValues(fv.channelValues),
+      },
+    ]),
   );
 
   // Build differences array

@@ -102,10 +102,14 @@ export const searchResolvers = {
         if (args.filter.tags && args.filter.tags.length > 0) {
           // Tags are stored as comma-separated string
           // Filter for fixtures that have ALL the specified tags
+          // Use exact matching to avoid false positives (e.g., 'red' matching 'infrared')
           const tagConditions = args.filter.tags.map((tag) => ({
-            tags: {
-              contains: tag,
-            },
+            OR: [
+              { tags: tag }, // exact match
+              { tags: { startsWith: tag + "," } }, // tag at start
+              { tags: { endsWith: "," + tag } }, // tag at end
+              { tags: { contains: "," + tag + "," } }, // tag in middle
+            ],
           }));
           andConditions.push(...tagConditions);
         }
