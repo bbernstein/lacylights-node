@@ -11,6 +11,7 @@ PI_USER="${PI_USER:-pi}"
 ORG_NAME="bbernstein"
 REPO_NAME="lacylights-node"
 DEPLOY_DIR="/home/$PI_USER/lacylights-node"
+SERVER_PORT="4000"
 
 # Colors for output
 RED='\033[0;31m'
@@ -155,7 +156,7 @@ echo ""
 print_status "Downloading and extracting release on Pi..."
 
 # Create a deployment script that will run on the Pi
-# Use single quotes in the heredoc to prevent variable expansion for security
+# Use single quotes in the heredoc to prevent local variable expansion, ensuring variables are only expanded on the Pi side for security
 DEPLOY_SCRIPT=$(cat <<'REMOTE_SCRIPT'
 #!/bin/bash
 set -e
@@ -167,7 +168,7 @@ LATEST_VERSION="$3"
 # Create temporary directory for download
 TEMP_DIR=$(mktemp -d)
 if [ -z "$TEMP_DIR" ] || [ ! -d "$TEMP_DIR" ]; then
-    echo "Failed to create temporary directory at path: '$TEMP_DIR'."
+    echo "Failed to create temporary directory."
     echo "Possible causes: insufficient disk space, lack of permissions, or system limits on temporary files."
     exit 1
 fi
@@ -232,7 +233,7 @@ if ! run_on_pi "[ -f $DEPLOY_DIR/.env ]"; then
     run_on_pi "cd $DEPLOY_DIR && sed -i 's/# NON_INTERACTIVE=false/NON_INTERACTIVE=true/' .env"
 
     print_warning "IMPORTANT: Configure Art-Net broadcast address via the Settings UI after deployment"
-    print_warning "  Access web UI at: http://$PI_HOST:4000"
+    print_warning "  Access web UI at: http://$PI_HOST:$SERVER_PORT"
 else
     print_success ".env file already exists"
 fi
@@ -286,7 +287,7 @@ echo "Deployment complete!"
 echo "=========================================="
 echo ""
 echo "Deployed version: $LATEST_VERSION"
-echo "Server running at: http://$PI_HOST:4000"
+echo "Server running at: http://$PI_HOST:$SERVER_PORT"
 echo ""
 echo "Useful commands:"
 echo "  View logs:    ssh $PI_USER@$PI_HOST 'cd $DEPLOY_DIR && tail -f server.log'"
