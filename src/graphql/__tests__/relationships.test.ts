@@ -142,7 +142,7 @@ describe("Relationship GraphQL Resolvers", () => {
         minValue: 0,
         maxValue: 255,
         defaultValue: 0,
-        fixtureDefinitionId: definition.id,
+        definitionId: definition.id,
       },
     });
 
@@ -154,7 +154,7 @@ describe("Relationship GraphQL Resolvers", () => {
         minValue: 0,
         maxValue: 255,
         defaultValue: 0,
-        fixtureDefinitionId: definition.id,
+        definitionId: definition.id,
       },
     });
 
@@ -164,7 +164,7 @@ describe("Relationship GraphQL Resolvers", () => {
         name: "2CH",
         shortName: "2CH",
         channelCount: 2,
-        fixtureDefinitionId: definition.id,
+        definitionId: definition.id,
       },
     });
 
