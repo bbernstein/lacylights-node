@@ -335,6 +335,50 @@ export const typeDefs = gql`
     fixtureType: FixtureType!
   }
 
+  # Relationship Query Types
+  type CueUsageSummary {
+    cueId: ID!
+    cueNumber: Float!
+    cueName: String!
+    cueListId: ID!
+    cueListName: String!
+  }
+
+  type FixtureUsage {
+    fixtureId: ID!
+    fixtureName: String!
+    scenes: [SceneSummary!]!
+    cues: [CueUsageSummary!]!
+  }
+
+  type SceneUsage {
+    sceneId: ID!
+    sceneName: String!
+    cues: [CueUsageSummary!]!
+  }
+
+  enum DifferenceType {
+    VALUES_CHANGED
+    ONLY_IN_SCENE1
+    ONLY_IN_SCENE2
+  }
+
+  type SceneDifference {
+    fixtureId: ID!
+    fixtureName: String!
+    differenceType: DifferenceType!
+    scene1Values: [Int!]
+    scene2Values: [Int!]
+  }
+
+  type SceneComparison {
+    scene1: SceneSummary!
+    scene2: SceneSummary!
+    differences: [SceneDifference!]!
+    identicalFixtureCount: Int!
+    differentFixtureCount: Int!
+  }
+
   # Fixture Pagination Types
   type FixtureInstancePage {
     fixtures: [FixtureInstance!]!
@@ -602,6 +646,15 @@ export const typeDefs = gql`
     ): FixtureInstancePage!
     fixtureInstance(id: ID!): FixtureInstance
 
+    # Search Queries
+    searchFixtures(
+      projectId: ID!
+      query: String!
+      filter: FixtureFilterInput
+      page: Int = 1
+      perPage: Int = 50
+    ): FixtureInstancePage!
+
     # Scenes
     scenes(
       projectId: ID!
@@ -612,6 +665,19 @@ export const typeDefs = gql`
     ): ScenePage!
     scene(id: ID!, includeFixtureValues: Boolean = true): Scene
     sceneFixtures(sceneId: ID!): [SceneFixtureSummary!]!
+
+    searchScenes(
+      projectId: ID!
+      query: String!
+      filter: SceneFilterInput
+      page: Int = 1
+      perPage: Int = 50
+    ): ScenePage!
+
+    # Relationship Queries
+    fixtureUsage(fixtureId: ID!): FixtureUsage!
+    sceneUsage(sceneId: ID!): SceneUsage!
+    compareScenes(sceneId1: ID!, sceneId2: ID!): SceneComparison!
 
     # Cue Lists
     cueLists(projectId: ID!): [CueListSummary!]!
@@ -625,6 +691,13 @@ export const typeDefs = gql`
 
     # Cues
     cue(id: ID!): Cue
+
+    searchCues(
+      cueListId: ID!
+      query: String!
+      page: Int = 1
+      perPage: Int = 50
+    ): CuePage!
 
     # DMX Output
     dmxOutput(universe: Int!): [Int!]!
@@ -691,6 +764,7 @@ export const typeDefs = gql`
     createScene(input: CreateSceneInput!): Scene!
     updateScene(id: ID!, input: UpdateSceneInput!): Scene!
     duplicateScene(id: ID!): Scene!
+    cloneScene(sceneId: ID!, newName: String!): Scene!
     deleteScene(id: ID!): Boolean!
 
     # Safe Scene Updates (Additive)

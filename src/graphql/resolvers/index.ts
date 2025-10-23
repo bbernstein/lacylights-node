@@ -8,6 +8,7 @@ import { qlcExportResolvers } from "./qlcExport";
 import { fixtureOrderingResolvers } from "./fixtureOrdering";
 import { exportResolvers } from "./export";
 import { settingsResolvers } from "./settings";
+import { relationshipResolvers } from "./relationships";
 
 export const resolvers = {
   Query: {
@@ -19,6 +20,7 @@ export const resolvers = {
     ...previewResolvers.Query,
     ...qlcExportResolvers.Query,
     ...settingsResolvers.Query,
+    ...relationshipResolvers.Query,
   },
   Mutation: {
     ...projectResolvers.Mutation,

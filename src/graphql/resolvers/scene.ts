@@ -480,6 +480,64 @@ export const sceneResolvers = {
       });
     },
 
+    cloneScene: async (
+      _: any,
+      { sceneId, newName }: { sceneId: string; newName: string },
+      { prisma }: Context,
+    ) => {
+      // Use a transaction to ensure atomicity
+      return prisma.$transaction(async (tx) => {
+        // First, get the original scene with all its fixture values
+        const originalScene = await tx.scene.findUnique({
+          where: { id: sceneId },
+          include: {
+            fixtureValues: true,
+          },
+        });
+
+        if (!originalScene) {
+          throw new Error("Scene not found");
+        }
+
+        // Create the cloned scene with the specified name
+        // Copy ALL fixture values from the original scene
+        const clonedScene = await tx.scene.create({
+          data: {
+            name: newName,
+            description: originalScene.description,
+            projectId: originalScene.projectId,
+            fixtureValues: {
+              create: originalScene.fixtureValues.map((fv) => ({
+                fixtureId: fv.fixtureId,
+                channelValues: fv.channelValues,
+                sceneOrder: fv.sceneOrder,
+              })),
+            },
+          },
+          include: {
+            project: true,
+            fixtureValues: {
+              orderBy: [
+                { sceneOrder: "asc" },
+                { id: "asc" },
+              ],
+              include: {
+                fixture: {
+                  include: {
+                    channels: {
+                      orderBy: { offset: "asc" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        return clonedScene;
+      });
+    },
+
     deleteScene: async (
       _: any,
       { id }: { id: string },
