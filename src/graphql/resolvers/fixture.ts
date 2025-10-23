@@ -87,8 +87,125 @@ interface DefinitionChannel {
   defaultValue: number;
 }
 
+// Input types for fixture instance queries
+export interface FixtureInstanceFilter {
+  type?: FixtureType;
+  universe?: number;
+  tags?: string[];
+  manufacturer?: string;
+  model?: string;
+}
+
+export interface FixtureInstancesArgs {
+  projectId: string;
+  page?: number;
+  perPage?: number;
+  filter?: FixtureInstanceFilter;
+}
+
 export const fixtureResolvers = {
   Query: {
+    fixtureInstances: async (
+      _: unknown,
+      args: FixtureInstancesArgs,
+      { prisma }: Context,
+    ) => {
+      const { projectId, page = 1, perPage = 50 } = args;
+
+      // Validate and normalize pagination parameters
+      const normalizedPage = Math.max(1, page);
+      const normalizedPerPage = Math.min(100, Math.max(1, perPage));
+      const skip = (normalizedPage - 1) * normalizedPerPage;
+      const take = normalizedPerPage;
+
+      // Build where clause
+      const where: Record<string, unknown> = {
+        projectId,
+      };
+
+      if (args.filter) {
+        if (args.filter.type !== undefined) {
+          where.type = args.filter.type;
+        }
+
+        if (args.filter.universe !== undefined) {
+          where.universe = args.filter.universe;
+        }
+
+        if (args.filter.manufacturer) {
+          where.manufacturer = {
+            contains: args.filter.manufacturer,
+          };
+        }
+
+        if (args.filter.model) {
+          where.model = {
+            contains: args.filter.model,
+          };
+        }
+
+        if (args.filter.tags && args.filter.tags.length > 0) {
+          // Tags are stored as comma-separated string
+          // We need to filter for fixtures that have ALL the specified tags
+          const tagConditions = args.filter.tags.map((tag) => ({
+            tags: {
+              contains: tag,
+            },
+          }));
+          where.AND = tagConditions;
+        }
+      }
+
+      // Execute queries in parallel
+      const [fixtures, total] = await Promise.all([
+        prisma.fixtureInstance.findMany({
+          where,
+          skip,
+          take,
+          include: {
+            channels: {
+              orderBy: { offset: "asc" },
+            },
+            project: true,
+          },
+          orderBy: [
+            { projectOrder: "asc" },
+            { createdAt: "asc" },
+          ],
+        }),
+        prisma.fixtureInstance.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(total / normalizedPerPage);
+
+      return {
+        fixtures,
+        pagination: {
+          total,
+          page: normalizedPage,
+          perPage: normalizedPerPage,
+          totalPages,
+          hasMore: normalizedPage < totalPages,
+        },
+      };
+    },
+
+    fixtureInstance: async (
+      _: unknown,
+      { id }: { id: string },
+      { prisma }: Context,
+    ) => {
+      return prisma.fixtureInstance.findUnique({
+        where: { id },
+        include: {
+          channels: {
+            orderBy: { offset: "asc" },
+          },
+          project: true,
+        },
+      });
+    },
+
     fixtureDefinitions: async (
       _: unknown,
       { filter }: { filter?: FixtureDefinitionFilter },

@@ -107,7 +107,123 @@ async function upsertFixtureValues(
 
 export const sceneResolvers = {
   Query: {
-    scene: async (_: any, { id }: { id: string }, { prisma }: Context) => {
+    /**
+     * Paginated lightweight scene list query
+     * Returns scene summaries without fixture values for efficient browsing
+     */
+    scenes: async (
+      _: any,
+      {
+        projectId,
+        page = 1,
+        perPage = 50,
+        filter,
+        sortBy = "CREATED_AT",
+      }: {
+        projectId: string;
+        page?: number;
+        perPage?: number;
+        filter?: { nameContains?: string; usesFixture?: string };
+        sortBy?: "NAME" | "CREATED_AT" | "UPDATED_AT";
+      },
+      { prisma }: Context,
+    ) => {
+      // Normalize pagination parameters
+      const normalizedPage = Math.max(1, page);
+      const normalizedPerPage = Math.min(100, Math.max(1, perPage));
+      const skip = (normalizedPage - 1) * normalizedPerPage;
+
+      // Build where clause
+      const where: any = { projectId };
+
+      if (filter?.nameContains) {
+        where.name = {
+          contains: filter.nameContains,
+          mode: "insensitive",
+        };
+      }
+
+      if (filter?.usesFixture) {
+        where.fixtureValues = {
+          some: {
+            fixtureId: filter.usesFixture,
+          },
+        };
+      }
+
+      // Build orderBy clause
+      const orderByMap: Record<string, any> = {
+        NAME: { name: "asc" },
+        CREATED_AT: { createdAt: "asc" },
+        UPDATED_AT: { updatedAt: "desc" },
+      };
+      const orderBy = orderByMap[sortBy] || orderByMap.CREATED_AT;
+
+      // Execute queries in parallel
+      const [scenes, total] = await Promise.all([
+        prisma.scene.findMany({
+          where,
+          skip,
+          take: normalizedPerPage,
+          orderBy,
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            createdAt: true,
+            updatedAt: true,
+            _count: {
+              select: {
+                fixtureValues: true,
+              },
+            },
+          },
+        }),
+        prisma.scene.count({ where }),
+      ]);
+
+      const totalPages = Math.ceil(total / normalizedPerPage);
+
+      return {
+        scenes: scenes.map((scene) => ({
+          id: scene.id,
+          name: scene.name,
+          description: scene.description,
+          fixtureCount: scene._count.fixtureValues,
+          createdAt: scene.createdAt,
+          updatedAt: scene.updatedAt,
+        })),
+        pagination: {
+          total,
+          page: normalizedPage,
+          perPage: normalizedPerPage,
+          totalPages,
+          hasMore: normalizedPage < totalPages,
+        },
+      };
+    },
+
+    /**
+     * Get single scene with optional fixture values
+     * Set includeFixtureValues=false for fast metadata-only retrieval
+     */
+    scene: async (
+      _: any,
+      { id, includeFixtureValues = true }: { id: string; includeFixtureValues?: boolean },
+      { prisma }: Context,
+    ) => {
+      if (!includeFixtureValues) {
+        // Fast path: metadata only
+        return prisma.scene.findUnique({
+          where: { id },
+          include: {
+            project: true,
+            fixtureValues: false,
+          },
+        });
+      }
+
+      // Full path: include all fixture values
       return prisma.scene.findUnique({
         where: { id },
         include: {
@@ -129,6 +245,36 @@ export const sceneResolvers = {
           },
         },
       });
+    },
+
+    /**
+     * Get just the fixture metadata for a scene (no channel values)
+     * Fastest way to understand which fixtures are used in a scene
+     */
+    sceneFixtures: async (
+      _: any,
+      { sceneId }: { sceneId: string },
+      { prisma }: Context,
+    ) => {
+      const fixtureValues = await prisma.fixtureValue.findMany({
+        where: { sceneId },
+        select: {
+          fixtureId: true,
+          fixture: {
+            select: {
+              name: true,
+              type: true,
+            },
+          },
+        },
+        distinct: ["fixtureId"],
+      });
+
+      return fixtureValues.map((fv) => ({
+        fixtureId: fv.fixtureId,
+        fixtureName: fv.fixture.name,
+        fixtureType: fv.fixture.type,
+      }));
     },
   },
 
