@@ -140,6 +140,21 @@ export const projectResolvers = {
           },
         });
       },
+      fixtureCount: async (parent: any, _: any, { prisma }: Context) => {
+        return prisma.fixtureInstance.count({
+          where: { projectId: parent.id },
+        });
+      },
+      sceneCount: async (parent: any, _: any, { prisma }: Context) => {
+        return prisma.scene.count({
+          where: { projectId: parent.id },
+        });
+      },
+      cueListCount: async (parent: any, _: any, { prisma }: Context) => {
+        return prisma.cueList.count({
+          where: { projectId: parent.id },
+        });
+      },
     },
   },
 };

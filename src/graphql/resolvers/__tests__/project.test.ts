@@ -16,12 +16,15 @@ describe("Project Resolvers", () => {
       },
       fixtureInstance: {
         findMany: jest.fn(),
+        count: jest.fn(),
       },
       scene: {
         findMany: jest.fn(),
+        count: jest.fn(),
       },
       cueList: {
         findMany: jest.fn(),
+        count: jest.fn(),
       },
     };
 
@@ -422,6 +425,108 @@ describe("Project Resolvers", () => {
         expect(result).toEqual(mockCueLists);
       });
     });
+  });
+
+    describe("Project.fixtureCount", () => {
+      it("should return the count of fixtures for a project", async () => {
+        const parentProject = { id: "parent-project-id" };
+        const fixtureCount = 5;
+
+        mockPrisma.fixtureInstance.count.mockResolvedValue(fixtureCount);
+
+        const result = await projectResolvers.types.Project.fixtureCount(
+          parentProject,
+          {},
+          mockContext,
+        );
+
+        expect(mockPrisma.fixtureInstance.count).toHaveBeenCalledWith({
+          where: { projectId: parentProject.id },
+        });
+        expect(result).toBe(fixtureCount);
+      });
+
+      it("should return 0 when project has no fixtures", async () => {
+        const parentProject = { id: "parent-project-id" };
+
+        mockPrisma.fixtureInstance.count.mockResolvedValue(0);
+
+        const result = await projectResolvers.types.Project.fixtureCount(
+          parentProject,
+          {},
+          mockContext,
+        );
+
+        expect(result).toBe(0);
+      });
+    });
+
+    describe("Project.sceneCount", () => {
+      it("should return the count of scenes for a project", async () => {
+        const parentProject = { id: "parent-project-id" };
+        const sceneCount = 10;
+
+        mockPrisma.scene.count.mockResolvedValue(sceneCount);
+
+        const result = await projectResolvers.types.Project.sceneCount(
+          parentProject,
+          {},
+          mockContext,
+        );
+
+        expect(mockPrisma.scene.count).toHaveBeenCalledWith({
+          where: { projectId: parentProject.id },
+        });
+        expect(result).toBe(sceneCount);
+      });
+
+      it("should return 0 when project has no scenes", async () => {
+        const parentProject = { id: "parent-project-id" };
+
+        mockPrisma.scene.count.mockResolvedValue(0);
+
+        const result = await projectResolvers.types.Project.sceneCount(
+          parentProject,
+          {},
+          mockContext,
+        );
+
+        expect(result).toBe(0);
+      });
+    });
+
+    describe("Project.cueListCount", () => {
+      it("should return the count of cue lists for a project", async () => {
+        const parentProject = { id: "parent-project-id" };
+        const cueListCount = 3;
+
+        mockPrisma.cueList.count.mockResolvedValue(cueListCount);
+
+        const result = await projectResolvers.types.Project.cueListCount(
+          parentProject,
+          {},
+          mockContext,
+        );
+
+        expect(mockPrisma.cueList.count).toHaveBeenCalledWith({
+          where: { projectId: parentProject.id },
+        });
+        expect(result).toBe(cueListCount);
+      });
+
+      it("should return 0 when project has no cue lists", async () => {
+        const parentProject = { id: "parent-project-id" };
+
+        mockPrisma.cueList.count.mockResolvedValue(0);
+
+        const result = await projectResolvers.types.Project.cueListCount(
+          parentProject,
+          {},
+          mockContext,
+        );
+
+        expect(result).toBe(0);
+      });
   });
 
   describe("Subscription resolvers", () => {
