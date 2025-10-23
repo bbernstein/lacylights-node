@@ -223,7 +223,7 @@ describe("Relationship GraphQL Resolvers", () => {
     await prisma.instanceChannel.createMany({
       data: [
         {
-          fixtureInstanceId: fixture1.id,
+          fixtureId: fixture1.id,
           offset: 0,
           name: "Red",
           type: "RED",
@@ -232,7 +232,7 @@ describe("Relationship GraphQL Resolvers", () => {
           defaultValue: 0,
         },
         {
-          fixtureInstanceId: fixture1.id,
+          fixtureId: fixture1.id,
           offset: 1,
           name: "Green",
           type: "GREEN",
@@ -241,7 +241,7 @@ describe("Relationship GraphQL Resolvers", () => {
           defaultValue: 0,
         },
         {
-          fixtureInstanceId: fixture2.id,
+          fixtureId: fixture2.id,
           offset: 0,
           name: "Red",
           type: "RED",
@@ -250,7 +250,7 @@ describe("Relationship GraphQL Resolvers", () => {
           defaultValue: 0,
         },
         {
-          fixtureInstanceId: fixture2.id,
+          fixtureId: fixture2.id,
           offset: 1,
           name: "Green",
           type: "GREEN",
@@ -400,7 +400,7 @@ describe("Relationship GraphQL Resolvers", () => {
           projectId: testProjectId,
           universe: 1,
           startChannel: 20,
-          tags: [],
+          tags: null,
         },
       });
 
