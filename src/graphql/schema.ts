@@ -602,6 +602,15 @@ export const typeDefs = gql`
     ): FixtureInstancePage!
     fixtureInstance(id: ID!): FixtureInstance
 
+    # Search
+    searchFixtures(
+      projectId: ID!
+      query: String!
+      filter: FixtureFilterInput
+      page: Int = 1
+      perPage: Int = 50
+    ): FixtureInstancePage!
+
     # Scenes
     scenes(
       projectId: ID!
@@ -612,6 +621,14 @@ export const typeDefs = gql`
     ): ScenePage!
     scene(id: ID!, includeFixtureValues: Boolean = true): Scene
     sceneFixtures(sceneId: ID!): [SceneFixtureSummary!]!
+
+    searchScenes(
+      projectId: ID!
+      query: String!
+      filter: SceneFilterInput
+      page: Int = 1
+      perPage: Int = 50
+    ): ScenePage!
 
     # Cue Lists
     cueLists(projectId: ID!): [CueListSummary!]!
@@ -625,6 +642,13 @@ export const typeDefs = gql`
 
     # Cues
     cue(id: ID!): Cue
+
+    searchCues(
+      cueListId: ID!
+      query: String!
+      page: Int = 1
+      perPage: Int = 50
+    ): CuePage!
 
     # DMX Output
     dmxOutput(universe: Int!): [Int!]!

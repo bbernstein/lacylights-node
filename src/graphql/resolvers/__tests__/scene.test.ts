@@ -782,6 +782,331 @@ describe("Scene Resolvers", () => {
       });
     });
 
+    describe("cloneScene", () => {
+      it("should clone scene with specified name and all fixture values", async () => {
+        const originalScene = {
+          id: "scene-1",
+          name: "Original Scene",
+          description: "Original Description",
+          projectId: "project-1",
+          fixtureValues: [
+            {
+              id: "fv-1",
+              fixtureId: "fixture-1",
+              channelValues: [255, 128, 0],
+              sceneOrder: 1,
+            },
+            {
+              id: "fv-2",
+              fixtureId: "fixture-2",
+              channelValues: [100, 200, 50, 75],
+              sceneOrder: 2,
+            },
+          ],
+        };
+
+        const clonedScene = {
+          id: "scene-cloned",
+          name: "My Cloned Scene",
+          description: "Original Description",
+          projectId: "project-1",
+          fixtureValues: [
+            {
+              id: "fv-new-1",
+              fixtureId: "fixture-1",
+              channelValues: [255, 128, 0],
+              sceneOrder: 1,
+              fixture: { id: "fixture-1", channels: [] },
+            },
+            {
+              id: "fv-new-2",
+              fixtureId: "fixture-2",
+              channelValues: [100, 200, 50, 75],
+              sceneOrder: 2,
+              fixture: { id: "fixture-2", channels: [] },
+            },
+          ],
+          project: { id: "project-1" },
+        };
+
+        // Mock the transaction
+        const mockTx = {
+          scene: {
+            findUnique: jest.fn().mockResolvedValue(originalScene),
+            create: jest.fn().mockResolvedValue(clonedScene),
+          },
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => callback(mockTx));
+
+        const result = await sceneResolvers.Mutation.cloneScene(
+          {},
+          { sceneId: "scene-1", newName: "My Cloned Scene" },
+          mockContext,
+        );
+
+        expect(result).toEqual(clonedScene);
+        expect(mockContext.prisma.$transaction).toHaveBeenCalledWith(
+          expect.any(Function),
+        );
+        expect(mockTx.scene.findUnique).toHaveBeenCalledWith({
+          where: { id: "scene-1" },
+          include: {
+            fixtureValues: true,
+          },
+        });
+        expect(mockTx.scene.create).toHaveBeenCalledWith({
+          data: {
+            name: "My Cloned Scene",
+            description: "Original Description",
+            projectId: "project-1",
+            fixtureValues: {
+              create: [
+                {
+                  fixtureId: "fixture-1",
+                  channelValues: [255, 128, 0],
+                  sceneOrder: 1,
+                },
+                {
+                  fixtureId: "fixture-2",
+                  channelValues: [100, 200, 50, 75],
+                  sceneOrder: 2,
+                },
+              ],
+            },
+          },
+          include: expect.objectContaining({
+            project: true,
+            fixtureValues: expect.objectContaining({
+              orderBy: [{ sceneOrder: "asc" }, { id: "asc" }],
+            }),
+          }),
+        });
+      });
+
+      it("should throw error when source scene not found", async () => {
+        const mockTx = {
+          scene: {
+            findUnique: jest.fn().mockResolvedValue(null),
+          },
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => callback(mockTx));
+
+        await expect(
+          sceneResolvers.Mutation.cloneScene(
+            {},
+            { sceneId: "non-existent", newName: "New Name" },
+            mockContext,
+          ),
+        ).rejects.toThrow("Scene not found");
+      });
+
+      it("should handle scenes with many fixtures (100+ fixtures)", async () => {
+        // Create a large scene with 150 fixtures
+        const fixtureValues = Array.from({ length: 150 }, (_, i) => ({
+          id: `fv-${i}`,
+          fixtureId: `fixture-${i}`,
+          channelValues: [i, i + 1, i + 2],
+          sceneOrder: i,
+        }));
+
+        const originalScene = {
+          id: "large-scene",
+          name: "Large Scene",
+          description: "Scene with many fixtures",
+          projectId: "project-1",
+          fixtureValues,
+        };
+
+        const clonedScene = {
+          id: "scene-cloned",
+          name: "Cloned Large Scene",
+          description: "Scene with many fixtures",
+          projectId: "project-1",
+          fixtureValues: fixtureValues.map((fv) => ({
+            ...fv,
+            id: `new-${fv.id}`,
+            fixture: { id: fv.fixtureId, channels: [] },
+          })),
+          project: { id: "project-1" },
+        };
+
+        const mockTx = {
+          scene: {
+            findUnique: jest.fn().mockResolvedValue(originalScene),
+            create: jest.fn().mockResolvedValue(clonedScene),
+          },
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => callback(mockTx));
+
+        const result = await sceneResolvers.Mutation.cloneScene(
+          {},
+          { sceneId: "large-scene", newName: "Cloned Large Scene" },
+          mockContext,
+        );
+
+        expect(result).toEqual(clonedScene);
+        expect(mockTx.scene.create).toHaveBeenCalledWith(
+          expect.objectContaining({
+            data: expect.objectContaining({
+              fixtureValues: {
+                create: expect.arrayContaining([
+                  expect.objectContaining({
+                    fixtureId: expect.any(String),
+                    channelValues: expect.any(Array),
+                    sceneOrder: expect.any(Number),
+                  }),
+                ]),
+              },
+            }),
+          }),
+        );
+        // Verify all 150 fixtures were copied
+        const createCall = mockTx.scene.create.mock.calls[0][0];
+        expect(createCall.data.fixtureValues.create).toHaveLength(150);
+      });
+
+      it("should preserve all channel values exactly", async () => {
+        const originalScene = {
+          id: "scene-1",
+          name: "Test Scene",
+          description: "Test",
+          projectId: "project-1",
+          fixtureValues: [
+            {
+              id: "fv-1",
+              fixtureId: "fixture-1",
+              channelValues: [0, 127, 255, 64, 192, 32, 96, 128],
+              sceneOrder: 1,
+            },
+          ],
+        };
+
+        const clonedScene = {
+          id: "scene-cloned",
+          name: "Cloned Scene",
+          description: "Test",
+          projectId: "project-1",
+          fixtureValues: [
+            {
+              id: "fv-new",
+              fixtureId: "fixture-1",
+              channelValues: [0, 127, 255, 64, 192, 32, 96, 128],
+              sceneOrder: 1,
+              fixture: { id: "fixture-1", channels: [] },
+            },
+          ],
+          project: { id: "project-1" },
+        };
+
+        const mockTx = {
+          scene: {
+            findUnique: jest.fn().mockResolvedValue(originalScene),
+            create: jest.fn().mockResolvedValue(clonedScene),
+          },
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => callback(mockTx));
+
+        const result = await sceneResolvers.Mutation.cloneScene(
+          {},
+          { sceneId: "scene-1", newName: "Cloned Scene" },
+          mockContext,
+        );
+
+        expect(result).toEqual(clonedScene);
+        const createCall = mockTx.scene.create.mock.calls[0][0];
+        expect(createCall.data.fixtureValues.create[0].channelValues).toEqual([
+          0, 127, 255, 64, 192, 32, 96, 128,
+        ]);
+      });
+
+      it("should create scene with unique ID", async () => {
+        const originalScene = {
+          id: "scene-1",
+          name: "Original",
+          description: null,
+          projectId: "project-1",
+          fixtureValues: [],
+        };
+
+        const clonedScene = {
+          id: "scene-unique-id",
+          name: "Cloned",
+          description: null,
+          projectId: "project-1",
+          fixtureValues: [],
+          project: { id: "project-1" },
+        };
+
+        const mockTx = {
+          scene: {
+            findUnique: jest.fn().mockResolvedValue(originalScene),
+            create: jest.fn().mockResolvedValue(clonedScene),
+          },
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => callback(mockTx));
+
+        const result = await sceneResolvers.Mutation.cloneScene(
+          {},
+          { sceneId: "scene-1", newName: "Cloned" },
+          mockContext,
+        );
+
+        // Verify the cloned scene has a different ID
+        expect(result.id).not.toBe(originalScene.id);
+        expect(result.id).toBe("scene-unique-id");
+      });
+
+      it("should use transaction for atomicity", async () => {
+        const originalScene = {
+          id: "scene-1",
+          name: "Test",
+          description: null,
+          projectId: "project-1",
+          fixtureValues: [],
+        };
+
+        const mockTx = {
+          scene: {
+            findUnique: jest.fn().mockResolvedValue(originalScene),
+            create: jest.fn().mockResolvedValue({
+              id: "new",
+              name: "New",
+              fixtureValues: [],
+              project: {},
+            }),
+          },
+        };
+
+        mockContext.prisma.$transaction = jest
+          .fn()
+          .mockImplementation(async (callback) => callback(mockTx));
+
+        await sceneResolvers.Mutation.cloneScene(
+          {},
+          { sceneId: "scene-1", newName: "New" },
+          mockContext,
+        );
+
+        // Verify transaction was used
+        expect(mockContext.prisma.$transaction).toHaveBeenCalled();
+      });
+    });
+
     describe("deleteScene", () => {
       it("should delete scene and return true", async () => {
         mockContext.prisma.scene.delete = jest
