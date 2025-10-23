@@ -21,6 +21,7 @@ const mockContext: Context = {
   prisma: {
     cueList: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -31,6 +32,8 @@ const mockContext: Context = {
       update: jest.fn(),
       delete: jest.fn(),
       findMany: jest.fn(),
+      count: jest.fn(),
+      aggregate: jest.fn(),
     },
     $transaction: jest.fn(),
   } as any,
@@ -102,18 +105,18 @@ describe("Cue Resolvers", () => {
         },
       ];
 
-      const mockAllCues = [
-        { fadeInTime: 3.0, fadeOutTime: 2.0, followTime: null },
-      ];
-
       mockContext.prisma.cueList.findUnique = jest
         .fn()
         .mockResolvedValue(mockCueList);
       mockContext.prisma.cue.count = jest.fn().mockResolvedValue(1);
-      mockContext.prisma.cue.findMany = jest
-        .fn()
-        .mockResolvedValueOnce(mockCues)
-        .mockResolvedValueOnce(mockAllCues);
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue(mockCues);
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 3.0,
+          fadeOutTime: 2.0,
+          followTime: 0, // null becomes 0
+        },
+      });
 
       const result = await cueResolvers.Query.cueList(
         {},
@@ -1197,20 +1200,18 @@ describe("Cue Resolvers", () => {
         followTime: null,
       }));
 
-      const mockAllCues = mockCues.map((c) => ({
-        fadeInTime: c.fadeInTime,
-        fadeOutTime: c.fadeOutTime,
-        followTime: c.followTime,
-      }));
-
       mockContext.prisma.cueList.findUnique = jest
         .fn()
         .mockResolvedValue(mockCueList);
       mockContext.prisma.cue.count = jest.fn().mockResolvedValue(3);
-      mockContext.prisma.cue.findMany = jest
-        .fn()
-        .mockResolvedValueOnce(mockCues) // For paginated query
-        .mockResolvedValueOnce(mockAllCues); // For totalDuration
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue(mockCues);
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 9.0, // 3 cues * 3.0
+          fadeOutTime: 6.0, // 3 cues * 2.0
+          followTime: 0, // all null
+        },
+      });
 
       const result = await cueResolvers.Query.cueList(
         {},
@@ -1248,10 +1249,14 @@ describe("Cue Resolvers", () => {
         .fn()
         .mockResolvedValue(mockCueList);
       mockContext.prisma.cue.count = jest.fn().mockResolvedValue(0);
-      mockContext.prisma.cue.findMany = jest
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue([]);
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 0,
+          fadeOutTime: 0,
+          followTime: 0,
+        },
+      });
 
       await cueResolvers.Query.cueList(
         {},
@@ -1277,10 +1282,14 @@ describe("Cue Resolvers", () => {
         .fn()
         .mockResolvedValue(mockCueList);
       mockContext.prisma.cue.count = jest.fn().mockResolvedValue(100);
-      mockContext.prisma.cue.findMany = jest
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue([]);
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 0,
+          fadeOutTime: 0,
+          followTime: 0,
+        },
+      });
 
       await cueResolvers.Query.cueList(
         {},
@@ -1307,10 +1316,14 @@ describe("Cue Resolvers", () => {
         .fn()
         .mockResolvedValue(mockCueList);
       mockContext.prisma.cue.count = jest.fn().mockResolvedValue(1);
-      mockContext.prisma.cue.findMany = jest
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue([]);
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 0,
+          fadeOutTime: 0,
+          followTime: 0,
+        },
+      });
 
       await cueResolvers.Query.cueList(
         {},
@@ -1342,10 +1355,14 @@ describe("Cue Resolvers", () => {
         .fn()
         .mockResolvedValue(mockCueList);
       mockContext.prisma.cue.count = jest.fn().mockResolvedValue(1);
-      mockContext.prisma.cue.findMany = jest
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue([]);
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 0,
+          fadeOutTime: 0,
+          followTime: 0,
+        },
+      });
 
       await cueResolvers.Query.cueList(
         {},
@@ -1381,10 +1398,14 @@ describe("Cue Resolvers", () => {
         .fn()
         .mockResolvedValue(mockCueList);
       mockContext.prisma.cue.count = jest.fn().mockResolvedValue(10);
-      mockContext.prisma.cue.findMany = jest
-        .fn()
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([]);
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue([]);
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 0,
+          fadeOutTime: 0,
+          followTime: 0,
+        },
+      });
 
       await cueResolvers.Query.cueList(
         {},
@@ -1429,12 +1450,14 @@ describe("Cue Resolvers", () => {
     });
 
     it("should calculate totalDuration from database when not cached", async () => {
-      const mockCues = [
-        { fadeInTime: 3.0, fadeOutTime: 2.0, followTime: 1.0 },
-        { fadeInTime: 4.0, fadeOutTime: 3.0, followTime: null },
-      ];
-
-      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue(mockCues);
+      // Mock aggregate result: (3+2+1) + (4+3+0) = 13
+      mockContext.prisma.cue.aggregate = jest.fn().mockResolvedValue({
+        _sum: {
+          fadeInTime: 7.0, // 3.0 + 4.0
+          fadeOutTime: 5.0, // 2.0 + 3.0
+          followTime: 1.0, // 1.0 + 0 (null)
+        },
+      });
 
       const result = await cueResolvers.CueList.totalDuration(
         { id: "cuelist-1" },
@@ -1442,14 +1465,14 @@ describe("Cue Resolvers", () => {
         mockContext,
       );
 
-      expect(result).toBe(13.0); // (3+2+1) + (4+3+0) = 13
-      expect(mockContext.prisma.cue.findMany).toHaveBeenCalledWith({
-        where: { cueListId: "cuelist-1" },
-        select: {
+      expect(result).toBe(13.0); // 7.0 + 5.0 + 1.0 = 13
+      expect(mockContext.prisma.cue.aggregate).toHaveBeenCalledWith({
+        _sum: {
           fadeInTime: true,
           fadeOutTime: true,
           followTime: true,
         },
+        where: { cueListId: "cuelist-1" },
       });
     });
 
