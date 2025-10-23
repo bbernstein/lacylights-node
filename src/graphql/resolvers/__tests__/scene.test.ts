@@ -20,6 +20,8 @@ const mockContext: Context = {
   prisma: {
     scene: {
       findUnique: jest.fn(),
+      findMany: jest.fn(),
+      count: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       delete: jest.fn(),
@@ -43,6 +45,374 @@ describe("Scene Resolvers", () => {
   });
 
   describe("Query", () => {
+    describe("scenes", () => {
+      it("should return paginated lightweight scene list", async () => {
+        const mockScenes = [
+          {
+            id: "scene-1",
+            name: "Scene 1",
+            description: "Description 1",
+            createdAt: new Date("2025-01-01"),
+            updatedAt: new Date("2025-01-02"),
+            _count: { fixtureValues: 5 },
+          },
+          {
+            id: "scene-2",
+            name: "Scene 2",
+            description: null,
+            createdAt: new Date("2025-01-03"),
+            updatedAt: new Date("2025-01-04"),
+            _count: { fixtureValues: 3 },
+          },
+        ];
+
+        mockContext.prisma.scene.findMany = jest
+          .fn()
+          .mockResolvedValue(mockScenes);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(10);
+
+        const result = await sceneResolvers.Query.scenes(
+          {},
+          { projectId: "project-1", page: 1, perPage: 2 },
+          mockContext,
+        );
+
+        expect(result.scenes).toHaveLength(2);
+        expect(result.scenes[0]).toEqual({
+          id: "scene-1",
+          name: "Scene 1",
+          description: "Description 1",
+          fixtureCount: 5,
+          createdAt: mockScenes[0].createdAt,
+          updatedAt: mockScenes[0].updatedAt,
+        });
+        expect(result.pagination).toEqual({
+          total: 10,
+          page: 1,
+          perPage: 2,
+          totalPages: 5,
+          hasMore: true,
+        });
+      });
+
+      it("should filter scenes by name", async () => {
+        mockContext.prisma.scene.findMany = jest.fn().mockResolvedValue([]);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(0);
+
+        await sceneResolvers.Query.scenes(
+          {},
+          {
+            projectId: "project-1",
+            filter: { nameContains: "test" },
+          },
+          mockContext,
+        );
+
+        expect(mockContext.prisma.scene.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              projectId: "project-1",
+              name: {
+                contains: "test",
+                mode: "insensitive",
+              },
+            }),
+          }),
+        );
+      });
+
+      it("should filter scenes by fixture usage", async () => {
+        mockContext.prisma.scene.findMany = jest.fn().mockResolvedValue([]);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(0);
+
+        await sceneResolvers.Query.scenes(
+          {},
+          {
+            projectId: "project-1",
+            filter: { usesFixture: "fixture-1" },
+          },
+          mockContext,
+        );
+
+        expect(mockContext.prisma.scene.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: expect.objectContaining({
+              projectId: "project-1",
+              fixtureValues: {
+                some: {
+                  fixtureId: "fixture-1",
+                },
+              },
+            }),
+          }),
+        );
+      });
+
+      it("should sort by NAME", async () => {
+        mockContext.prisma.scene.findMany = jest.fn().mockResolvedValue([]);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(0);
+
+        await sceneResolvers.Query.scenes(
+          {},
+          {
+            projectId: "project-1",
+            sortBy: "NAME",
+          },
+          mockContext,
+        );
+
+        expect(mockContext.prisma.scene.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            orderBy: { name: "asc" },
+          }),
+        );
+      });
+
+      it("should sort by UPDATED_AT descending", async () => {
+        mockContext.prisma.scene.findMany = jest.fn().mockResolvedValue([]);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(0);
+
+        await sceneResolvers.Query.scenes(
+          {},
+          {
+            projectId: "project-1",
+            sortBy: "UPDATED_AT",
+          },
+          mockContext,
+        );
+
+        expect(mockContext.prisma.scene.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            orderBy: { updatedAt: "desc" },
+          }),
+        );
+      });
+
+      it("should normalize pagination parameters", async () => {
+        mockContext.prisma.scene.findMany = jest.fn().mockResolvedValue([]);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(0);
+
+        await sceneResolvers.Query.scenes(
+          {},
+          {
+            projectId: "project-1",
+            page: 0, // Should be normalized to 1
+            perPage: 1000, // Should be capped at 100
+          },
+          mockContext,
+        );
+
+        expect(mockContext.prisma.scene.findMany).toHaveBeenCalledWith(
+          expect.objectContaining({
+            skip: 0, // (1-1) * 100
+            take: 100,
+          }),
+        );
+      });
+
+      it("should calculate pagination info correctly", async () => {
+        mockContext.prisma.scene.findMany = jest.fn().mockResolvedValue([]);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(100);
+
+        const result = await sceneResolvers.Query.scenes(
+          {},
+          {
+            projectId: "project-1",
+            page: 2,
+            perPage: 30,
+          },
+          mockContext,
+        );
+
+        expect(result.pagination).toEqual({
+          total: 100,
+          page: 2,
+          perPage: 30,
+          totalPages: 4,
+          hasMore: true,
+        });
+      });
+
+      it("should indicate no more pages on last page", async () => {
+        mockContext.prisma.scene.findMany = jest.fn().mockResolvedValue([]);
+        mockContext.prisma.scene.count = jest.fn().mockResolvedValue(100);
+
+        const result = await sceneResolvers.Query.scenes(
+          {},
+          {
+            projectId: "project-1",
+            page: 4,
+            perPage: 30,
+          },
+          mockContext,
+        );
+
+        expect(result.pagination.hasMore).toBe(false);
+      });
+    });
+
+    describe("scene with includeFixtureValues parameter", () => {
+      it("should return scene without fixture values when includeFixtureValues=false", async () => {
+        const mockScene = {
+          id: "scene-1",
+          name: "Test Scene",
+          description: "Test Description",
+          project: { id: "project-1", name: "Test Project" },
+        };
+
+        mockContext.prisma.scene.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockScene);
+
+        const result = await sceneResolvers.Query.scene(
+          {},
+          { id: "scene-1", includeFixtureValues: false },
+          mockContext,
+        );
+
+        expect(result).toEqual(mockScene);
+        expect(mockContext.prisma.scene.findUnique).toHaveBeenCalledWith({
+          where: { id: "scene-1" },
+          include: {
+            project: true,
+            fixtureValues: false,
+          },
+        });
+      });
+
+      it("should return scene with fixture values when includeFixtureValues=true", async () => {
+        const mockScene = {
+          id: "scene-1",
+          name: "Test Scene",
+          fixtureValues: [
+            {
+              id: "fv-1",
+              channelValues: [255, 128, 0],
+              fixture: { id: "fixture-1" },
+            },
+          ],
+        };
+
+        mockContext.prisma.scene.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockScene);
+
+        const result = await sceneResolvers.Query.scene(
+          {},
+          { id: "scene-1", includeFixtureValues: true },
+          mockContext,
+        );
+
+        expect(result).toEqual(mockScene);
+        expect(mockContext.prisma.scene.findUnique).toHaveBeenCalledWith(
+          expect.objectContaining({
+            where: { id: "scene-1" },
+            include: expect.objectContaining({
+              project: true,
+              fixtureValues: expect.any(Object),
+            }),
+          }),
+        );
+      });
+
+      it("should default to including fixture values", async () => {
+        const mockScene = {
+          id: "scene-1",
+          name: "Test Scene",
+          fixtureValues: [],
+        };
+
+        mockContext.prisma.scene.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockScene);
+
+        await sceneResolvers.Query.scene(
+          {},
+          { id: "scene-1" }, // No includeFixtureValues parameter
+          mockContext,
+        );
+
+        expect(mockContext.prisma.scene.findUnique).toHaveBeenCalledWith(
+          expect.objectContaining({
+            include: expect.objectContaining({
+              fixtureValues: expect.any(Object),
+            }),
+          }),
+        );
+      });
+    });
+
+    describe("sceneFixtures", () => {
+      it("should return fixture summary for a scene", async () => {
+        const mockFixtureValues = [
+          {
+            fixtureId: "fixture-1",
+            fixture: {
+              name: "LED Par 1",
+              type: "LED_PAR",
+            },
+          },
+          {
+            fixtureId: "fixture-2",
+            fixture: {
+              name: "Moving Head 1",
+              type: "MOVING_HEAD",
+            },
+          },
+        ];
+
+        mockContext.prisma.fixtureValue.findMany = jest
+          .fn()
+          .mockResolvedValue(mockFixtureValues);
+
+        const result = await sceneResolvers.Query.sceneFixtures(
+          {},
+          { sceneId: "scene-1" },
+          mockContext,
+        );
+
+        expect(result).toEqual([
+          {
+            fixtureId: "fixture-1",
+            fixtureName: "LED Par 1",
+            fixtureType: "LED_PAR",
+          },
+          {
+            fixtureId: "fixture-2",
+            fixtureName: "Moving Head 1",
+            fixtureType: "MOVING_HEAD",
+          },
+        ]);
+        expect(mockContext.prisma.fixtureValue.findMany).toHaveBeenCalledWith({
+          where: { sceneId: "scene-1" },
+          select: {
+            fixtureId: true,
+            fixture: {
+              select: {
+                name: true,
+                type: true,
+              },
+            },
+          },
+          distinct: ["fixtureId"],
+        });
+      });
+
+      it("should return empty array for scene with no fixtures", async () => {
+        mockContext.prisma.fixtureValue.findMany = jest
+          .fn()
+          .mockResolvedValue([]);
+
+        const result = await sceneResolvers.Query.sceneFixtures(
+          {},
+          { sceneId: "scene-empty" },
+          mockContext,
+        );
+
+        expect(result).toEqual([]);
+      });
+    });
+
     describe("scene", () => {
       it("should return scene with fixtures and channels", async () => {
         const mockScene = {
