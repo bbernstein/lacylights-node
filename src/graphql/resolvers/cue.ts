@@ -65,25 +65,134 @@ export const cueResolvers = {
       return playbackStateService.getFormattedStatus(cueListId);
     },
 
-    cueList: async (
+    cueLists: async (
       _: unknown,
-      { id }: { id: string },
+      { projectId }: { projectId: string },
       { prisma }: Context,
     ) => {
-      return prisma.cueList.findUnique({
-        where: { id },
+      const cueLists = await prisma.cueList.findMany({
+        where: { projectId },
         include: {
-          project: true,
           cues: {
-            include: {
-              scene: true,
-            },
-            orderBy: {
-              cueNumber: "asc",
+            select: {
+              fadeInTime: true,
+              fadeOutTime: true,
+              followTime: true,
             },
           },
         },
+        orderBy: {
+          createdAt: "asc",
+        },
       });
+
+      return cueLists.map((cueList) => {
+        const cueCount = cueList.cues.length;
+        // Calculate total duration as sum of all cue times
+        const totalDuration = cueList.cues.reduce((sum, cue) => {
+          const cueTime =
+            cue.fadeInTime + cue.fadeOutTime + (cue.followTime || 0);
+          return sum + cueTime;
+        }, 0);
+
+        return {
+          id: cueList.id,
+          name: cueList.name,
+          description: cueList.description,
+          cueCount,
+          totalDuration,
+          loop: cueList.loop,
+          createdAt: cueList.createdAt.toISOString(),
+        };
+      });
+    },
+
+    cueList: async (
+      _: unknown,
+      {
+        id,
+        page = 1,
+        perPage = 50,
+        includeSceneDetails = false,
+      }: {
+        id: string;
+        page?: number;
+        perPage?: number;
+        includeSceneDetails?: boolean;
+      },
+      { prisma }: Context,
+    ) => {
+      // Enforce max page size of 100
+      const normalizedPerPage = Math.min(Math.max(1, perPage), 100);
+      const normalizedPage = Math.max(1, page);
+      const skip = (normalizedPage - 1) * normalizedPerPage;
+
+      const cueList = await prisma.cueList.findUnique({
+        where: { id },
+        include: {
+          project: true,
+        },
+      });
+
+      if (!cueList) {
+        return null;
+      }
+
+      // Get total count of cues
+      const totalCues = await prisma.cue.count({
+        where: { cueListId: id },
+      });
+
+      // Get paginated cues
+      const cues = await prisma.cue.findMany({
+        where: { cueListId: id },
+        include: {
+          scene: includeSceneDetails
+            ? {
+                include: {
+                  fixtureValues: {
+                    include: {
+                      fixture: true,
+                    },
+                  },
+                },
+              }
+            : true,
+        },
+        orderBy: {
+          cueNumber: "asc",
+        },
+        skip,
+        take: normalizedPerPage,
+      });
+
+      // Calculate total duration
+      const allCues = await prisma.cue.findMany({
+        where: { cueListId: id },
+        select: {
+          fadeInTime: true,
+          fadeOutTime: true,
+          followTime: true,
+        },
+      });
+
+      const totalDuration = allCues.reduce((sum, cue) => {
+        const cueTime =
+          cue.fadeInTime + cue.fadeOutTime + (cue.followTime || 0);
+        return sum + cueTime;
+      }, 0);
+
+      return {
+        ...cueList,
+        cues,
+        cueCount: totalCues,
+        totalDuration,
+        _pagination: {
+          total: totalCues,
+          page: normalizedPage,
+          perPage: normalizedPerPage,
+        },
+      };
     },
 
     cue: async (_: unknown, { id }: { id: string }, { prisma }: Context) => {
@@ -556,6 +665,47 @@ export const cueResolvers = {
       }
 
       return updatedCues;
+    },
+  },
+
+  CueList: {
+    cueCount: async (
+      parent: { id: string; _pagination?: any },
+      _: unknown,
+      { prisma }: Context,
+    ) => {
+      // If we have pagination metadata from the query, use that total
+      if (parent._pagination?.total !== undefined) {
+        return parent._pagination.total;
+      }
+      // Otherwise count the cues
+      return prisma.cue.count({
+        where: { cueListId: parent.id },
+      });
+    },
+    totalDuration: async (
+      parent: { id: string; totalDuration?: number },
+      _: unknown,
+      { prisma }: Context,
+    ) => {
+      // If already calculated in the query, return it
+      if (parent.totalDuration !== undefined) {
+        return parent.totalDuration;
+      }
+      // Otherwise calculate it
+      const cues = await prisma.cue.findMany({
+        where: { cueListId: parent.id },
+        select: {
+          fadeInTime: true,
+          fadeOutTime: true,
+          followTime: true,
+        },
+      });
+      return cues.reduce((sum, cue) => {
+        const cueTime =
+          cue.fadeInTime + cue.fadeOutTime + (cue.followTime || 0);
+        return sum + cueTime;
+      }, 0);
     },
   },
 

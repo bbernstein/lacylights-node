@@ -79,24 +79,41 @@ describe("Cue Resolvers", () => {
     });
   });
 
-  describe("Query.cueList", () => {
-    it("should return cue list with cues", async () => {
+  describe("Query.cueList (Legacy Test)", () => {
+    it("should return cue list with paginated cues (backward compatibility)", async () => {
       const mockCueList = {
         id: "test-id",
         name: "Test Cue List",
+        description: null,
+        loop: false,
         project: { id: "project-id", name: "Test Project" },
-        cues: [
-          {
-            id: "cue-1",
-            name: "Cue 1",
-            scene: { id: "scene-1", name: "Scene 1" },
-          },
-        ],
+        createdAt: new Date("2024-01-01"),
       };
+
+      const mockCues = [
+        {
+          id: "cue-1",
+          name: "Cue 1",
+          cueNumber: 1.0,
+          scene: { id: "scene-1", name: "Scene 1" },
+          fadeInTime: 3.0,
+          fadeOutTime: 2.0,
+          followTime: null,
+        },
+      ];
+
+      const mockAllCues = [
+        { fadeInTime: 3.0, fadeOutTime: 2.0, followTime: null },
+      ];
 
       mockContext.prisma.cueList.findUnique = jest
         .fn()
         .mockResolvedValue(mockCueList);
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(1);
+      mockContext.prisma.cue.findMany = jest
+        .fn()
+        .mockResolvedValueOnce(mockCues)
+        .mockResolvedValueOnce(mockAllCues);
 
       const result = await cueResolvers.Query.cueList(
         {},
@@ -104,16 +121,12 @@ describe("Cue Resolvers", () => {
         mockContext,
       );
 
-      expect(result).toEqual(mockCueList);
-      expect(mockContext.prisma.cueList.findUnique).toHaveBeenCalledWith({
-        where: { id: "test-id" },
-        include: {
-          project: true,
-          cues: {
-            include: { scene: true },
-            orderBy: { cueNumber: "asc" },
-          },
-        },
+      expect(result).toMatchObject({
+        id: "test-id",
+        name: "Test Cue List",
+        cues: mockCues,
+        cueCount: 1,
+        totalDuration: 5.0, // 3 + 2 + 0 = 5
       });
     });
   });
@@ -1053,6 +1066,402 @@ describe("Cue Resolvers", () => {
       );
 
       expect(result).toEqual([mockUpdatedCue]);
+    });
+  });
+
+  // Pagination Tests for Task 1.4
+  describe("Query.cueLists (Pagination)", () => {
+    it("should return lightweight cue list summaries", async () => {
+      const mockCueLists = [
+        {
+          id: "cuelist-1",
+          name: "Act 1",
+          description: "First act lighting",
+          loop: false,
+          createdAt: new Date("2024-01-01"),
+          cues: [
+            { fadeInTime: 3.0, fadeOutTime: 2.0, followTime: 1.0 },
+            { fadeInTime: 4.0, fadeOutTime: 3.0, followTime: null },
+          ],
+        },
+        {
+          id: "cuelist-2",
+          name: "Act 2",
+          description: null,
+          loop: true,
+          createdAt: new Date("2024-01-02"),
+          cues: [
+            { fadeInTime: 2.0, fadeOutTime: 2.0, followTime: 0.5 },
+          ],
+        },
+      ];
+
+      mockContext.prisma.cueList.findMany = jest
+        .fn()
+        .mockResolvedValue(mockCueLists);
+
+      const result = await cueResolvers.Query.cueLists(
+        {},
+        { projectId: "project-1" },
+        mockContext,
+      );
+
+      expect(result).toHaveLength(2);
+      expect(result[0]).toEqual({
+        id: "cuelist-1",
+        name: "Act 1",
+        description: "First act lighting",
+        cueCount: 2,
+        totalDuration: 13.0, // (3+2+1) + (4+3+0) = 13
+        loop: false,
+        createdAt: "2024-01-01T00:00:00.000Z",
+      });
+      expect(result[1]).toEqual({
+        id: "cuelist-2",
+        name: "Act 2",
+        description: null,
+        cueCount: 1,
+        totalDuration: 4.5, // 2+2+0.5 = 4.5
+        loop: true,
+        createdAt: "2024-01-02T00:00:00.000Z",
+      });
+      expect(mockContext.prisma.cueList.findMany).toHaveBeenCalledWith({
+        where: { projectId: "project-1" },
+        include: {
+          cues: {
+            select: {
+              fadeInTime: true,
+              fadeOutTime: true,
+              followTime: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      });
+    });
+
+    it("should handle empty cue list", async () => {
+      const mockCueLists = [
+        {
+          id: "cuelist-1",
+          name: "Empty List",
+          description: null,
+          loop: false,
+          createdAt: new Date("2024-01-01"),
+          cues: [],
+        },
+      ];
+
+      mockContext.prisma.cueList.findMany = jest
+        .fn()
+        .mockResolvedValue(mockCueLists);
+
+      const result = await cueResolvers.Query.cueLists(
+        {},
+        { projectId: "project-1" },
+        mockContext,
+      );
+
+      expect(result[0]).toEqual({
+        id: "cuelist-1",
+        name: "Empty List",
+        description: null,
+        cueCount: 0,
+        totalDuration: 0,
+        loop: false,
+        createdAt: "2024-01-01T00:00:00.000Z",
+      });
+    });
+  });
+
+  describe("Query.cueList (Pagination)", () => {
+    it("should return paginated cues with default parameters", async () => {
+      const mockCueList = {
+        id: "cuelist-1",
+        name: "Test List",
+        description: "Test",
+        loop: false,
+        project: { id: "project-1" },
+        createdAt: new Date("2024-01-01"),
+      };
+
+      const mockCues = Array.from({ length: 3 }, (_, i) => ({
+        id: `cue-${i + 1}`,
+        name: `Cue ${i + 1}`,
+        cueNumber: i + 1,
+        scene: { id: `scene-${i + 1}`, name: `Scene ${i + 1}` },
+        fadeInTime: 3.0,
+        fadeOutTime: 2.0,
+        followTime: null,
+      }));
+
+      const mockAllCues = mockCues.map((c) => ({
+        fadeInTime: c.fadeInTime,
+        fadeOutTime: c.fadeOutTime,
+        followTime: c.followTime,
+      }));
+
+      mockContext.prisma.cueList.findUnique = jest
+        .fn()
+        .mockResolvedValue(mockCueList);
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(3);
+      mockContext.prisma.cue.findMany = jest
+        .fn()
+        .mockResolvedValueOnce(mockCues) // For paginated query
+        .mockResolvedValueOnce(mockAllCues); // For totalDuration
+
+      const result = await cueResolvers.Query.cueList(
+        {},
+        { id: "cuelist-1" },
+        mockContext,
+      );
+
+      expect(result).toMatchObject({
+        id: "cuelist-1",
+        name: "Test List",
+        cueCount: 3,
+        totalDuration: 15.0, // 3 cues * (3+2) = 15
+        cues: mockCues,
+      });
+      expect(mockContext.prisma.cue.count).toHaveBeenCalledWith({
+        where: { cueListId: "cuelist-1" },
+      });
+      // Check that pagination defaults were applied
+      expect(mockContext.prisma.cue.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0,
+          take: 50,
+        }),
+      );
+    });
+
+    it("should enforce maximum page size of 100", async () => {
+      const mockCueList = {
+        id: "cuelist-1",
+        name: "Test",
+        project: { id: "project-1" },
+      };
+
+      mockContext.prisma.cueList.findUnique = jest
+        .fn()
+        .mockResolvedValue(mockCueList);
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(0);
+      mockContext.prisma.cue.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await cueResolvers.Query.cueList(
+        {},
+        { id: "cuelist-1", page: 1, perPage: 200 },
+        mockContext,
+      );
+
+      expect(mockContext.prisma.cue.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          take: 100, // Should be capped at 100
+        }),
+      );
+    });
+
+    it("should handle pagination with custom page and perPage", async () => {
+      const mockCueList = {
+        id: "cuelist-1",
+        name: "Test",
+        project: { id: "project-1" },
+      };
+
+      mockContext.prisma.cueList.findUnique = jest
+        .fn()
+        .mockResolvedValue(mockCueList);
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(100);
+      mockContext.prisma.cue.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await cueResolvers.Query.cueList(
+        {},
+        { id: "cuelist-1", page: 3, perPage: 25 },
+        mockContext,
+      );
+
+      expect(mockContext.prisma.cue.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 50, // (3-1) * 25 = 50
+          take: 25,
+        }),
+      );
+    });
+
+    it("should include scene details when includeSceneDetails is true", async () => {
+      const mockCueList = {
+        id: "cuelist-1",
+        name: "Test",
+        project: { id: "project-1" },
+      };
+
+      mockContext.prisma.cueList.findUnique = jest
+        .fn()
+        .mockResolvedValue(mockCueList);
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(1);
+      mockContext.prisma.cue.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await cueResolvers.Query.cueList(
+        {},
+        { id: "cuelist-1", includeSceneDetails: true },
+        mockContext,
+      );
+
+      const callArgs = (mockContext.prisma.cue.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(callArgs.include.scene).toEqual({
+        include: {
+          fixtureValues: {
+            include: {
+              fixture: true,
+            },
+          },
+        },
+      });
+    });
+
+    it("should not include full scene details when includeSceneDetails is false", async () => {
+      const mockCueList = {
+        id: "cuelist-1",
+        name: "Test",
+        project: { id: "project-1" },
+      };
+
+      mockContext.prisma.cueList.findUnique = jest
+        .fn()
+        .mockResolvedValue(mockCueList);
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(1);
+      mockContext.prisma.cue.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await cueResolvers.Query.cueList(
+        {},
+        { id: "cuelist-1", includeSceneDetails: false },
+        mockContext,
+      );
+
+      const callArgs = (mockContext.prisma.cue.findMany as jest.Mock).mock
+        .calls[0][0];
+      expect(callArgs.include.scene).toBe(true);
+    });
+
+    it("should return null if cue list not found", async () => {
+      mockContext.prisma.cueList.findUnique = jest.fn().mockResolvedValue(null);
+
+      const result = await cueResolvers.Query.cueList(
+        {},
+        { id: "nonexistent" },
+        mockContext,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it("should handle edge case with page 0 or negative", async () => {
+      const mockCueList = {
+        id: "cuelist-1",
+        name: "Test",
+        project: { id: "project-1" },
+      };
+
+      mockContext.prisma.cueList.findUnique = jest
+        .fn()
+        .mockResolvedValue(mockCueList);
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(10);
+      mockContext.prisma.cue.findMany = jest
+        .fn()
+        .mockResolvedValueOnce([])
+        .mockResolvedValueOnce([]);
+
+      await cueResolvers.Query.cueList(
+        {},
+        { id: "cuelist-1", page: 0, perPage: 10 },
+        mockContext,
+      );
+
+      // Page 0 should be normalized to page 1
+      expect(mockContext.prisma.cue.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          skip: 0, // (1-1) * 10 = 0
+        }),
+      );
+    });
+  });
+
+  describe("CueList Field Resolvers (Pagination)", () => {
+    it("should calculate cueCount from database when not in pagination context", async () => {
+      mockContext.prisma.cue.count = jest.fn().mockResolvedValue(42);
+
+      const result = await cueResolvers.CueList.cueCount(
+        { id: "cuelist-1" },
+        {},
+        mockContext,
+      );
+
+      expect(result).toBe(42);
+      expect(mockContext.prisma.cue.count).toHaveBeenCalledWith({
+        where: { cueListId: "cuelist-1" },
+      });
+    });
+
+    it("should use cached cueCount from pagination context", async () => {
+      const result = await cueResolvers.CueList.cueCount(
+        { id: "cuelist-1", _pagination: { total: 99 } },
+        {},
+        mockContext,
+      );
+
+      expect(result).toBe(99);
+      expect(mockContext.prisma.cue.count).not.toHaveBeenCalled();
+    });
+
+    it("should calculate totalDuration from database when not cached", async () => {
+      const mockCues = [
+        { fadeInTime: 3.0, fadeOutTime: 2.0, followTime: 1.0 },
+        { fadeInTime: 4.0, fadeOutTime: 3.0, followTime: null },
+      ];
+
+      mockContext.prisma.cue.findMany = jest.fn().mockResolvedValue(mockCues);
+
+      const result = await cueResolvers.CueList.totalDuration(
+        { id: "cuelist-1" },
+        {},
+        mockContext,
+      );
+
+      expect(result).toBe(13.0); // (3+2+1) + (4+3+0) = 13
+      expect(mockContext.prisma.cue.findMany).toHaveBeenCalledWith({
+        where: { cueListId: "cuelist-1" },
+        select: {
+          fadeInTime: true,
+          fadeOutTime: true,
+          followTime: true,
+        },
+      });
+    });
+
+    it("should use cached totalDuration when available", async () => {
+      const result = await cueResolvers.CueList.totalDuration(
+        { id: "cuelist-1", totalDuration: 123.5 },
+        {},
+        mockContext,
+      );
+
+      expect(result).toBe(123.5);
+      expect(mockContext.prisma.cue.findMany).not.toHaveBeenCalled();
     });
   });
 });
