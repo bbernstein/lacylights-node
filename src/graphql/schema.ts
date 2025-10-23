@@ -116,6 +116,8 @@ export const typeDefs = gql`
     loop: Boolean!
     project: Project!
     cues: [Cue!]!
+    cueCount: Int!
+    totalDuration: Float!
     createdAt: String!
     updatedAt: String!
   }
@@ -142,6 +144,31 @@ export const typeDefs = gql`
     previousCue: Cue
     fadeProgress: Float
     lastUpdated: String!
+  }
+
+  # Pagination Types
+  type PaginationInfo {
+    total: Int!
+    page: Int!
+    perPage: Int!
+    totalPages: Int!
+    hasMore: Boolean!
+  }
+
+  # Cue List Pagination Types
+  type CueListSummary {
+    id: ID!
+    name: String!
+    description: String
+    cueCount: Int!
+    totalDuration: Float!
+    loop: Boolean!
+    createdAt: String!
+  }
+
+  type CuePage {
+    cues: [Cue!]!
+    pagination: PaginationInfo!
   }
 
   type User {
@@ -587,7 +614,13 @@ export const typeDefs = gql`
     sceneFixtures(sceneId: ID!): [SceneFixtureSummary!]!
 
     # Cue Lists
-    cueList(id: ID!): CueList
+    cueLists(projectId: ID!): [CueListSummary!]!
+    cueList(
+      id: ID!
+      page: Int = 1
+      perPage: Int = 50
+      includeSceneDetails: Boolean = false
+    ): CueList
     cueListPlaybackStatus(cueListId: ID!): CueListPlaybackStatus
 
     # Cues
