@@ -135,15 +135,15 @@ export const sceneResolvers = {
       const skip = (normalizedPage - 1) * normalizedPerPage;
 
       // Build where clause
-      // Note: Using a more flexible type for where clause construction
-      // because Prisma's strict types don't support all query features (like mode)
-      const where: Prisma.SceneWhereInput = { projectId } as any;
+      const where: Prisma.SceneWhereInput = { projectId };
 
       if (filter?.nameContains) {
+        // Note: mode: "insensitive" is valid Prisma syntax but not in TS types
+        // Using StringFilter assertion as recommended by Copilot
         where.name = {
           contains: filter.nameContains,
           mode: "insensitive",
-        } as any;
+        } as Prisma.StringFilter<"Scene">;
       }
 
       if (filter?.usesFixture) {

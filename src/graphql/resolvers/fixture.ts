@@ -120,11 +120,9 @@ export const fixtureResolvers = {
       const take = normalizedPerPage;
 
       // Build where clause
-      // Note: Using a more flexible type for where clause construction
-      // because Prisma's strict types don't support all query features
       const where: Prisma.FixtureInstanceWhereInput = {
         projectId,
-      } as any;
+      };
 
       if (args.filter) {
         if (args.filter.type !== undefined) {
@@ -136,15 +134,17 @@ export const fixtureResolvers = {
         }
 
         if (args.filter.manufacturer) {
+          // Note: Using StringFilter for proper type safety with contains pattern
           where.manufacturer = {
             contains: args.filter.manufacturer,
-          } as any;
+          } as Prisma.StringFilter<"FixtureInstance">;
         }
 
         if (args.filter.model) {
+          // Note: Using StringFilter for proper type safety with contains pattern
           where.model = {
             contains: args.filter.model,
-          } as any;
+          } as Prisma.StringFilter<"FixtureInstance">;
         }
 
         if (args.filter.tags && args.filter.tags.length > 0) {
