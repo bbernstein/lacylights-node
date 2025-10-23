@@ -166,21 +166,20 @@ export const cueResolvers = {
         take: normalizedPerPage,
       });
 
-      // Calculate total duration
-      const allCues = await prisma.cue.findMany({
-        where: { cueListId: id },
-        select: {
+      // Calculate total duration using database aggregation
+      const durationSums = await prisma.cue.aggregate({
+        _sum: {
           fadeInTime: true,
           fadeOutTime: true,
           followTime: true,
         },
+        where: { cueListId: id },
       });
 
-      const totalDuration = allCues.reduce((sum, cue) => {
-        const cueTime =
-          cue.fadeInTime + cue.fadeOutTime + (cue.followTime || 0);
-        return sum + cueTime;
-      }, 0);
+      const totalDuration =
+        (durationSums._sum.fadeInTime || 0) +
+        (durationSums._sum.fadeOutTime || 0) +
+        (durationSums._sum.followTime || 0);
 
       return {
         ...cueList,
@@ -692,20 +691,20 @@ export const cueResolvers = {
       if (parent.totalDuration !== undefined) {
         return parent.totalDuration;
       }
-      // Otherwise calculate it
-      const cues = await prisma.cue.findMany({
-        where: { cueListId: parent.id },
-        select: {
+      // Otherwise calculate it using database aggregation
+      const result = await prisma.cue.aggregate({
+        _sum: {
           fadeInTime: true,
           fadeOutTime: true,
           followTime: true,
         },
+        where: { cueListId: parent.id },
       });
-      return cues.reduce((sum, cue) => {
-        const cueTime =
-          cue.fadeInTime + cue.fadeOutTime + (cue.followTime || 0);
-        return sum + cueTime;
-      }, 0);
+      // All fields may be null if there are no cues, so default to 0
+      const fadeInSum = result._sum.fadeInTime ?? 0;
+      const fadeOutSum = result._sum.fadeOutTime ?? 0;
+      const followSum = result._sum.followTime ?? 0;
+      return fadeInSum + fadeOutSum + followSum;
     },
   },
 
