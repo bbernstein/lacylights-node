@@ -1,6 +1,7 @@
 import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { fadeEngine } from "../../services/fadeEngine";
+import { Prisma } from "@prisma/client";
 
 // Type definitions for fixture values
 export interface FixtureValueInput {
@@ -134,13 +135,15 @@ export const sceneResolvers = {
       const skip = (normalizedPage - 1) * normalizedPerPage;
 
       // Build where clause
-      const where: any = { projectId };
+      // Note: Using a more flexible type for where clause construction
+      // because Prisma's strict types don't support all query features (like mode)
+      const where: Prisma.SceneWhereInput = { projectId } as any;
 
       if (filter?.nameContains) {
         where.name = {
           contains: filter.nameContains,
           mode: "insensitive",
-        };
+        } as any;
       }
 
       if (filter?.usesFixture) {
@@ -152,7 +155,7 @@ export const sceneResolvers = {
       }
 
       // Build orderBy clause
-      const orderByMap: Record<string, any> = {
+      const orderByMap: Record<string, Prisma.SceneOrderByWithRelationInput> = {
         NAME: { name: "asc" },
         CREATED_AT: { createdAt: "asc" },
         UPDATED_AT: { updatedAt: "desc" },

@@ -1,6 +1,7 @@
 import { Context } from "../../context";
 import { ChannelType, FixtureType } from "../../types/enums";
 import { parseTags, serializeTags } from "../../utils/db-helpers";
+import { Prisma } from "@prisma/client";
 
 // Input types for GraphQL queries and mutations
 export interface FixtureDefinitionFilter {
@@ -119,9 +120,11 @@ export const fixtureResolvers = {
       const take = normalizedPerPage;
 
       // Build where clause
-      const where: Record<string, unknown> = {
+      // Note: Using a more flexible type for where clause construction
+      // because Prisma's strict types don't support all query features
+      const where: Prisma.FixtureInstanceWhereInput = {
         projectId,
-      };
+      } as any;
 
       if (args.filter) {
         if (args.filter.type !== undefined) {
@@ -135,13 +138,13 @@ export const fixtureResolvers = {
         if (args.filter.manufacturer) {
           where.manufacturer = {
             contains: args.filter.manufacturer,
-          };
+          } as any;
         }
 
         if (args.filter.model) {
           where.model = {
             contains: args.filter.model,
-          };
+          } as any;
         }
 
         if (args.filter.tags && args.filter.tags.length > 0) {
