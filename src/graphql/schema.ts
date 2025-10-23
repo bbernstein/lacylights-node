@@ -6,6 +6,9 @@ export const typeDefs = gql`
     id: ID!
     name: String!
     description: String
+    fixtureCount: Int!
+    sceneCount: Int!
+    cueListCount: Int!
     createdAt: String!
     updatedAt: String!
     fixtures: [FixtureInstance!]!
@@ -275,6 +278,42 @@ export const typeDefs = gql`
     suggestions: [FixtureMappingSuggestion!]!
     defaultMappings: [FixtureMapping!]!
   }
+  # Pagination Types
+  type PaginationInfo {
+    total: Int!
+    page: Int!
+    perPage: Int!
+    totalPages: Int!
+    hasMore: Boolean!
+  }
+
+  # Scene Pagination Types
+  type SceneSummary {
+    id: ID!
+    name: String!
+    description: String
+    fixtureCount: Int!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type ScenePage {
+    scenes: [SceneSummary!]!
+    pagination: PaginationInfo!
+  }
+
+  type SceneFixtureSummary {
+    fixtureId: ID!
+    fixtureName: String!
+    fixtureType: FixtureType!
+  }
+
+  # Fixture Pagination Types
+  type FixtureInstancePage {
+    fixtures: [FixtureInstance!]!
+    pagination: PaginationInfo!
+  }
+
   # Enums
   enum FixtureType {
     LED_PAR
@@ -282,6 +321,12 @@ export const typeDefs = gql`
     STROBE
     DIMMER
     OTHER
+  }
+
+  enum SceneSortField {
+    NAME
+    CREATED_AT
+    UPDATED_AT
   }
 
   enum ChannelType {
@@ -407,12 +452,25 @@ export const typeDefs = gql`
     sceneOrder: Int
   }
 
+  input SceneFilterInput {
+    nameContains: String
+    usesFixture: ID
+  }
+
   input FixtureDefinitionFilter {
     manufacturer: String
     model: String
     type: FixtureType
     isBuiltIn: Boolean
     channelTypes: [ChannelType!]
+  }
+
+  input FixtureFilterInput {
+    type: FixtureType
+    universe: Int
+    tags: [String!]
+    manufacturer: String
+    model: String
   }
 
   input CreateCueListInput {
@@ -509,9 +567,24 @@ export const typeDefs = gql`
     # Fixtures
     fixtureDefinitions(filter: FixtureDefinitionFilter): [FixtureDefinition!]!
     fixtureDefinition(id: ID!): FixtureDefinition
+    fixtureInstances(
+      projectId: ID!
+      page: Int = 1
+      perPage: Int = 50
+      filter: FixtureFilterInput
+    ): FixtureInstancePage!
+    fixtureInstance(id: ID!): FixtureInstance
 
     # Scenes
-    scene(id: ID!): Scene
+    scenes(
+      projectId: ID!
+      page: Int = 1
+      perPage: Int = 50
+      filter: SceneFilterInput
+      sortBy: SceneSortField = CREATED_AT
+    ): ScenePage!
+    scene(id: ID!, includeFixtureValues: Boolean = true): Scene
+    sceneFixtures(sceneId: ID!): [SceneFixtureSummary!]!
 
     # Cue Lists
     cueList(id: ID!): CueList
