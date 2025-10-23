@@ -5,9 +5,14 @@ import { PrismaClient } from "@prisma/client";
 import { PubSub } from "graphql-subscriptions";
 import { Context } from "../../context";
 import { FixtureType } from "../../types/enums";
+import { execSync } from "child_process";
+import fs from "fs";
+import path from "path";
 
 // Set DATABASE_URL for testing with SQLite
-process.env.DATABASE_URL = "file:./test-integration.db";
+const testDbPath = path.join(__dirname, "../../../test-fixture-pagination.db");
+const testDbUrl = `file:${testDbPath}`;
+process.env.DATABASE_URL = testDbUrl;
 
 // Types for GraphQL responses
 interface FixtureInstance {
@@ -50,7 +55,35 @@ describe("Fixture Pagination GraphQL Resolvers", () => {
   let testDefinitionId: string;
 
   beforeAll(async () => {
-    prisma = new PrismaClient();
+    // Only run migrations if database doesn't exist
+    const needsMigration = !fs.existsSync(testDbPath);
+
+    if (needsMigration) {
+      // Remove any leftover journal files
+      if (fs.existsSync(`${testDbPath}-journal`)) {
+        fs.unlinkSync(`${testDbPath}-journal`);
+      }
+
+      // Run migrations to set up the schema
+      try {
+        execSync("npx prisma migrate deploy", {
+          stdio: "pipe",
+          env: { ...process.env, DATABASE_URL: testDbUrl },
+        });
+      } catch (error) {
+        throw new Error(
+          `Migration failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
+
+    prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: testDbUrl,
+        },
+      },
+    });
     pubsub = new PubSub();
     await prisma.$connect();
 
