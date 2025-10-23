@@ -83,7 +83,7 @@ describe('LacyLightsServer', () => {
       expect(config.corsOrigin).toBe('http://localhost:3000');
       expect(config.shutdownTimeout).toBe(10000);
       expect(config.operationTimeout).toBe(5000);
-      expect(config.npmPackageVersion).toBe('1.1.0');
+      expect(config.npmPackageVersion).toBe('1.1.1');
     });
 
     it('should use custom configuration when provided', () => {
