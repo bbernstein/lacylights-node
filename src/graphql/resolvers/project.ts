@@ -84,9 +84,12 @@ export const projectResolvers = {
   },
   Subscription: {
     projectUpdated: {
+      // Note: projectId parameter is defined in the schema but not used for filtering here.
+      // Filtering happens at the resolver level when the PROJECT_UPDATED event is published.
+      // This follows the same pattern as other subscriptions (previewSessionUpdated, dmxOutputChanged).
       subscribe: (
         _: unknown,
-        __: { projectId: string },
+        { projectId: _projectId }: { projectId: string },
         { pubsub }: WebSocketContext,
       ) => {
         return pubsub.asyncIterator(["PROJECT_UPDATED"]);

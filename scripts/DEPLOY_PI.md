@@ -1,6 +1,15 @@
 # Raspberry Pi Deployment Guide
 
-This guide explains how to deploy LacyLights Node.js server to a Raspberry Pi.
+This guide explains how to deploy LacyLights Node.js server to a Raspberry Pi using GitHub releases.
+
+## Overview
+
+The deployment system uses **GitHub releases** instead of git cloning, similar to the LacyLights.app update mechanism. This approach:
+- Downloads pre-packaged releases from GitHub
+- Simplifies deployment (no git repository needed on Pi)
+- Tracks installed version with `.lacylights-version` file
+- Preserves `.env` configuration during updates
+- Enables easy version rollback
 
 ## Prerequisites
 
@@ -12,8 +21,11 @@ This guide explains how to deploy LacyLights Node.js server to a Raspberry Pi.
 
 2. **Local Machine Setup**
    - SSH key configured for passwordless login to Pi
-   - Git configured with access to the repository
    - Test SSH connection: `ssh pi@lacylights.local`
+
+3. **GitHub Release**
+   - A release must exist in the `bbernstein/lacylights-node` repository
+   - Use the automated release workflow to create releases
 
 ## Quick Start
 
@@ -25,13 +37,14 @@ npm run deploy:pi
 
 This will:
 1. Check SSH connection to the Pi
-2. Install dependencies if needed (Node.js, Docker with compose plugin)
-3. Clone the repository branch
-4. Install npm packages
-5. Build the application
-6. Start Docker services (PostgreSQL, Redis)
-7. Run database migrations
-8. Start the LacyLights server
+2. Install dependencies if needed (Node.js, Docker with compose plugin, jq)
+3. Fetch the latest release from GitHub
+4. Download and extract the release tarball
+5. Install npm packages
+6. Build the application
+7. Start Docker services (PostgreSQL, Redis)
+8. Run database migrations
+9. Start the LacyLights server
 
 ## Custom Configuration
 
@@ -52,32 +65,34 @@ PI_HOST=192.168.1.100 PI_USER=myuser npm run deploy:pi
 
 ### Manual Deployment
 
-If you need more control, you can run the scripts separately:
+If you need more control, you can run the deployment script directly:
 
-1. **Install Dependencies** (first time only):
-   ```bash
-   bash scripts/deploy-to-pi.sh
-   ```
-   The script will detect missing dependencies and install them automatically.
+```bash
+bash scripts/deploy-to-pi.sh
+```
 
-2. **Configure Environment**:
-   After the first deployment, you may want to customize the `.env` file on the Pi:
-   ```bash
-   ssh pi@lacylights.local
-   cd ~/lacylights-node
-   nano .env
-   ```
+The script will automatically:
+1. Install missing dependencies (Node.js, Docker, jq)
+2. Download the latest release from GitHub
+3. Extract and deploy the release
+4. Configure the environment
+5. Build and start the server
 
-   Important settings for Pi:
-   - `NODE_ENV=production` - Run in production mode
-   - `NON_INTERACTIVE=true` - Skip interactive prompts
+### Configure Environment
 
-   **Note:** Art-Net broadcast address is now configured via the Settings UI and persisted in the database.
+After the first deployment, you may want to customize the `.env` file on the Pi:
 
-3. **Redeploy After Changes**:
-   ```bash
-   npm run deploy:pi
-   ```
+```bash
+ssh pi@lacylights.local
+cd ~/lacylights-node
+nano .env
+```
+
+Important settings for Pi:
+- `NODE_ENV=production` - Run in production mode
+- `NON_INTERACTIVE=true` - Skip interactive prompts
+
+**Note:** Art-Net broadcast address is now configured via the Settings UI and persisted in the database.
 
 ## Post-Deployment
 
@@ -132,13 +147,18 @@ tail -f server.log
 # Restart Docker services
 docker compose restart
 
-# Pull latest changes and redeploy
-git pull origin feature/raspberry-pi-deployment
-npm install
-npm run build
-docker compose restart
+# Check installed version
+cat .lacylights-version
+
+# Restart the server
 npm run stop
 npm start
+```
+
+To deploy updates, use the deployment script from your local machine:
+
+```bash
+npm run deploy:pi
 ```
 
 ## Troubleshooting
@@ -183,19 +203,49 @@ ssh pi@lacylights.local 'sudo netstat -tulpn | grep :5432'
 
 ## Updating the Deployment
 
-To update the Pi with the latest changes:
+### Automatic Updates
 
-1. Push changes to the branch:
+The deployment script automatically checks for new releases. To update to the latest version:
+
+```bash
+npm run deploy:pi
+```
+
+The script will:
+1. Check the currently installed version (from `.lacylights-version`)
+2. Fetch the latest release from GitHub
+3. If a newer version is available, download and deploy it
+4. If already running the latest version, skip the update
+
+### Force Reinstall
+
+If you need to force a reinstall of the current version:
+
+```bash
+ssh pi@lacylights.local 'rm ~/lacylights-node/.lacylights-version'
+npm run deploy:pi
+```
+
+### Creating a New Release
+
+To deploy new code to the Pi, create a release in GitHub:
+
+1. **Using GitHub Actions** (recommended):
+   - Go to Actions → Create Release → Run workflow
+   - Select version bump type (patch/minor/major)
+   - The workflow creates a tagged release automatically
+
+2. **Manual release**:
    ```bash
-   git push origin feature/raspberry-pi-deployment
+   git tag v1.0.1
+   git push origin v1.0.1
+   gh release create v1.0.1 --generate-notes
    ```
 
-2. Redeploy:
+3. Deploy to Pi:
    ```bash
    npm run deploy:pi
    ```
-
-The script will pull the latest changes and redeploy automatically.
 
 ## Security Notes
 
