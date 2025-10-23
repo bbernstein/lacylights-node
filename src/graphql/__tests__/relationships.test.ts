@@ -173,12 +173,12 @@ describe("Relationship GraphQL Resolvers", () => {
       data: [
         {
           modeId: mode.id,
-          channelDefinitionId: redChannel.id,
+          channelId: redChannel.id,
           offset: 0,
         },
         {
           modeId: mode.id,
-          channelDefinitionId: greenChannel.id,
+          channelId: greenChannel.id,
           offset: 1,
         },
       ],
@@ -197,7 +197,7 @@ describe("Relationship GraphQL Resolvers", () => {
         projectId: testProjectId,
         universe: 1,
         startChannel: 1,
-        tags: ["test"],
+        tags: "test",
       },
     });
     testFixture1Id = fixture1.id;
@@ -214,7 +214,7 @@ describe("Relationship GraphQL Resolvers", () => {
         projectId: testProjectId,
         universe: 1,
         startChannel: 10,
-        tags: ["test"],
+        tags: "test",
       },
     });
     testFixture2Id = fixture2.id;
