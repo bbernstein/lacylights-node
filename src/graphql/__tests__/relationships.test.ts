@@ -5,6 +5,8 @@ import { PrismaClient } from "@prisma/client";
 import { PubSub } from "graphql-subscriptions";
 import { Context } from "../../context";
 import { FixtureType } from "../../types/enums";
+import { execSync } from "child_process";
+import * as fs from "fs";
 
 // Set DATABASE_URL for testing with SQLite
 process.env.DATABASE_URL = "file:./test-integration.db";
@@ -80,6 +82,29 @@ describe("Relationship GraphQL Resolvers", () => {
   let testScene2Id: string;
 
   beforeAll(async () => {
+    const testDbPath = "./test-integration.db";
+    const testDbUrl = `file:${testDbPath}`;
+
+    // Clean up existing test database
+    if (fs.existsSync(testDbPath)) {
+      fs.unlinkSync(testDbPath);
+    }
+    if (fs.existsSync(`${testDbPath}-journal`)) {
+      fs.unlinkSync(`${testDbPath}-journal`);
+    }
+
+    // Run migrations to set up the schema
+    try {
+      execSync("npx prisma migrate deploy", {
+        stdio: "pipe",
+        env: { ...process.env, DATABASE_URL: testDbUrl },
+      });
+    } catch (error) {
+      throw new Error(
+        `Failed to run migrations: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
     prisma = new PrismaClient();
     pubsub = new PubSub();
     await prisma.$connect();
