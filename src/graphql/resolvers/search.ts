@@ -4,7 +4,7 @@ import { FixtureType } from "../../types/enums";
 /**
  * Search-specific input types
  */
-interface SearchFixturesArgs {
+export interface SearchFixturesArgs {
   projectId: string;
   query: string;
   filter?: {
@@ -18,7 +18,7 @@ interface SearchFixturesArgs {
   perPage?: number;
 }
 
-interface SearchScenesArgs {
+export interface SearchScenesArgs {
   projectId: string;
   query: string;
   filter?: {
@@ -29,7 +29,7 @@ interface SearchScenesArgs {
   perPage?: number;
 }
 
-interface SearchCuesArgs {
+export interface SearchCuesArgs {
   cueListId: string;
   query: string;
   page?: number;
@@ -60,13 +60,20 @@ export const searchResolvers = {
       const take = normalizedPerPage;
 
       // Build where clause with search conditions
+      const isSQLite = process.env.DATABASE_URL?.includes("file:");
       const where: Record<string, unknown> = {
         projectId,
-        OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { manufacturer: { contains: query, mode: "insensitive" } },
-          { model: { contains: query, mode: "insensitive" } },
-        ],
+        OR: isSQLite
+          ? [
+              { name: { contains: query } },
+              { manufacturer: { contains: query } },
+              { model: { contains: query } },
+            ]
+          : [
+              { name: { contains: query, mode: "insensitive" } },
+              { manufacturer: { contains: query, mode: "insensitive" } },
+              { model: { contains: query, mode: "insensitive" } },
+            ],
       };
 
       // Apply additional filters if provided
@@ -82,21 +89,37 @@ export const searchResolvers = {
         }
 
         if (args.filter.manufacturer) {
-          andConditions.push({
-            manufacturer: {
-              contains: args.filter.manufacturer,
-              mode: "insensitive",
-            },
-          });
+          andConditions.push(
+            isSQLite
+              ? {
+                  manufacturer: {
+                    contains: args.filter.manufacturer,
+                  },
+                }
+              : {
+                  manufacturer: {
+                    contains: args.filter.manufacturer,
+                    mode: "insensitive",
+                  },
+                }
+          );
         }
 
         if (args.filter.model) {
-          andConditions.push({
-            model: {
-              contains: args.filter.model,
-              mode: "insensitive",
-            },
-          });
+          andConditions.push(
+            isSQLite
+              ? {
+                  model: {
+                    contains: args.filter.model,
+                  },
+                }
+              : {
+                  model: {
+                    contains: args.filter.model,
+                    mode: "insensitive",
+                  },
+                }
+          );
         }
 
         if (args.filter.tags && args.filter.tags.length > 0) {
@@ -168,12 +191,18 @@ export const searchResolvers = {
       const take = normalizedPerPage;
 
       // Build where clause with search conditions
+      const isSQLite = process.env.DATABASE_URL?.includes("file:");
       const where: Record<string, unknown> = {
         projectId,
-        OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { description: { contains: query, mode: "insensitive" } },
-        ],
+        OR: isSQLite
+          ? [
+              { name: { contains: query } },
+              { description: { contains: query } },
+            ]
+          : [
+              { name: { contains: query, mode: "insensitive" } },
+              { description: { contains: query, mode: "insensitive" } },
+            ],
       };
 
       // Apply additional filters if provided
@@ -181,12 +210,20 @@ export const searchResolvers = {
         const andConditions: Record<string, unknown>[] = [];
 
         if (args.filter.nameContains) {
-          andConditions.push({
-            name: {
-              contains: args.filter.nameContains,
-              mode: "insensitive",
-            },
-          });
+          andConditions.push(
+            isSQLite
+              ? {
+                  name: {
+                    contains: args.filter.nameContains,
+                  },
+                }
+              : {
+                  name: {
+                    contains: args.filter.nameContains,
+                    mode: "insensitive",
+                  },
+                }
+          );
         }
 
         if (args.filter.usesFixture) {
@@ -269,12 +306,18 @@ export const searchResolvers = {
       const take = normalizedPerPage;
 
       // Build where clause with search conditions
+      const isSQLite = process.env.DATABASE_URL?.includes("file:");
       const where = {
         cueListId,
-        OR: [
-          { name: { contains: query, mode: "insensitive" } },
-          { notes: { contains: query, mode: "insensitive" } },
-        ],
+        OR: isSQLite
+          ? [
+              { name: { contains: query } },
+              { notes: { contains: query } },
+            ]
+          : [
+              { name: { contains: query, mode: "insensitive" } },
+              { notes: { contains: query, mode: "insensitive" } },
+            ],
       };
 
       // Execute queries in parallel
