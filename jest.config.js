@@ -22,6 +22,14 @@ module.exports = {
     'lcov',
     'html'
   ],
+  coverageThreshold: {
+    global: {
+      branches: 69,
+      functions: 84,
+      lines: 84,
+      statements: 83,
+    },
+  },
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],
   testTimeout: 30000,
   verbose: false,
