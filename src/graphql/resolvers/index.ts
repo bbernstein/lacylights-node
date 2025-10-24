@@ -9,6 +9,7 @@ import { fixtureOrderingResolvers } from "./fixtureOrdering";
 import { exportResolvers } from "./export";
 import { settingsResolvers } from "./settings";
 import { relationshipResolvers } from "./relationships";
+import { searchResolvers } from "./search";
 
 export const resolvers = {
   Query: {
@@ -21,6 +22,7 @@ export const resolvers = {
     ...qlcExportResolvers.Query,
     ...settingsResolvers.Query,
     ...relationshipResolvers.Query,
+    ...searchResolvers.Query,
   },
   Mutation: {
     ...projectResolvers.Mutation,
