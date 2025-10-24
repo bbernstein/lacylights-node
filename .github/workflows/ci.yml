@@ -54,8 +54,8 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests with coverage
+        run: npm run test:coverage
         env:
           NODE_ENV: test
           DATABASE_URL: file:./test.db
