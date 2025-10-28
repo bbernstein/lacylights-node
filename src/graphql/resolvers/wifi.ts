@@ -62,6 +62,7 @@ export const wifiResolvers = {
 
         // Return default status if check fails
         return {
+          available: false,
           enabled: false,
           connected: false,
         };

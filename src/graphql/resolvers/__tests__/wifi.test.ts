@@ -149,6 +149,7 @@ describe("WiFi GraphQL Resolvers", () => {
       const result = await wifiResolvers.Query.wifiStatus();
 
       expect(result).toEqual({
+        available: false,
         enabled: false,
         connected: false,
       });
