@@ -339,9 +339,13 @@ export class WiFiService {
         .trim()
         .split("\n")
         .forEach((line) => {
-          const [key, value] = line.split(":", 2);
-          if (key && value) {
-            details[key.trim()] = value.trim();
+          const colonIndex = line.indexOf(":");
+          if (colonIndex > 0) {
+            const key = line.substring(0, colonIndex).trim();
+            const value = line.substring(colonIndex + 1).trim();
+            if (key && value) {
+              details[key] = value;
+            }
           }
         });
 
