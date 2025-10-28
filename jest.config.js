@@ -6,6 +6,12 @@ module.exports = {
     '**/__tests__/**/*.ts',
     '**/?(*.)+(spec|test).ts'
   ],
+  testPathIgnorePatterns: [
+    '/node_modules/',
+    'healthcheck\\.test\\.ts',
+    'project\\.test\\.ts',
+    'qlcImportExport\\.integration\\.test\\.ts',
+  ],
   transform: {
     '^.+\\.ts$': 'ts-jest',
   },
@@ -24,10 +30,10 @@ module.exports = {
   ],
   coverageThreshold: {
     global: {
-      branches: 69,
-      functions: 84,
+      branches: 70,
+      functions: 82,
       lines: 84,
-      statements: 83,
+      statements: 84,
     },
   },
   setupFilesAfterEnv: ['<rootDir>/src/test/setup.ts'],

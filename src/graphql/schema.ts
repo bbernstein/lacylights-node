@@ -222,6 +222,43 @@ export const typeDefs = gql`
     interfaceType: String!
   }
 
+  # WiFi Configuration
+  type WiFiNetwork {
+    ssid: String!
+    signalStrength: Int!
+    frequency: String!
+    security: WiFiSecurityType!
+    inUse: Boolean!
+    saved: Boolean!
+  }
+
+  enum WiFiSecurityType {
+    OPEN
+    WEP
+    WPA_PSK
+    WPA_EAP
+    WPA3_PSK
+    WPA3_EAP
+    OWE
+  }
+
+  type WiFiStatus {
+    available: Boolean!
+    enabled: Boolean!
+    connected: Boolean!
+    ssid: String
+    signalStrength: Int
+    ipAddress: String
+    macAddress: String
+    frequency: String
+  }
+
+  type WiFiConnectionResult {
+    success: Boolean!
+    message: String
+    connected: Boolean!
+  }
+
   # Native LacyLights Export/Import
   type ExportResult {
     projectId: String!
@@ -717,6 +754,11 @@ export const typeDefs = gql`
     systemInfo: SystemInfo!
     networkInterfaceOptions: [NetworkInterfaceOption!]!
 
+    # WiFi Configuration
+    wifiNetworks(rescan: Boolean = true): [WiFiNetwork!]!
+    wifiStatus: WiFiStatus!
+    savedWifiNetworks: [WiFiNetwork!]!
+
     # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
   }
@@ -835,6 +877,12 @@ export const typeDefs = gql`
 
     # Settings
     updateSetting(input: UpdateSettingInput!): Setting!
+
+    # WiFi Configuration
+    connectWiFi(ssid: String!, password: String): WiFiConnectionResult!
+    disconnectWiFi: WiFiConnectionResult!
+    setWiFiEnabled(enabled: Boolean!): WiFiStatus!
+    forgetWiFiNetwork(ssid: String!): Boolean!
   }
 
   # Subscriptions
@@ -844,5 +892,6 @@ export const typeDefs = gql`
     previewSessionUpdated(projectId: ID!): PreviewSession!
     cueListPlaybackUpdated(cueListId: ID!): CueListPlaybackStatus!
     systemInfoUpdated: SystemInfo!
+    wifiStatusUpdated: WiFiStatus!
   }
 `;

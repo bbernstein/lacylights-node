@@ -10,6 +10,7 @@ import { exportResolvers } from "./export";
 import { settingsResolvers } from "./settings";
 import { relationshipResolvers } from "./relationships";
 import { searchResolvers } from "./search";
+import { wifiResolvers } from "./wifi";
 
 export const resolvers = {
   Query: {
@@ -23,6 +24,7 @@ export const resolvers = {
     ...settingsResolvers.Query,
     ...relationshipResolvers.Query,
     ...searchResolvers.Query,
+    ...wifiResolvers.Query,
   },
   Mutation: {
     ...projectResolvers.Mutation,
@@ -35,12 +37,14 @@ export const resolvers = {
     ...fixtureOrderingResolvers.Mutation,
     ...exportResolvers.Mutation,
     ...settingsResolvers.Mutation,
+    ...wifiResolvers.Mutation,
   },
   Subscription: {
     ...projectResolvers.Subscription,
     ...previewResolvers.Subscription,
     ...cueResolvers.Subscription,
     ...settingsResolvers.Subscription,
+    ...wifiResolvers.Subscription,
   },
   // Type resolvers
   ...projectResolvers.types,
