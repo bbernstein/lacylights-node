@@ -1,5 +1,6 @@
 import { LacyLightsServer, ServerConfig, ServerDependencies } from '../server';
 import { setupWebSocketServer } from '../graphql/subscriptions';
+import packageJson from '../../package.json';
 
 // Mock WebSocket server setup
 jest.mock('../graphql/subscriptions', () => ({
@@ -83,7 +84,7 @@ describe('LacyLightsServer', () => {
       expect(config.corsOrigin).toBe('http://localhost:3000');
       expect(config.shutdownTimeout).toBe(10000);
       expect(config.operationTimeout).toBe(5000);
-      expect(config.npmPackageVersion).toBe('1.1.1');
+      expect(config.npmPackageVersion).toBe(packageJson.version);
     });
 
     it('should use custom configuration when provided', () => {
