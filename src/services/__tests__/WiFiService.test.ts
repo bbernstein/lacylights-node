@@ -197,7 +197,7 @@ describe("WiFiService", () => {
         if (callCount === 1) {
           callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
         } else if (cmd.includes("device wifi list")) {
-          callback(null, { stdout: "Net1:85:999:WPA2::", stderr: "" }, "");
+          callback(null, { stdout: "Net1:85:0:WPA2::", stderr: "" }, "");
         } else {
           callback(null, { stdout: "", stderr: "" }, "");
         }
@@ -250,10 +250,12 @@ describe("WiFiService", () => {
 
     it("should use rescan parameter correctly", async () => {
       let callCount = 0;
-      let lastCmd = "";
+      let scanCmd = "";
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
         callCount++;
-        lastCmd = cmd;
+        if (cmd.includes("device wifi list")) {
+          scanCmd = cmd;
+        }
         if (callCount === 1) {
           callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
         } else if (cmd.includes("device wifi list")) {
@@ -266,7 +268,7 @@ describe("WiFiService", () => {
 
       await wifiService.scanNetworks(false);
 
-      expect(lastCmd).toContain("--rescan no");
+      expect(scanCmd).toContain("--rescan no");
     });
 
     it("should throw SCAN_FAILED on scan error", async () => {
@@ -455,30 +457,24 @@ describe("WiFiService", () => {
     });
 
     it("should return success when already connected to same network", async () => {
-      let callCount = 0;
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
-        callCount++;
-        // getStatus -> isWiFiSupported: which nmcli, device list
-        if (callCount === 1 || callCount === 2) {
-          callback(null, { stdout: callCount === 1 ? "/usr/bin/nmcli" : "wlan0  wifi", stderr: "" }, "");
-        } else if (callCount === 3) {
-          // getStatus: radio wifi status
-          callback(null, { stdout: "enabled", stderr: "" }, "");
-        } else if (callCount === 4) {
-          // getStatus: active connection check
-          callback(null, { stdout: "TestNet:802-11-wireless:wlan0", stderr: "" }, "");
-        } else if (callCount === 5) {
-          // getStatus: connection details
-          callback(null, { stdout: "802-11-wireless.ssid:TestNet", stderr: "" }, "");
-        } else if (callCount === 6) {
-          // getStatus: scanNetworks for signal strength - check nmcli
+        if (cmd === "which nmcli") {
           callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
-        } else if (callCount === 7) {
-          // getStatus: scanNetworks - device wifi list
+        } else if (cmd === "nmcli device status") {
+          callback(null, { stdout: "wlan0  wifi  connected", stderr: "" }, "");
+        } else if (cmd === "nmcli radio wifi") {
+          callback(null, { stdout: "enabled", stderr: "" }, "");
+        } else if (cmd.includes("connection show --active")) {
+          callback(null, { stdout: "TestNet:802-11-wireless:wlan0", stderr: "" }, "");
+        } else if (cmd.includes('connection show "')) {
+          callback(null, { stdout: "802-11-wireless.ssid:TestNet", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
           callback(null, { stdout: "TestNet:75:6:WPA2:*", stderr: "" }, "");
-        } else {
-          // getStatus: scanNetworks - get saved networks
+        } else if (cmd.includes("connection show")) {
+          // isNetworkSaved calls
           callback(null, { stdout: "TestNet\n", stderr: "" }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
         }
         return {} as any;
       });
@@ -490,17 +486,15 @@ describe("WiFiService", () => {
     });
 
     it("should successfully connect with password", async () => {
-      let callCount = 0;
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
-        callCount++;
-        // getStatus -> isWiFiSupported: which nmcli, device list
-        if (callCount === 1 || callCount === 2) {
-          callback(null, { stdout: callCount === 1 ? "/usr/bin/nmcli" : "wlan0  wifi", stderr: "" }, "");
-        } else if (callCount === 3) {
-          // getStatus: radio wifi status
+        // Handle "which nmcli" calls
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd === "nmcli device status") {
+          callback(null, { stdout: "wlan0  wifi  disconnected", stderr: "" }, "");
+        } else if (cmd === "nmcli radio wifi") {
           callback(null, { stdout: "enabled", stderr: "" }, "");
-        } else if (callCount === 4) {
-          // getStatus: active connection check - return none (not connected)
+        } else if (cmd.includes("connection show --active")) {
           callback(null, { stdout: "", stderr: "" }, "");
         } else {
           // nmcli device wifi connect command
@@ -517,17 +511,15 @@ describe("WiFiService", () => {
     });
 
     it("should successfully connect without password", async () => {
-      let callCount = 0;
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
-        callCount++;
-        // getStatus -> isWiFiSupported: which nmcli, device list
-        if (callCount === 1 || callCount === 2) {
-          callback(null, { stdout: callCount === 1 ? "/usr/bin/nmcli" : "wlan0  wifi", stderr: "" }, "");
-        } else if (callCount === 3) {
-          // getStatus: radio wifi status
+        // Handle "which nmcli" calls
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd === "nmcli device status") {
+          callback(null, { stdout: "wlan0  wifi  disconnected", stderr: "" }, "");
+        } else if (cmd === "nmcli radio wifi") {
           callback(null, { stdout: "enabled", stderr: "" }, "");
-        } else if (callCount === 4) {
-          // getStatus: active connection check - return none (not connected)
+        } else if (cmd.includes("connection show --active")) {
           callback(null, { stdout: "", stderr: "" }, "");
         } else {
           // nmcli device wifi connect command
@@ -542,17 +534,14 @@ describe("WiFiService", () => {
     });
 
     it("should throw INVALID_PASSWORD on wrong password", async () => {
-      let callCount = 0;
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
-        callCount++;
-        // getStatus -> isWiFiSupported: which nmcli, device list
-        if (callCount === 1 || callCount === 2) {
-          callback(null, { stdout: callCount === 1 ? "/usr/bin/nmcli" : "wlan0  wifi", stderr: "" }, "");
-        } else if (callCount === 3) {
-          // getStatus: radio wifi status
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd === "nmcli device status") {
+          callback(null, { stdout: "wlan0  wifi  disconnected", stderr: "" }, "");
+        } else if (cmd === "nmcli radio wifi") {
           callback(null, { stdout: "enabled", stderr: "" }, "");
-        } else if (callCount === 4) {
-          // getStatus: active connection check - return none
+        } else if (cmd.includes("connection show --active")) {
           callback(null, { stdout: "", stderr: "" }, "");
         } else {
           // nmcli connect command fails with password error
@@ -573,17 +562,14 @@ describe("WiFiService", () => {
     });
 
     it("should throw NETWORK_NOT_FOUND when network doesn't exist", async () => {
-      let callCount = 0;
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
-        callCount++;
-        // getStatus -> isWiFiSupported: which nmcli, device list
-        if (callCount === 1 || callCount === 2) {
-          callback(null, { stdout: callCount === 1 ? "/usr/bin/nmcli" : "wlan0  wifi", stderr: "" }, "");
-        } else if (callCount === 3) {
-          // getStatus: radio wifi status
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd === "nmcli device status") {
+          callback(null, { stdout: "wlan0  wifi  disconnected", stderr: "" }, "");
+        } else if (cmd === "nmcli radio wifi") {
           callback(null, { stdout: "enabled", stderr: "" }, "");
-        } else if (callCount === 4) {
-          // getStatus: active connection check - return none
+        } else if (cmd.includes("connection show --active")) {
           callback(null, { stdout: "", stderr: "" }, "");
         } else {
           // nmcli connect command fails with network not found
@@ -604,17 +590,14 @@ describe("WiFiService", () => {
     });
 
     it("should throw CONNECTION_FAILED on other errors", async () => {
-      let callCount = 0;
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
-        callCount++;
-        // getStatus -> isWiFiSupported: which nmcli, device list
-        if (callCount === 1 || callCount === 2) {
-          callback(null, { stdout: callCount === 1 ? "/usr/bin/nmcli" : "wlan0  wifi", stderr: "" }, "");
-        } else if (callCount === 3) {
-          // getStatus: radio wifi status
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd === "nmcli device status") {
+          callback(null, { stdout: "wlan0  wifi  disconnected", stderr: "" }, "");
+        } else if (cmd === "nmcli radio wifi") {
           callback(null, { stdout: "enabled", stderr: "" }, "");
-        } else if (callCount === 4) {
-          // getStatus: active connection check - return none
+        } else if (cmd.includes("connection show --active")) {
           callback(null, { stdout: "", stderr: "" }, "");
         } else {
           // nmcli connect command fails with unknown error
@@ -719,23 +702,38 @@ describe("WiFiService", () => {
       let callCount = 0;
       mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
         callCount++;
-        // Call 1: checkNmcliAvailable
-        if (callCount === 1 || callCount === 2) {
-          callback(null, { stdout: callCount === 1 ? "/usr/bin/nmcli" : "wlan0  wifi", stderr: "" }, "");
+        // disconnect() -> checkNmcliAvailable -> which nmcli
+        if (callCount === 1) {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (callCount === 2) {
+          // getStatus -> isWiFiSupported -> which nmcli
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
         } else if (callCount === 3) {
-          // getStatus - radio wifi
-          callback(null, { stdout: "enabled", stderr: "" }, "");
+          // getStatus -> isWiFiSupported -> nmcli device status
+          callback(null, { stdout: "wlan0  wifi  connected", stderr: "" }, "");
         } else if (callCount === 4) {
-          // getStatus - active connection
-          callback(null, { stdout: "TestNet:802-11-wireless:wlan0", stderr: "" }, "");
+          // getStatus -> nmcli radio wifi
+          callback(null, { stdout: "enabled", stderr: "" }, "");
         } else if (callCount === 5) {
-          // getStatus - connection details
-          callback(null, { stdout: "802-11-wireless.ssid:TestNet", stderr: "" }, "");
+          // getStatus -> nmcli connection show --active
+          callback(null, { stdout: "TestNet:802-11-wireless:wlan0", stderr: "" }, "");
         } else if (callCount === 6) {
-          // Get active connection list for disconnect
+          // getStatus -> nmcli connection show "TestNet"
+          callback(null, { stdout: "802-11-wireless.ssid:TestNet", stderr: "" }, "");
+        } else if (callCount === 7) {
+          // getStatus -> scanNetworks -> which nmcli
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (callCount === 8) {
+          // getStatus -> scanNetworks -> device wifi list
+          callback(null, { stdout: "TestNet:75:6:WPA2:*", stderr: "" }, "");
+        } else if (callCount === 9) {
+          // getStatus -> scanNetworks -> isNetworkSaved
+          callback(null, { stdout: "TestNet\n", stderr: "" }, "");
+        } else if (callCount === 10) {
+          // disconnect() -> nmcli connection show --active (to get connection name)
           callback(null, { stdout: "TestNet:802-11-wireless:wlan0", stderr: "" }, "");
         } else {
-          // Disconnect command fails
+          // disconnect() -> nmcli connection down command fails
           callback(new Error("disconnect failed"), { stdout: "", stderr: "" }, "");
         }
         return {} as any;
