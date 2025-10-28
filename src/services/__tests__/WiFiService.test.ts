@@ -1081,4 +1081,189 @@ describe("WiFiService", () => {
       expect(networks).toEqual([]);
     });
   });
+
+  describe("Additional Edge Cases for Branch Coverage", () => {
+    describe("Security Type Parsing", () => {
+      it("should handle '--' security as OPEN", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, {
+              stdout: "OpenNetwork:75:36:--:*",
+              stderr: ""
+            }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, { stdout: "", stderr: "" }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
+          }
+          return {} as any;
+        });
+
+        const networks = await wifiService.scanNetworks(false);
+        expect(networks[0].security).toBe(WiFiSecurityType.OPEN);
+      });
+
+      it("should handle empty string security as OPEN", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, {
+              stdout: "OpenNetwork:75:36::*",
+              stderr: ""
+            }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, { stdout: "", stderr: "" }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
+          }
+          return {} as any;
+        });
+
+        const networks = await wifiService.scanNetworks(false);
+        expect(networks[0].security).toBe(WiFiSecurityType.OPEN);
+      });
+
+      it("should handle WEP security", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, {
+              stdout: "WEPNetwork:75:36:WEP:*",
+              stderr: ""
+            }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, { stdout: "", stderr: "" }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
+          }
+          return {} as any;
+        });
+
+        const networks = await wifiService.scanNetworks(false);
+        expect(networks[0].security).toBe(WiFiSecurityType.WEP);
+      });
+
+      it("should handle OWE security", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, {
+              stdout: "OWENetwork:75:36:OWE:*",
+              stderr: ""
+            }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, { stdout: "", stderr: "" }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
+          }
+          return {} as any;
+        });
+
+        const networks = await wifiService.scanNetworks(false);
+        expect(networks[0].security).toBe(WiFiSecurityType.OWE);
+      });
+    });
+
+    describe("Signal Strength Edge Cases", () => {
+      it("should default to 0 for invalid signal strength", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, {
+              stdout: "TestNetwork:invalid:36:WPA2:*",
+              stderr: ""
+            }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, { stdout: "", stderr: "" }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
+          }
+          return {} as any;
+        });
+
+        const networks = await wifiService.scanNetworks(false);
+        expect(networks[0].signalStrength).toBe(0);
+      });
+    });
+
+    describe("Hidden Networks", () => {
+      it("should skip hidden networks with empty SSID", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, {
+              stdout: ":75:36:WPA2:*\nVisibleNetwork:80:36:WPA2:*",
+              stderr: ""
+            }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, { stdout: "", stderr: "" }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
+          }
+          return {} as any;
+        });
+
+        const networks = await wifiService.scanNetworks(false);
+        expect(networks).toHaveLength(1);
+        expect(networks[0].ssid).toBe("VisibleNetwork");
+      });
+
+      it("should skip networks with whitespace-only SSID", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, {
+              stdout: "   :75:36:WPA2:*\nVisibleNetwork:80:36:WPA2:*",
+              stderr: ""
+            }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, { stdout: "", stderr: "" }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
+          }
+          return {} as any;
+        });
+
+        const networks = await wifiService.scanNetworks(false);
+        expect(networks).toHaveLength(1);
+        expect(networks[0].ssid).toBe("VisibleNetwork");
+      });
+    });
+
+
+    describe("Additional getStatus Edge Cases", () => {
+      it("should handle undefined IP address when no IP4.ADDRESS", async () => {
+        mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+          if (cmd === "which nmcli") {
+            callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          } else if (cmd.includes("device status")) {
+            callback(null, { stdout: "wlan0  wifi  connected", stderr: "" }, "");
+          } else if (cmd.includes("radio wifi")) {
+            callback(null, { stdout: "enabled", stderr: "" }, "");
+          } else if (cmd.includes("connection show --active")) {
+            callback(null, { stdout: "MyNetwork:uuid:802-11-wireless:wlan0", stderr: "" }, "");
+          } else if (cmd.includes("device wifi list")) {
+            callback(null, { stdout: "MyNetwork:85:36:WPA2:*", stderr: "" }, "");
+          } else if (cmd.includes("connection show")) {
+            callback(null, {
+              stdout: "802-11-wireless.ssid:MyNetwork\nGENERAL.HWADDR:AA:BB:CC:DD:EE:FF",
+              stderr: ""
+            }, "");
+          }
+          return {} as any;
+        });
+
+        const status = await wifiService.getStatus();
+        expect(status.ipAddress).toBeUndefined();
+      });
+    });
+  });
 });
