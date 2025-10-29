@@ -356,8 +356,9 @@ export class WiFiService {
 
           // Try to get additional connection details
           try {
+            // Get IP address from active connection
             const { stdout: connDetails } = await execAsync(
-              `nmcli --terse --fields connection.id,802-11-wireless.ssid,IP4.ADDRESS,GENERAL.HWADDR connection show --active`
+              `nmcli --terse --fields IP4.ADDRESS connection show --active`
             );
 
             const details: Record<string, string> = {};
@@ -375,6 +376,20 @@ export class WiFiService {
                 }
               });
 
+            // Get MAC address from device info (not connection info)
+            let macAddress: string | undefined;
+            try {
+              const { stdout: deviceInfo } = await execAsync(
+                `nmcli --terse --fields GENERAL.HWADDR device show ${this.wifiDevice}`
+              );
+              const macLine = deviceInfo.trim().split("\n").find(line => line.startsWith("GENERAL.HWADDR:"));
+              if (macLine) {
+                macAddress = macLine.split(":").slice(1).join(":");
+              }
+            } catch (macError) {
+              logger.warn("Could not get MAC address", { error: macError });
+            }
+
             return {
               available: true,
               enabled: true,
@@ -384,7 +399,7 @@ export class WiFiService {
               ipAddress: details["IP4.ADDRESS"]
                 ? details["IP4.ADDRESS"].split("/")[0]
                 : undefined,
-              macAddress: details["GENERAL.HWADDR"],
+              macAddress,
               frequency: activeNetwork.frequency,
             };
           } catch (detailsError) {
@@ -411,9 +426,9 @@ export class WiFiService {
 
       const [connectionName] = wifiConnection.split(":");
 
-      // Get connection details
+      // Get connection details (without GENERAL.HWADDR which doesn't work in connection show)
       const { stdout: connDetails } = await execAsync(
-        `nmcli --terse --fields connection.id,802-11-wireless.ssid,IP4.ADDRESS,GENERAL.HWADDR connection show "${connectionName}"`
+        `nmcli --terse --fields connection.id,802-11-wireless.ssid,IP4.ADDRESS connection show "${connectionName}"`
       );
 
       const details: Record<string, string> = {};
@@ -431,6 +446,20 @@ export class WiFiService {
           }
         });
 
+      // Get MAC address from device info (not connection info)
+      let macAddress: string | undefined;
+      try {
+        const { stdout: deviceInfo } = await execAsync(
+          `nmcli --terse --fields GENERAL.HWADDR device show ${this.wifiDevice}`
+        );
+        const macLine = deviceInfo.trim().split("\n").find(line => line.startsWith("GENERAL.HWADDR:"));
+        if (macLine) {
+          macAddress = macLine.split(":").slice(1).join(":");
+        }
+      } catch (macError) {
+        logger.warn("Could not get MAC address", { error: macError });
+      }
+
       // Get signal strength from device WiFi list
       const networks = await this.scanNetworks(false);
       const currentNetwork = networks.find((n) => n.inUse);
@@ -444,7 +473,7 @@ export class WiFiService {
         ipAddress: details["IP4.ADDRESS"]
           ? details["IP4.ADDRESS"].split("/")[0]
           : undefined,
-        macAddress: details["GENERAL.HWADDR"],
+        macAddress,
         frequency: currentNetwork?.frequency,
       };
     } catch (error) {
@@ -625,7 +654,11 @@ export class WiFiService {
     }
 
     try {
-      const command = enabled ? "nmcli radio wifi on" : "nmcli radio wifi off";
+      // Use sudo on Linux systems where nmcli requires elevated permissions
+      const useSudo = process.platform === "linux";
+      const command = enabled
+        ? (useSudo ? "sudo nmcli radio wifi on" : "nmcli radio wifi on")
+        : (useSudo ? "sudo nmcli radio wifi off" : "nmcli radio wifi off");
       await execAsync(command);
 
       logger.info(`WiFi ${enabled ? "enabled" : "disabled"}`);
