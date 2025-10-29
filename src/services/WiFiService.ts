@@ -577,8 +577,10 @@ export class WiFiService {
     try {
       logger.info(`Attempting to connect to WiFi network: ${ssid}`);
 
-      // Build nmcli connect command
-      let command = `nmcli device wifi connect "${ssid}"`;
+      // Build nmcli connect command (use sudo on Linux)
+      const useSudo = process.platform === "linux";
+      let command = useSudo ? "sudo nmcli" : "nmcli";
+      command += ` device wifi connect "${ssid}"`;
       if (password) {
         command += ` password "${password}"`;
       }
