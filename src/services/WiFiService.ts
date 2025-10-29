@@ -649,15 +649,30 @@ export class WiFiService {
     try {
       logger.info(`Disconnecting from WiFi network: ${status.ssid}`);
 
-      // Get the connection name
+      // Get the connection name using robust detection
       const { stdout } = await execAsync(
-        `nmcli --terse --fields NAME,TYPE connection show --active`
+        `nmcli --terse --fields NAME,TYPE,DEVICE connection show --active`
       );
 
       const wifiConnection = stdout
         .trim()
         .split("\n")
-        .find((line) => line.includes(":802-11-wireless:"));
+        .find((line) => {
+          const parts = line.split(":");
+          if (parts.length < 3) {return false;}
+
+          // Check if device matches our WiFi device
+          const device = parts[parts.length - 1];
+          if (device === this.wifiDevice) {return true;}
+
+          // Also check for wireless connection types
+          const type = parts[parts.length - 2];
+          return type && (
+            type.includes("wireless") ||
+            type.includes("wifi") ||
+            type === "802-11-wireless"
+          );
+        });
 
       if (!wifiConnection) {
         return {
@@ -669,8 +684,12 @@ export class WiFiService {
 
       const [connectionName] = wifiConnection.split(":");
 
-      // Disconnect using connection name
-      await execAsync(`nmcli connection down "${connectionName}"`);
+      // Disconnect using connection name (use sudo on Linux)
+      const useSudo = process.platform === "linux";
+      const command = useSudo
+        ? `sudo nmcli connection down "${connectionName}"`
+        : `nmcli connection down "${connectionName}"`;
+      await execAsync(command);
 
       logger.info(`Successfully disconnected from WiFi network`);
       return {
@@ -768,8 +787,12 @@ export class WiFiService {
         return true;
       }
 
-      // Delete the connection
-      await execAsync(`nmcli connection delete "${ssid}"`);
+      // Delete the connection (use sudo on Linux)
+      const useSudo = process.platform === "linux";
+      const command = useSudo
+        ? `sudo nmcli connection delete "${ssid}"`
+        : `nmcli connection delete "${ssid}"`;
+      await execAsync(command);
 
       logger.info(`Successfully forgot WiFi network: ${ssid}`);
       return true;
