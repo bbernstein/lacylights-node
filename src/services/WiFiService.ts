@@ -310,6 +310,7 @@ export class WiFiService {
       }
 
       // Get active WiFi connection
+      // Check both by device name and connection type for more robust detection
       const { stdout: activeConn } = await execAsync(
         `nmcli --terse --fields NAME,TYPE,DEVICE connection show --active`
       );
@@ -317,14 +318,95 @@ export class WiFiService {
       const wifiConnection = activeConn
         .trim()
         .split("\n")
-        .find((line) => line.includes(":802-11-wireless:"));
+        .find((line) => {
+          const parts = line.split(":");
+          if (parts.length < 3) {return false;}
 
+          // Check if device matches our WiFi device
+          const device = parts[parts.length - 1]; // DEVICE is always last field
+          if (device === this.wifiDevice) {return true;}
+
+          // Also check for wireless connection types (handles various nmcli versions)
+          const type = parts[parts.length - 2]; // TYPE is second to last
+          return type && (
+            type.includes("wireless") ||
+            type.includes("wifi") ||
+            type === "802-11-wireless"
+          );
+        });
+
+      // If we didn't find a connection via active connections, check scan results
+      // This is more reliable as scanNetworks successfully detects the connection
       if (!wifiConnection) {
-        return {
-          available: true,
-          enabled: true,
-          connected: false,
-        };
+        try {
+          const networks = await this.scanNetworks(false);
+          const activeNetwork = networks.find((n) => n.inUse);
+
+          if (!activeNetwork) {
+            return {
+              available: true,
+              enabled: true,
+              connected: false,
+            };
+          }
+
+          // We found an active network via scan, so we're connected
+          // Get connection details by SSID
+          logger.info(`Found active WiFi connection via scan: ${activeNetwork.ssid}`);
+
+          // Try to get additional connection details
+          try {
+            const { stdout: connDetails } = await execAsync(
+              `nmcli --terse --fields connection.id,802-11-wireless.ssid,IP4.ADDRESS,GENERAL.HWADDR connection show --active`
+            );
+
+            const details: Record<string, string> = {};
+            connDetails
+              .trim()
+              .split("\n")
+              .forEach((line) => {
+                const colonIndex = line.indexOf(":");
+                if (colonIndex > 0) {
+                  const key = line.substring(0, colonIndex).trim();
+                  const value = line.substring(colonIndex + 1).trim();
+                  if (key && value) {
+                    details[key] = value;
+                  }
+                }
+              });
+
+            return {
+              available: true,
+              enabled: true,
+              connected: true,
+              ssid: activeNetwork.ssid,
+              signalStrength: activeNetwork.signalStrength,
+              ipAddress: details["IP4.ADDRESS"]
+                ? details["IP4.ADDRESS"].split("/")[0]
+                : undefined,
+              macAddress: details["GENERAL.HWADDR"],
+              frequency: activeNetwork.frequency,
+            };
+          } catch (detailsError) {
+            logger.warn("Could not get detailed connection info", { error: detailsError });
+            // Return basic connection info from scan
+            return {
+              available: true,
+              enabled: true,
+              connected: true,
+              ssid: activeNetwork.ssid,
+              signalStrength: activeNetwork.signalStrength,
+              frequency: activeNetwork.frequency,
+            };
+          }
+        } catch (scanError) {
+          logger.warn("Could not scan networks for connection check", { error: scanError });
+          return {
+            available: true,
+            enabled: true,
+            connected: false,
+          };
+        }
       }
 
       const [connectionName] = wifiConnection.split(":");
