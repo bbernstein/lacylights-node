@@ -755,7 +755,7 @@ export const typeDefs = gql`
     networkInterfaceOptions: [NetworkInterfaceOption!]!
 
     # WiFi Configuration
-    wifiNetworks(rescan: Boolean = true): [WiFiNetwork!]!
+    wifiNetworks(rescan: Boolean = true, deduplicate: Boolean = true): [WiFiNetwork!]!
     wifiStatus: WiFiStatus!
     savedWifiNetworks: [WiFiNetwork!]!
 

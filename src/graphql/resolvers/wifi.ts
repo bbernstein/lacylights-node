@@ -31,10 +31,10 @@ export const wifiResolvers = {
      */
     wifiNetworks: async (
       _: unknown,
-      { rescan = true }: { rescan?: boolean }
+      { rescan = true, deduplicate = true }: { rescan?: boolean; deduplicate?: boolean }
     ) => {
       try {
-        const networks = await wifiService.scanNetworks(rescan);
+        const networks = await wifiService.scanNetworks(rescan, deduplicate);
         return networks;
       } catch (error) {
         logger.error("Error scanning WiFi networks", { error });

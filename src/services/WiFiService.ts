@@ -196,13 +196,60 @@ export class WiFiService {
   }
 
   /**
+   * Deduplicate WiFi networks by SSID
+   * Keeps the entry with the strongest signal for each unique SSID
+   * Preserves inUse and saved flags if ANY entry has them
+   * Prefers 5 GHz frequency when signal strengths are similar
+   *
+   * @param networks - Array of WiFi networks to deduplicate
+   * @returns Deduplicated array of networks
+   */
+  private deduplicateNetworks(networks: WiFiNetwork[]): WiFiNetwork[] {
+    const networkMap = new Map<string, WiFiNetwork>();
+
+    for (const network of networks) {
+      const existing = networkMap.get(network.ssid);
+
+      if (!existing) {
+        // First occurrence of this SSID
+        networkMap.set(network.ssid, network);
+      } else {
+        // Determine which network to keep
+        const currentStrength = network.signalStrength;
+        const existingStrength = existing.signalStrength;
+        const strengthDiff = Math.abs(currentStrength - existingStrength);
+
+        // If signal strengths are within 5%, prefer 5 GHz
+        const shouldPreferCurrent =
+          currentStrength > existingStrength ||
+          (strengthDiff <= 5 && network.frequency === "5 GHz" && existing.frequency !== "5 GHz");
+
+        // Merge flags - preserve true values from either entry
+        const mergedNetwork: WiFiNetwork = {
+          ...(shouldPreferCurrent ? network : existing),
+          inUse: network.inUse || existing.inUse,
+          saved: network.saved || existing.saved,
+        };
+
+        networkMap.set(network.ssid, mergedNetwork);
+      }
+    }
+
+    // Convert back to array and sort by signal strength
+    return Array.from(networkMap.values()).sort(
+      (a, b) => b.signalStrength - a.signalStrength
+    );
+  }
+
+  /**
    * Scan for available WiFi networks
    *
    * @param rescan - Whether to force a rescan (default: true)
+   * @param deduplicate - Whether to deduplicate networks by SSID (default: true)
    * @returns Array of available WiFi networks
    * @throws WiFiError if scan fails
    */
-  async scanNetworks(rescan: boolean = true): Promise<WiFiNetwork[]> {
+  async scanNetworks(rescan: boolean = true, deduplicate: boolean = true): Promise<WiFiNetwork[]> {
     if (!(await this.checkNmcliAvailable())) {
       throw new WiFiError(
         "NetworkManager (nmcli) is not available on this system",
@@ -248,8 +295,11 @@ export class WiFiService {
       // Sort by signal strength (strongest first)
       networks.sort((a, b) => b.signalStrength - a.signalStrength);
 
-      logger.info(`WiFi scan found ${networks.length} networks`);
-      return networks;
+      // Deduplicate if requested
+      const finalNetworks = deduplicate ? this.deduplicateNetworks(networks) : networks;
+
+      logger.info(`WiFi scan found ${networks.length} networks${deduplicate ? ` (${finalNetworks.length} unique)` : ""}`);
+      return finalNetworks;
     } catch (error) {
       logger.error("WiFi scan failed", { error });
       throw new WiFiError(
