@@ -294,6 +294,200 @@ export const fixtureResolvers = {
         },
       });
     },
+
+    channelMap: async (
+      _: any,
+      { projectId, universe }: { projectId: string; universe?: number },
+      { prisma }: Context,
+    ) => {
+      // Get all fixtures for the project
+      const fixtures = await prisma.fixtureInstance.findMany({
+        where: {
+          projectId,
+          ...(universe ? { universe } : {}),
+        },
+        orderBy: [{ universe: "asc" }, { startChannel: "asc" }],
+      });
+
+      // Fetch all instance channels for all fixtures in a single query
+      const fixtureIds = fixtures.map((f) => f.id);
+      const allInstanceChannels = fixtureIds.length > 0
+        ? await prisma.instanceChannel.findMany({
+            where: { fixtureId: { in: fixtureIds } },
+            orderBy: { offset: "asc" },
+          })
+        : [];
+
+      // Create a map of fixtureId -> channels for efficient lookup
+      const channelsByFixture = new Map<string, typeof allInstanceChannels>();
+      for (const channel of allInstanceChannels) {
+        if (!channelsByFixture.has(channel.fixtureId)) {
+          channelsByFixture.set(channel.fixtureId, []);
+        }
+        channelsByFixture.get(channel.fixtureId)!.push(channel);
+      }
+
+      // Group fixtures by universe
+      const universeMap: Record<
+        number,
+        {
+          universe: number;
+          fixtures: any[];
+          channelUsage: (null | { fixtureId: string; fixtureName: string; channelType: string })[];
+        }
+      > = {};
+
+      for (const fixture of fixtures) {
+        if (!universeMap[fixture.universe]) {
+          universeMap[fixture.universe] = {
+            universe: fixture.universe,
+            fixtures: [],
+            channelUsage: new Array(512).fill(null),
+          };
+        }
+
+        const endChannel = fixture.startChannel + (fixture.channelCount || 1) - 1;
+        const instanceChannels = channelsByFixture.get(fixture.id) || [];
+
+        // Mark channels as used
+        for (let i = fixture.startChannel; i <= Math.min(endChannel, 512); i++) {
+          const channelIndex = i - fixture.startChannel;
+          let channelType: string = ChannelType.OTHER;
+
+          // Get channel type from instance channels if available
+          if (instanceChannels.length > channelIndex) {
+            channelType = instanceChannels[channelIndex].type;
+          }
+
+          universeMap[fixture.universe].channelUsage[i - 1] = {
+            fixtureId: fixture.id,
+            fixtureName: fixture.name,
+            channelType,
+          };
+        }
+
+        universeMap[fixture.universe].fixtures.push({
+          id: fixture.id,
+          name: fixture.name,
+          type: fixture.type,
+          startChannel: fixture.startChannel,
+          endChannel: Math.min(endChannel, 512),
+          channelCount: fixture.channelCount || 1,
+        });
+      }
+
+      const universes = Object.values(universeMap).map((u) => ({
+        ...u,
+        availableChannels: u.channelUsage.filter((ch) => ch === null).length,
+        usedChannels: u.channelUsage.filter((ch) => ch !== null).length,
+      }));
+
+      return {
+        projectId,
+        universes,
+      };
+    },
+
+    suggestChannelAssignment: async (
+      _: any,
+      { input }: { input: any },
+      context: Context,
+    ) => {
+      const {
+        projectId,
+        universe = 1,
+        startingChannel = 1,
+        fixtureSpecs,
+      } = input;
+
+      // Get channel map for the universe
+      const channelMapResult = await fixtureResolvers.Query.channelMap(
+        _,
+        { projectId, universe },
+        context,
+      );
+
+      const universeData = channelMapResult.universes.find(
+        (u: any) => u.universe === universe,
+      );
+
+      const channelUsage = universeData
+        ? universeData.channelUsage
+        : new Array(512).fill(null);
+
+      // Helper function to find next available channel block
+      const findNextAvailableChannelBlock = (
+        startFrom: number,
+        channelsNeeded: number,
+      ): number => {
+        for (let i = startFrom; i <= 512 - channelsNeeded + 1; i++) {
+          let blockAvailable = true;
+          for (let j = 0; j < channelsNeeded; j++) {
+            if (channelUsage[i + j - 1] !== null) {
+              blockAvailable = false;
+              break;
+            }
+          }
+          if (blockAvailable) {
+            return i;
+          }
+        }
+        throw new Error(
+          `Not enough consecutive channels available in universe ${universe}`,
+        );
+      };
+
+      const assignments = [];
+      let currentChannel = startingChannel;
+      let totalChannelsNeeded = 0;
+
+      for (const spec of fixtureSpecs) {
+        // Estimate channel count if not provided (default to 4)
+        const channelCount = spec.channelCount || 4;
+        totalChannelsNeeded += channelCount;
+
+        // Find next available channel block
+        const availableChannel = findNextAvailableChannelBlock(
+          currentChannel,
+          channelCount,
+        );
+
+        const endChannel = availableChannel + channelCount - 1;
+
+        // Mark these channels as used for subsequent fixtures
+        for (let i = 0; i < channelCount; i++) {
+          channelUsage[availableChannel + i - 1] = {
+            fixtureId: "pending",
+            fixtureName: spec.name,
+            channelType: ChannelType.OTHER,
+          };
+        }
+
+        assignments.push({
+          fixtureName: spec.name,
+          manufacturer: spec.manufacturer,
+          model: spec.model,
+          mode: spec.mode,
+          startChannel: availableChannel,
+          endChannel,
+          channelCount,
+          channelRange: `${availableChannel}-${endChannel}`,
+        });
+
+        currentChannel = endChannel + 1;
+      }
+
+      const availableChannelsRemaining = channelUsage.filter(
+        (ch) => ch === null,
+      ).length;
+
+      return {
+        universe,
+        assignments,
+        totalChannelsNeeded,
+        availableChannelsRemaining,
+      };
+    },
   },
 
   Mutation: {

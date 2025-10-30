@@ -422,6 +422,68 @@ export const typeDefs = gql`
     pagination: PaginationInfo!
   }
 
+  # DMX Channel Assignment Types
+  type ChannelMapResult {
+    projectId: ID!
+    universes: [UniverseChannelMap!]!
+  }
+
+  type UniverseChannelMap {
+    universe: Int!
+    fixtures: [ChannelMapFixture!]!
+    channelUsage: [ChannelUsage]!
+    availableChannels: Int!
+    usedChannels: Int!
+  }
+
+  type ChannelMapFixture {
+    id: ID!
+    name: String!
+    type: FixtureType!
+    startChannel: Int!
+    endChannel: Int!
+    channelCount: Int!
+  }
+
+  type ChannelUsage {
+    fixtureId: ID!
+    fixtureName: String!
+    channelType: ChannelType!
+  }
+
+  input ChannelAssignmentInput {
+    projectId: ID!
+    universe: Int = 1
+    startingChannel: Int = 1
+    fixtureSpecs: [FixtureSpecInput!]!
+  }
+
+  input FixtureSpecInput {
+    name: String!
+    manufacturer: String!
+    model: String!
+    mode: String
+    channelCount: Int
+  }
+
+  type ChannelAssignmentSuggestion {
+    universe: Int!
+    assignments: [FixtureChannelAssignment!]!
+    totalChannelsNeeded: Int!
+    availableChannelsRemaining: Int!
+  }
+
+  type FixtureChannelAssignment {
+    fixtureName: String!
+    manufacturer: String!
+    model: String!
+    mode: String
+    startChannel: Int!
+    endChannel: Int!
+    channelCount: Int!
+    channelRange: String!
+  }
+
   # Enums
   enum FixtureType {
     LED_PAR
@@ -691,6 +753,10 @@ export const typeDefs = gql`
       page: Int = 1
       perPage: Int = 50
     ): FixtureInstancePage!
+
+    # DMX Channel Assignment
+    channelMap(projectId: ID!, universe: Int): ChannelMapResult!
+    suggestChannelAssignment(input: ChannelAssignmentInput!): ChannelAssignmentSuggestion!
 
     # Scenes
     scenes(
