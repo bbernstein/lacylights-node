@@ -347,7 +347,7 @@ describe("WiFiService", () => {
           callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
         } else if (cmd.includes("device wifi list")) {
           // Same SSID, similar signal strength, different frequencies
-          // 5 GHz network has slightly weaker signal (77 vs 80, diff = 3 which is ≤ 5%)
+          // 5 GHz network has slightly weaker signal (77 vs 80, diff = 3 which is ≤ 5)
           callback(null, {
             stdout: "SimilarNet:80:6:WPA2::\nSimilarNet:77:36:WPA2::",
             stderr: ""

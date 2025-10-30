@@ -219,7 +219,7 @@ export class WiFiService {
         const existingStrength = existing.signalStrength;
         const strengthDiff = Math.abs(currentStrength - existingStrength);
 
-        // If signal strengths are within 5%, prefer 5 GHz
+        // If signal strengths are within 5 units, prefer 5 GHz
         const shouldPreferCurrent =
           currentStrength > existingStrength ||
           (strengthDiff <= 5 && network.frequency === "5 GHz" && existing.frequency !== "5 GHz");
