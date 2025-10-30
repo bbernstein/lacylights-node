@@ -445,7 +445,10 @@ export class WiFiService {
               );
               const macLine = deviceInfo.trim().split("\n").find(line => line.startsWith("GENERAL.HWADDR:"));
               if (macLine) {
-                macAddress = macLine.split(":").slice(1).join(":");
+                const firstColon = macLine.indexOf(":");
+                if (firstColon !== -1) {
+                  macAddress = macLine.substring(firstColon + 1);
+                }
               }
             } catch (macError) {
               logger.warn("Could not get MAC address", { error: macError });
@@ -502,7 +505,10 @@ export class WiFiService {
         );
         const macLine = deviceInfo.trim().split("\n").find(line => line.startsWith("GENERAL.HWADDR:"));
         if (macLine) {
-          macAddress = macLine.split(":").slice(1).join(":");
+          const firstColon = macLine.indexOf(":");
+          if (firstColon !== -1) {
+            macAddress = macLine.substring(firstColon + 1);
+          }
         }
       } catch (macError) {
         logger.warn("Could not get MAC address", { error: macError });
@@ -675,11 +681,11 @@ export class WiFiService {
         .split("\n")
         .find((line) => {
           const parts = line.split(":");
-          if (parts.length < 3) {return false;}
+          if (parts.length < 3) { return false; }
 
           // Check if device matches our WiFi device
           const device = parts[parts.length - 1];
-          if (device === this.wifiDevice) {return true;}
+          if (device === this.wifiDevice) { return true; }
 
           // Also check for wireless connection types
           const type = parts[parts.length - 2];
