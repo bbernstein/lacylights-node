@@ -2,6 +2,7 @@ import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { fadeEngine } from "../../services/fadeEngine";
 import { Prisma } from "@prisma/client";
+import { parseChannelValues } from "../../utils/db-helpers";
 
 // Type definitions for fixture values
 export interface FixtureValueInput {
@@ -790,13 +791,7 @@ export const sceneResolvers = {
         // Handle both string (from database) and array (already deserialized) formats
         // This acts as a safety net in case the Prisma middleware doesn't run
         if (typeof parent.channelValues === 'string') {
-          try {
-            return JSON.parse(parent.channelValues);
-          } catch (error) {
-            // eslint-disable-next-line no-console
-            console.error('Failed to parse channelValues:', error);
-            return [];
-          }
+          return parseChannelValues(parent.channelValues);
         }
         return parent.channelValues;
       },
