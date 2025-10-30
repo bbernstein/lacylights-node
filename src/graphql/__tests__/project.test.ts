@@ -342,4 +342,110 @@ describe("Project GraphQL Resolvers", () => {
       expect(projects).toHaveLength(0);
     });
   });
+
+  describe("Query.project with nested scenes and fixtureValues", () => {
+    it("should return channelValues as array not string", async () => {
+      // Create test project with fixture, scene, and fixture values
+      const testProject = await prisma.project.create({
+        data: {
+          name: "Test Project",
+          description: "Project for testing channelValues",
+        },
+      });
+
+      // Create a fixture definition
+      const fixtureDefinition = await prisma.fixtureDefinition.create({
+        data: {
+          manufacturer: "Test",
+          model: "RGB Par",
+          type: "LED_PAR",
+        },
+      });
+
+      // Create a fixture instance
+      const fixture = await prisma.fixtureInstance.create({
+        data: {
+          name: "Test Fixture",
+          definitionId: fixtureDefinition.id,
+          manufacturer: "Test",
+          model: "RGB Par",
+          type: "LED_PAR",
+          modeName: "3-channel",
+          channelCount: 3,
+          projectId: testProject.id,
+          universe: 1,
+          startChannel: 1,
+        },
+      });
+
+      // Create channels for the fixture
+      await prisma.instanceChannel.createMany({
+        data: [
+          { fixtureId: fixture.id, offset: 0, name: "Red", type: "RED", defaultValue: 0, minValue: 0, maxValue: 255 },
+          { fixtureId: fixture.id, offset: 1, name: "Green", type: "GREEN", defaultValue: 0, minValue: 0, maxValue: 255 },
+          { fixtureId: fixture.id, offset: 2, name: "Blue", type: "BLUE", defaultValue: 0, minValue: 0, maxValue: 255 },
+        ],
+      });
+
+      // Create a scene with fixture values
+      // Note: channelValues will be stored as a JSON string in SQLite
+      await prisma.scene.create({
+        data: {
+          name: "Test Scene",
+          projectId: testProject.id,
+          fixtureValues: {
+            create: {
+              fixtureId: fixture.id,
+              channelValues: JSON.stringify([255, 128, 64]), // Store as string in DB
+            },
+          },
+        },
+      });
+
+      // Execute the EXACT query from the frontend
+      const response = await server.executeOperation(
+        {
+          query: `
+            query GetProjectScenes($projectId: ID!) {
+              project(id: $projectId) {
+                id
+                scenes {
+                  id
+                  name
+                  fixtureValues {
+                    id
+                    channelValues
+                    fixture {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            }
+          `,
+          variables: { projectId: testProject.id },
+        },
+        {
+          contextValue: createTestContext(),
+        },
+      );
+
+      expect(response.body.kind).toBe("single");
+      if (response.body.kind === "single") {
+        // Should NOT have errors
+        expect(response.body.singleResult.errors).toBeUndefined();
+
+        const data = response.body.singleResult.data as any;
+        expect(data?.project).toBeDefined();
+        expect(data?.project?.scenes).toHaveLength(1);
+        expect(data?.project?.scenes[0].fixtureValues).toHaveLength(1);
+
+        // The key assertion: channelValues should be an array of numbers, not a string
+        const channelValues = data?.project?.scenes[0].fixtureValues[0].channelValues;
+        expect(Array.isArray(channelValues)).toBe(true);
+        expect(channelValues).toEqual([255, 128, 64]);
+      }
+    });
+  });
 });

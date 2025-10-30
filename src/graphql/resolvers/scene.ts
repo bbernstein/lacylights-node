@@ -787,7 +787,16 @@ export const sceneResolvers = {
   types: {
     FixtureValue: {
       channelValues: (parent: { channelValues: number[] | string }) => {
-        return parent.channelValues as number[];
+        // Handle both string (from database) and array (already deserialized) formats
+        // This acts as a safety net in case the Prisma middleware doesn't run
+        if (typeof parent.channelValues === 'string') {
+          try {
+            return JSON.parse(parent.channelValues);
+          } catch {
+            return [];
+          }
+        }
+        return parent.channelValues;
       },
     },
   },
