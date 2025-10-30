@@ -293,6 +293,128 @@ describe("WiFiService", () => {
       }
       expect(caught).toBe(true);
     });
+
+    it("should default to WPA_PSK for unknown security types", async () => {
+      let callCount = 0;
+      mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        callCount++;
+        if (callCount === 1) {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          callback(null, { stdout: "Net1:85:6:UnknownType::", stderr: "" }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
+        }
+        return {} as any;
+      });
+
+      const networks = await wifiService.scanNetworks();
+
+      expect(networks).toHaveLength(1);
+      expect(networks[0].security).toBe(WiFiSecurityType.WPA_PSK);
+    });
+
+    it("should deduplicate networks and prefer stronger signal", async () => {
+      let callCount = 0;
+      mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        callCount++;
+        if (callCount === 1) {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          // Same SSID with different signal strengths
+          callback(null, {
+            stdout: "DuplicateNet:60:6:WPA2::\nDuplicateNet:80:6:WPA2::\nDuplicateNet:70:6:WPA2::",
+            stderr: ""
+          }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
+        }
+        return {} as any;
+      });
+
+      const networks = await wifiService.scanNetworks(true, true); // deduplicate = true
+
+      expect(networks).toHaveLength(1);
+      expect(networks[0].ssid).toBe("DuplicateNet");
+      expect(networks[0].signalStrength).toBe(80); // Should keep the strongest
+    });
+
+    it("should deduplicate networks and prefer 5 GHz when signal strengths are similar", async () => {
+      let callCount = 0;
+      mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        callCount++;
+        if (callCount === 1) {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          // Same SSID, similar signal strength, different frequencies
+          // 5 GHz network has slightly weaker signal (77 vs 80, diff = 3 which is ≤ 5%)
+          callback(null, {
+            stdout: "SimilarNet:80:6:WPA2::\nSimilarNet:77:36:WPA2::",
+            stderr: ""
+          }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
+        }
+        return {} as any;
+      });
+
+      const networks = await wifiService.scanNetworks(true, true); // deduplicate = true
+
+      expect(networks).toHaveLength(1);
+      expect(networks[0].ssid).toBe("SimilarNet");
+      expect(networks[0].frequency).toBe("5 GHz"); // Should prefer 5 GHz
+      expect(networks[0].signalStrength).toBe(77);
+    });
+
+    it("should preserve inUse and saved flags when deduplicating", async () => {
+      let callCount = 0;
+      mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        callCount++;
+        if (callCount === 1) {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          // Same SSID with * (inUse) on one entry
+          callback(null, {
+            stdout: "FlaggedNet:80:6:WPA2:*\nFlaggedNet:75:36:WPA2::",
+            stderr: ""
+          }, "");
+        } else {
+          callback(null, { stdout: "FlaggedNet", stderr: "" }, ""); // saved network
+        }
+        return {} as any;
+      });
+
+      const networks = await wifiService.scanNetworks(true, true);
+
+      expect(networks).toHaveLength(1);
+      expect(networks[0].ssid).toBe("FlaggedNet");
+      expect(networks[0].inUse).toBe(true); // Should preserve inUse flag
+      expect(networks[0].saved).toBe(true); // Should preserve saved flag
+    });
+
+    it("should not deduplicate when deduplicate parameter is false", async () => {
+      let callCount = 0;
+      mockExec.mockImplementation(( cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        callCount++;
+        if (callCount === 1) {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          callback(null, {
+            stdout: "DupNet:80:6:WPA2::\nDupNet:75:36:WPA2::",
+            stderr: ""
+          }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
+        }
+        return {} as any;
+      });
+
+      const networks = await wifiService.scanNetworks(true, false); // deduplicate = false
+
+      expect(networks).toHaveLength(2); // Should keep both entries
+      expect(networks[0].ssid).toBe("DupNet");
+      expect(networks[1].ssid).toBe("DupNet");
+    });
   });
 
   describe("getStatus", () => {
