@@ -309,6 +309,24 @@ export const fixtureResolvers = {
         orderBy: [{ universe: "asc" }, { startChannel: "asc" }],
       });
 
+      // Fetch all instance channels for all fixtures in a single query
+      const fixtureIds = fixtures.map((f) => f.id);
+      const allInstanceChannels = fixtureIds.length > 0
+        ? await prisma.instanceChannel.findMany({
+            where: { fixtureId: { in: fixtureIds } },
+            orderBy: { offset: "asc" },
+          })
+        : [];
+
+      // Create a map of fixtureId -> channels for efficient lookup
+      const channelsByFixture = new Map<string, typeof allInstanceChannels>();
+      for (const channel of allInstanceChannels) {
+        if (!channelsByFixture.has(channel.fixtureId)) {
+          channelsByFixture.set(channel.fixtureId, []);
+        }
+        channelsByFixture.get(channel.fixtureId)!.push(channel);
+      }
+
       // Group fixtures by universe
       const universeMap: Record<
         number,
@@ -329,18 +347,14 @@ export const fixtureResolvers = {
         }
 
         const endChannel = fixture.startChannel + (fixture.channelCount || 1) - 1;
+        const instanceChannels = channelsByFixture.get(fixture.id) || [];
 
         // Mark channels as used
         for (let i = fixture.startChannel; i <= Math.min(endChannel, 512); i++) {
           const channelIndex = i - fixture.startChannel;
-          let channelType = "OTHER";
+          let channelType: string = ChannelType.OTHER;
 
           // Get channel type from instance channels if available
-          const instanceChannels = await prisma.instanceChannel.findMany({
-            where: { fixtureId: fixture.id },
-            orderBy: { offset: "asc" },
-          });
-
           if (instanceChannels.length > channelIndex) {
             channelType = instanceChannels[channelIndex].type;
           }
@@ -445,7 +459,7 @@ export const fixtureResolvers = {
           channelUsage[availableChannel + i - 1] = {
             fixtureId: "pending",
             fixtureName: spec.name,
-            channelType: "OTHER",
+            channelType: ChannelType.OTHER as string,
           };
         }
 
