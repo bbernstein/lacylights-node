@@ -51,9 +51,9 @@ describe("Channel Assignment Resolvers", () => {
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue([mockFixture]);
       mockContext.prisma.instanceChannel.findMany.mockResolvedValue([
-        { offset: 0, type: "RED" },
-        { offset: 1, type: "GREEN" },
-        { offset: 2, type: "BLUE" },
+        { offset: 0, type: "RED", fixtureId: "fixture-1" },
+        { offset: 1, type: "GREEN", fixtureId: "fixture-1" },
+        { offset: 2, type: "BLUE", fixtureId: "fixture-1" },
       ]);
 
       const result = await fixtureResolvers.Query.channelMap(
@@ -100,32 +100,22 @@ describe("Channel Assignment Resolvers", () => {
       ];
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue(mockFixtures);
-      // Mock instanceChannel.findMany for each channel in each fixture
-      mockContext.prisma.instanceChannel.findMany.mockImplementation(
-        async ({ where }: any) => {
-          if (where.fixtureId === "fixture-1") {
-            return [
-              { offset: 0, type: "RED" },
-              { offset: 1, type: "GREEN" },
-              { offset: 2, type: "BLUE" },
-              { offset: 3, type: "WHITE" },
-              { offset: 4, type: "INTENSITY" },
-            ];
-          } else if (where.fixtureId === "fixture-2") {
-            return [
-              { offset: 0, type: "PAN" },
-              { offset: 1, type: "TILT" },
-              { offset: 2, type: "RED" },
-              { offset: 3, type: "GREEN" },
-              { offset: 4, type: "BLUE" },
-              { offset: 5, type: "WHITE" },
-              { offset: 6, type: "INTENSITY" },
-              { offset: 7, type: "GOBO" },
-            ];
-          }
-          return [];
-        }
-      );
+      // Mock instanceChannel.findMany to return all channels for all fixtures
+      mockContext.prisma.instanceChannel.findMany.mockResolvedValue([
+        { offset: 0, type: "RED", fixtureId: "fixture-1" },
+        { offset: 1, type: "GREEN", fixtureId: "fixture-1" },
+        { offset: 2, type: "BLUE", fixtureId: "fixture-1" },
+        { offset: 3, type: "WHITE", fixtureId: "fixture-1" },
+        { offset: 4, type: "INTENSITY", fixtureId: "fixture-1" },
+        { offset: 0, type: "PAN", fixtureId: "fixture-2" },
+        { offset: 1, type: "TILT", fixtureId: "fixture-2" },
+        { offset: 2, type: "RED", fixtureId: "fixture-2" },
+        { offset: 3, type: "GREEN", fixtureId: "fixture-2" },
+        { offset: 4, type: "BLUE", fixtureId: "fixture-2" },
+        { offset: 5, type: "WHITE", fixtureId: "fixture-2" },
+        { offset: 6, type: "INTENSITY", fixtureId: "fixture-2" },
+        { offset: 7, type: "GOBO", fixtureId: "fixture-2" },
+      ]);
 
       const result = await fixtureResolvers.Query.channelMap(
         null,
@@ -161,31 +151,22 @@ describe("Channel Assignment Resolvers", () => {
       ];
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue(mockFixtures);
-      mockContext.prisma.instanceChannel.findMany.mockImplementation(
-        async ({ where }: any) => {
-          if (where.fixtureId === "fixture-1") {
-            return [
-              { offset: 0, type: "RED" },
-              { offset: 1, type: "GREEN" },
-              { offset: 2, type: "BLUE" },
-              { offset: 3, type: "WHITE" },
-              { offset: 4, type: "INTENSITY" },
-            ];
-          } else if (where.fixtureId === "fixture-2") {
-            return [
-              { offset: 0, type: "PAN" },
-              { offset: 1, type: "TILT" },
-              { offset: 2, type: "RED" },
-              { offset: 3, type: "GREEN" },
-              { offset: 4, type: "BLUE" },
-              { offset: 5, type: "WHITE" },
-              { offset: 6, type: "INTENSITY" },
-              { offset: 7, type: "GOBO" },
-            ];
-          }
-          return [];
-        }
-      );
+      // Mock instanceChannel.findMany to return all channels for all fixtures
+      mockContext.prisma.instanceChannel.findMany.mockResolvedValue([
+        { offset: 0, type: "RED", fixtureId: "fixture-1" },
+        { offset: 1, type: "GREEN", fixtureId: "fixture-1" },
+        { offset: 2, type: "BLUE", fixtureId: "fixture-1" },
+        { offset: 3, type: "WHITE", fixtureId: "fixture-1" },
+        { offset: 4, type: "INTENSITY", fixtureId: "fixture-1" },
+        { offset: 0, type: "PAN", fixtureId: "fixture-2" },
+        { offset: 1, type: "TILT", fixtureId: "fixture-2" },
+        { offset: 2, type: "RED", fixtureId: "fixture-2" },
+        { offset: 3, type: "GREEN", fixtureId: "fixture-2" },
+        { offset: 4, type: "BLUE", fixtureId: "fixture-2" },
+        { offset: 5, type: "WHITE", fixtureId: "fixture-2" },
+        { offset: 6, type: "INTENSITY", fixtureId: "fixture-2" },
+        { offset: 7, type: "GOBO", fixtureId: "fixture-2" },
+      ]);
 
       const result = await fixtureResolvers.Query.channelMap(
         null,
@@ -215,11 +196,11 @@ describe("Channel Assignment Resolvers", () => {
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue(mockFixtures);
       mockContext.prisma.instanceChannel.findMany.mockResolvedValue([
-        { offset: 0, type: "RED" },
-        { offset: 1, type: "GREEN" },
-        { offset: 2, type: "BLUE" },
-        { offset: 3, type: "WHITE" },
-        { offset: 4, type: "INTENSITY" },
+        { offset: 0, type: "RED", fixtureId: "fixture-1" },
+        { offset: 1, type: "GREEN", fixtureId: "fixture-1" },
+        { offset: 2, type: "BLUE", fixtureId: "fixture-1" },
+        { offset: 3, type: "WHITE", fixtureId: "fixture-1" },
+        { offset: 4, type: "INTENSITY", fixtureId: "fixture-1" },
       ]);
 
       await fixtureResolvers.Query.channelMap(
@@ -271,11 +252,11 @@ describe("Channel Assignment Resolvers", () => {
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue([mockFixture]);
       mockContext.prisma.instanceChannel.findMany.mockResolvedValue([
-        { offset: 0, type: "RED" },
-        { offset: 1, type: "GREEN" },
-        { offset: 2, type: "BLUE" },
-        { offset: 3, type: "WHITE" },
-        { offset: 4, type: "INTENSITY" },
+        { offset: 0, type: "RED", fixtureId: "fixture-1" },
+        { offset: 1, type: "GREEN", fixtureId: "fixture-1" },
+        { offset: 2, type: "BLUE", fixtureId: "fixture-1" },
+        { offset: 3, type: "WHITE", fixtureId: "fixture-1" },
+        { offset: 4, type: "INTENSITY", fixtureId: "fixture-1" },
       ]);
 
       const result = await fixtureResolvers.Query.channelMap(
@@ -337,14 +318,14 @@ describe("Channel Assignment Resolvers", () => {
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue([existingFixture]);
       mockContext.prisma.instanceChannel.findMany.mockResolvedValue([
-        { offset: 0, type: "RED" },
-        { offset: 1, type: "GREEN" },
-        { offset: 2, type: "BLUE" },
-        { offset: 3, type: "WHITE" },
-        { offset: 4, type: "AMBER" },
-        { offset: 5, type: "UV" },
-        { offset: 6, type: "INTENSITY" },
-        { offset: 7, type: "STROBE" },
+        { offset: 0, type: "RED", fixtureId: "existing-fixture-1" },
+        { offset: 1, type: "GREEN", fixtureId: "existing-fixture-1" },
+        { offset: 2, type: "BLUE", fixtureId: "existing-fixture-1" },
+        { offset: 3, type: "WHITE", fixtureId: "existing-fixture-1" },
+        { offset: 4, type: "AMBER", fixtureId: "existing-fixture-1" },
+        { offset: 5, type: "UV", fixtureId: "existing-fixture-1" },
+        { offset: 6, type: "INTENSITY", fixtureId: "existing-fixture-1" },
+        { offset: 7, type: "STROBE", fixtureId: "existing-fixture-1" },
       ]);
 
       const result = await fixtureResolvers.Query.suggestChannelAssignment(
@@ -393,27 +374,18 @@ describe("Channel Assignment Resolvers", () => {
       ];
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue(existingFixtures);
-      mockContext.prisma.instanceChannel.findMany.mockImplementation(
-        async ({ where }: any) => {
-          if (where.fixtureId === "fixture-1") {
-            return [
-              { offset: 0, type: "RED" },
-              { offset: 1, type: "GREEN" },
-              { offset: 2, type: "BLUE" },
-              { offset: 3, type: "INTENSITY" },
-            ];
-          } else if (where.fixtureId === "fixture-2") {
-            return [
-              { offset: 0, type: "RED" },
-              { offset: 1, type: "GREEN" },
-              { offset: 2, type: "BLUE" },
-              { offset: 3, type: "WHITE" },
-              { offset: 4, type: "INTENSITY" },
-            ];
-          }
-          return [];
-        }
-      );
+      // Mock instanceChannel.findMany to return all channels for all fixtures
+      mockContext.prisma.instanceChannel.findMany.mockResolvedValue([
+        { offset: 0, type: "RED", fixtureId: "fixture-1" },
+        { offset: 1, type: "GREEN", fixtureId: "fixture-1" },
+        { offset: 2, type: "BLUE", fixtureId: "fixture-1" },
+        { offset: 3, type: "INTENSITY", fixtureId: "fixture-1" },
+        { offset: 0, type: "RED", fixtureId: "fixture-2" },
+        { offset: 1, type: "GREEN", fixtureId: "fixture-2" },
+        { offset: 2, type: "BLUE", fixtureId: "fixture-2" },
+        { offset: 3, type: "WHITE", fixtureId: "fixture-2" },
+        { offset: 4, type: "INTENSITY", fixtureId: "fixture-2" },
+      ]);
 
       const result = await fixtureResolvers.Query.suggestChannelAssignment(
         null,
@@ -526,7 +498,7 @@ describe("Channel Assignment Resolvers", () => {
 
       mockContext.prisma.fixtureInstance.findMany.mockResolvedValue([existingFixture]);
       mockContext.prisma.instanceChannel.findMany.mockResolvedValue(
-        Array.from({ length: 510 }, (_, i) => ({ offset: i, type: "OTHER" }))
+        Array.from({ length: 510 }, (_, i) => ({ offset: i, type: "OTHER", fixtureId: "existing-fixture-1" }))
       );
 
       await expect(
