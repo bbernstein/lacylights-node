@@ -391,7 +391,7 @@ export const fixtureResolvers = {
     suggestChannelAssignment: async (
       _: any,
       { input }: { input: any },
-      { prisma }: Context,
+      context: Context,
     ) => {
       const {
         projectId,
@@ -404,7 +404,7 @@ export const fixtureResolvers = {
       const channelMapResult = await fixtureResolvers.Query.channelMap(
         _,
         { projectId, universe },
-        { prisma } as Context,
+        context,
       );
 
       const universeData = channelMapResult.universes.find(
@@ -459,7 +459,7 @@ export const fixtureResolvers = {
           channelUsage[availableChannel + i - 1] = {
             fixtureId: "pending",
             fixtureName: spec.name,
-            channelType: ChannelType.OTHER as string,
+            channelType: ChannelType.OTHER,
           };
         }
 
