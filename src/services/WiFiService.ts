@@ -577,15 +577,31 @@ export class WiFiService {
     try {
       logger.info(`Attempting to connect to WiFi network: ${ssid}`);
 
-      // Build nmcli connect command (use sudo on Linux)
+      // For WPA/WPA2 networks, we need to create a connection profile first
+      // then activate it. This ensures proper key-mgmt configuration.
       const useSudo = process.platform === "linux";
-      let command = useSudo ? "sudo nmcli" : "nmcli";
-      command += ` device wifi connect "${ssid}"`;
-      if (password) {
-        command += ` password "${password}"`;
-      }
 
-      await execAsync(command);
+      if (password) {
+        // Create connection profile with proper WPA2-PSK settings
+        const addCmd = useSudo ? "sudo nmcli" : "nmcli";
+        const addCommand = `${addCmd} connection add type wifi con-name "${ssid}" ssid "${ssid}" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "${password}"`;
+
+        try {
+          await execAsync(addCommand);
+        } catch {
+          // Connection might already exist, try to modify it instead
+          const modifyCmd = `${addCmd} connection modify "${ssid}" wifi-sec.psk "${password}"`;
+          await execAsync(modifyCmd);
+        }
+
+        // Activate the connection
+        const upCmd = `${addCmd} connection up "${ssid}"`;
+        await execAsync(upCmd);
+      } else {
+        // For open networks, use the simpler device wifi connect
+        const command = `${useSudo ? "sudo nmcli" : "nmcli"} device wifi connect "${ssid}"`;
+        await execAsync(command);
+      }
 
       logger.info(`Successfully connected to WiFi network: ${ssid}`);
       return {
