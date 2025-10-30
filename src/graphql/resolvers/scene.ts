@@ -792,7 +792,9 @@ export const sceneResolvers = {
         if (typeof parent.channelValues === 'string') {
           try {
             return JSON.parse(parent.channelValues);
-          } catch {
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to parse channelValues:', error);
             return [];
           }
         }
