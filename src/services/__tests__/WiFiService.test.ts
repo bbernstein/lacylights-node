@@ -413,6 +413,117 @@ describe("WiFiService", () => {
       expect(status.enabled).toBe(false);
       expect(status.connected).toBe(false);
     });
+
+    it("should detect connection via scan when connection show returns empty", async () => {
+      mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device status")) {
+          callback(null, { stdout: "wlan0  wifi", stderr: "" }, "");
+        } else if (cmd.includes("radio wifi")) {
+          callback(null, { stdout: "enabled", stderr: "" }, "");
+        } else if (cmd.includes("connection show --active") && cmd.includes("NAME,TYPE,DEVICE")) {
+          // First connection show --active call (empty - no active connection detected)
+          callback(null, { stdout: "", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          // scan finds active network marked with *
+          callback(null, { stdout: "ActiveNet:80:36:WPA2:*", stderr: "" }, "");
+        } else if (cmd.includes("connection show --active") && cmd.includes("IP4.ADDRESS")) {
+          // Second connection show --active call (for IP address)
+          callback(null, { stdout: "IP4.ADDRESS:192.168.1.50/24", stderr: "" }, "");
+        } else if (cmd.includes("device show")) {
+          // device show (for MAC address)
+          callback(null, { stdout: "GENERAL.HWADDR:11:22:33:44:55:66", stderr: "" }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
+        }
+        return {} as any;
+      });
+
+      const status = await wifiService.getStatus();
+
+      expect(status.available).toBe(true);
+      expect(status.enabled).toBe(true);
+      expect(status.connected).toBe(true);
+      expect(status.ssid).toBe("ActiveNet");
+      expect(status.signalStrength).toBe(80);
+      expect(status.ipAddress).toBe("192.168.1.50");
+      expect(status.macAddress).toBe("11:22:33:44:55:66");
+      expect(status.frequency).toBe("5 GHz");
+    });
+
+    it("should handle error getting connection details during scan fallback", async () => {
+      mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device status")) {
+          callback(null, { stdout: "wlan0  wifi", stderr: "" }, "");
+        } else if (cmd.includes("radio wifi")) {
+          callback(null, { stdout: "enabled", stderr: "" }, "");
+        } else if (cmd.includes("connection show --active") && cmd.includes("NAME,TYPE,DEVICE")) {
+          // First connection show --active call (empty - no active connection detected)
+          callback(null, { stdout: "", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          // scan finds active network marked with *
+          callback(null, { stdout: "ActiveNet:75:6:WPA2:*", stderr: "" }, "");
+        } else if (cmd.includes("connection show --active") && cmd.includes("IP4.ADDRESS")) {
+          // Second connection show --active call (fails to get IP address)
+          callback(new Error("Connection details failed"), { stdout: "", stderr: "" }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
+        }
+        return {} as any;
+      });
+
+      const status = await wifiService.getStatus();
+
+      expect(status.available).toBe(true);
+      expect(status.enabled).toBe(true);
+      expect(status.connected).toBe(true);
+      expect(status.ssid).toBe("ActiveNet");
+      expect(status.signalStrength).toBe(75);
+      expect(status.frequency).toBe("2.4 GHz");
+      expect(status.ipAddress).toBeUndefined();
+      expect(status.macAddress).toBeUndefined();
+    });
+
+    it("should handle missing MAC address line during scan fallback", async () => {
+      mockExec.mockImplementation((cmd: string, callback: (error: Error | null, result: {stdout: string; stderr: string}, output: string) => void) => {
+        if (cmd === "which nmcli") {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (cmd.includes("device status")) {
+          callback(null, { stdout: "wlan0  wifi", stderr: "" }, "");
+        } else if (cmd.includes("radio wifi")) {
+          callback(null, { stdout: "enabled", stderr: "" }, "");
+        } else if (cmd.includes("connection show --active") && cmd.includes("NAME,TYPE,DEVICE")) {
+          // First connection show --active call (empty - no active connection detected)
+          callback(null, { stdout: "", stderr: "" }, "");
+        } else if (cmd.includes("device wifi list")) {
+          // scan finds active network marked with *
+          callback(null, { stdout: "TestNet:70:11:WPA2:*", stderr: "" }, "");
+        } else if (cmd.includes("connection show --active") && cmd.includes("IP4.ADDRESS")) {
+          // Second connection show --active call (for IP address)
+          callback(null, { stdout: "IP4.ADDRESS:10.0.0.100/24", stderr: "" }, "");
+        } else if (cmd.includes("device show")) {
+          // device show returns output without GENERAL.HWADDR line
+          callback(null, { stdout: "GENERAL.DEVICE:wlan0\nGENERAL.TYPE:wifi", stderr: "" }, "");
+        } else {
+          callback(null, { stdout: "", stderr: "" }, "");
+        }
+        return {} as any;
+      });
+
+      const status = await wifiService.getStatus();
+
+      expect(status.available).toBe(true);
+      expect(status.enabled).toBe(true);
+      expect(status.connected).toBe(true);
+      expect(status.ssid).toBe("TestNet");
+      expect(status.signalStrength).toBe(70);
+      expect(status.ipAddress).toBe("10.0.0.100");
+      expect(status.macAddress).toBeUndefined(); // MAC address line not found
+      expect(status.frequency).toBe("2.4 GHz");
+    });
   });
 
   describe("connect", () => {
