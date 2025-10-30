@@ -366,15 +366,16 @@ describe("WiFiService", () => {
               stdout:
                 "connection.id:MyNetwork\n" +
                 "802-11-wireless.ssid:MyNetwork\n" +
-                "IP4.ADDRESS:192.168.1.100/24\n" +
-                "GENERAL.HWADDR:AA:BB:CC:DD:EE:FF",
+                "IP4.ADDRESS:192.168.1.100/24",
               stderr: "",
             },
             ""
           );
         } else if (callCount === 6) {
-          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+          callback(null, { stdout: "GENERAL.HWADDR:AA:BB:CC:DD:EE:FF", stderr: "" }, "");
         } else if (callCount === 7) {
+          callback(null, { stdout: "/usr/bin/nmcli", stderr: "" }, "");
+        } else if (callCount === 8) {
           callback(null, { stdout: "MyNetwork:75:6:WPA2:*", stderr: "" }, "");
         } else {
           callback(null, { stdout: "", stderr: "" }, "");
@@ -1250,13 +1251,17 @@ describe("WiFiService", () => {
             callback(null, { stdout: "enabled", stderr: "" }, "");
           } else if (cmd.includes("connection show --active")) {
             callback(null, { stdout: "MyNetwork:uuid:802-11-wireless:wlan0", stderr: "" }, "");
+          } else if (cmd.includes("device show")) {
+            callback(null, { stdout: "GENERAL.HWADDR:AA:BB:CC:DD:EE:FF", stderr: "" }, "");
           } else if (cmd.includes("device wifi list")) {
             callback(null, { stdout: "MyNetwork:85:36:WPA2:*", stderr: "" }, "");
           } else if (cmd.includes("connection show")) {
             callback(null, {
-              stdout: "802-11-wireless.ssid:MyNetwork\nGENERAL.HWADDR:AA:BB:CC:DD:EE:FF",
+              stdout: "802-11-wireless.ssid:MyNetwork",
               stderr: ""
             }, "");
+          } else {
+            callback(null, { stdout: "", stderr: "" }, "");
           }
           return {} as any;
         });

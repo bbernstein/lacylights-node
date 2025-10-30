@@ -329,6 +329,30 @@ export class WiFiService {
   }
 
   /**
+   * Parse connection details from nmcli output
+   *
+   * @param output - The raw output from nmcli command
+   * @returns A record of key-value pairs parsed from the output
+   */
+  private parseConnectionDetails(output: string): Record<string, string> {
+    const details: Record<string, string> = {};
+    output
+      .trim()
+      .split("\n")
+      .forEach((line) => {
+        const colonIndex = line.indexOf(":");
+        if (colonIndex > 0) {
+          const key = line.substring(0, colonIndex).trim();
+          const value = line.substring(colonIndex + 1).trim();
+          if (key && value) {
+            details[key] = value;
+          }
+        }
+      });
+    return details;
+  }
+
+  /**
    * Get current WiFi connection status
    *
    * @returns Current WiFi status information
@@ -370,11 +394,11 @@ export class WiFiService {
         .split("\n")
         .find((line) => {
           const parts = line.split(":");
-          if (parts.length < 3) {return false;}
+          if (parts.length < 3) { return false; }
 
           // Check if device matches our WiFi device
           const device = parts[parts.length - 1]; // DEVICE is always last field
-          if (device === this.wifiDevice) {return true;}
+          if (device === this.wifiDevice) { return true; }
 
           // Also check for wireless connection types (handles various nmcli versions)
           const type = parts[parts.length - 2]; // TYPE is second to last
@@ -411,20 +435,7 @@ export class WiFiService {
               `nmcli --terse --fields IP4.ADDRESS connection show --active`
             );
 
-            const details: Record<string, string> = {};
-            connDetails
-              .trim()
-              .split("\n")
-              .forEach((line) => {
-                const colonIndex = line.indexOf(":");
-                if (colonIndex > 0) {
-                  const key = line.substring(0, colonIndex).trim();
-                  const value = line.substring(colonIndex + 1).trim();
-                  if (key && value) {
-                    details[key] = value;
-                  }
-                }
-              });
+            const details = this.parseConnectionDetails(connDetails);
 
             // Get MAC address from device info (not connection info)
             let macAddress: string | undefined;
@@ -481,20 +492,7 @@ export class WiFiService {
         `nmcli --terse --fields connection.id,802-11-wireless.ssid,IP4.ADDRESS connection show "${connectionName}"`
       );
 
-      const details: Record<string, string> = {};
-      connDetails
-        .trim()
-        .split("\n")
-        .forEach((line) => {
-          const colonIndex = line.indexOf(":");
-          if (colonIndex > 0) {
-            const key = line.substring(0, colonIndex).trim();
-            const value = line.substring(colonIndex + 1).trim();
-            if (key && value) {
-              details[key] = value;
-            }
-          }
-        });
+      const details = this.parseConnectionDetails(connDetails);
 
       // Get MAC address from device info (not connection info)
       let macAddress: string | undefined;
