@@ -196,13 +196,60 @@ export class WiFiService {
   }
 
   /**
+   * Deduplicate WiFi networks by SSID
+   * Keeps the entry with the strongest signal for each unique SSID
+   * Preserves inUse and saved flags if ANY entry has them
+   * Prefers 5 GHz frequency when signal strengths are similar
+   *
+   * @param networks - Array of WiFi networks to deduplicate
+   * @returns Deduplicated array of networks
+   */
+  private deduplicateNetworks(networks: WiFiNetwork[]): WiFiNetwork[] {
+    const networkMap = new Map<string, WiFiNetwork>();
+
+    for (const network of networks) {
+      const existing = networkMap.get(network.ssid);
+
+      if (!existing) {
+        // First occurrence of this SSID
+        networkMap.set(network.ssid, network);
+      } else {
+        // Determine which network to keep
+        const currentStrength = network.signalStrength;
+        const existingStrength = existing.signalStrength;
+        const strengthDiff = Math.abs(currentStrength - existingStrength);
+
+        // If signal strengths are within 5 units, prefer 5 GHz
+        const shouldPreferCurrent =
+          currentStrength > existingStrength ||
+          (strengthDiff <= 5 && network.frequency === "5 GHz" && existing.frequency !== "5 GHz");
+
+        // Merge flags - preserve true values from either entry
+        const mergedNetwork: WiFiNetwork = {
+          ...(shouldPreferCurrent ? network : existing),
+          inUse: network.inUse || existing.inUse,
+          saved: network.saved || existing.saved,
+        };
+
+        networkMap.set(network.ssid, mergedNetwork);
+      }
+    }
+
+    // Convert back to array and sort by signal strength
+    return Array.from(networkMap.values()).sort(
+      (a, b) => b.signalStrength - a.signalStrength
+    );
+  }
+
+  /**
    * Scan for available WiFi networks
    *
    * @param rescan - Whether to force a rescan (default: true)
+   * @param deduplicate - Whether to deduplicate networks by SSID (default: true)
    * @returns Array of available WiFi networks
    * @throws WiFiError if scan fails
    */
-  async scanNetworks(rescan: boolean = true): Promise<WiFiNetwork[]> {
+  async scanNetworks(rescan: boolean = true, deduplicate: boolean = true): Promise<WiFiNetwork[]> {
     if (!(await this.checkNmcliAvailable())) {
       throw new WiFiError(
         "NetworkManager (nmcli) is not available on this system",
@@ -248,8 +295,11 @@ export class WiFiService {
       // Sort by signal strength (strongest first)
       networks.sort((a, b) => b.signalStrength - a.signalStrength);
 
-      logger.info(`WiFi scan found ${networks.length} networks`);
-      return networks;
+      // Deduplicate if requested
+      const finalNetworks = deduplicate ? this.deduplicateNetworks(networks) : networks;
+
+      logger.info(`WiFi scan found ${networks.length} networks${deduplicate ? ` (${finalNetworks.length} unique)` : ""}`);
+      return finalNetworks;
     } catch (error) {
       logger.error("WiFi scan failed", { error });
       throw new WiFiError(
@@ -276,6 +326,30 @@ export class WiFiService {
     } catch {
       return false;
     }
+  }
+
+  /**
+   * Parse connection details from nmcli output
+   *
+   * @param output - The raw output from nmcli command
+   * @returns A record of key-value pairs parsed from the output
+   */
+  private parseConnectionDetails(output: string): Record<string, string> {
+    const details: Record<string, string> = {};
+    output
+      .trim()
+      .split("\n")
+      .forEach((line) => {
+        const colonIndex = line.indexOf(":");
+        if (colonIndex > 0) {
+          const key = line.substring(0, colonIndex).trim();
+          const value = line.substring(colonIndex + 1).trim();
+          if (key && value) {
+            details[key] = value;
+          }
+        }
+      });
+    return details;
   }
 
   /**
@@ -310,6 +384,7 @@ export class WiFiService {
       }
 
       // Get active WiFi connection
+      // Check both by device name and connection type for more robust detection
       const { stdout: activeConn } = await execAsync(
         `nmcli --terse --fields NAME,TYPE,DEVICE connection show --active`
       );
@@ -317,37 +392,127 @@ export class WiFiService {
       const wifiConnection = activeConn
         .trim()
         .split("\n")
-        .find((line) => line.includes(":802-11-wireless:"));
+        .find((line) => {
+          const parts = line.split(":");
+          if (parts.length < 3) { return false; }
 
+          // Check if device matches our WiFi device
+          const device = parts[parts.length - 1]; // DEVICE is always last field
+          if (device === this.wifiDevice) { return true; }
+
+          // Also check for wireless connection types (handles various nmcli versions)
+          const type = parts[parts.length - 2]; // TYPE is second to last
+          return type && (
+            type.includes("wireless") ||
+            type.includes("wifi") ||
+            type === "802-11-wireless"
+          );
+        });
+
+      // If we didn't find a connection via active connections, check scan results
+      // This is more reliable as scanNetworks successfully detects the connection
       if (!wifiConnection) {
-        return {
-          available: true,
-          enabled: true,
-          connected: false,
-        };
+        try {
+          const networks = await this.scanNetworks(false);
+          const activeNetwork = networks.find((n) => n.inUse);
+
+          if (!activeNetwork) {
+            return {
+              available: true,
+              enabled: true,
+              connected: false,
+            };
+          }
+
+          // We found an active network via scan, so we're connected
+          // Get connection details by SSID
+          logger.info(`Found active WiFi connection via scan: ${activeNetwork.ssid}`);
+
+          // Try to get additional connection details
+          try {
+            // Get IP address from active connection
+            const { stdout: connDetails } = await execAsync(
+              `nmcli --terse --fields IP4.ADDRESS connection show --active`
+            );
+
+            const details = this.parseConnectionDetails(connDetails);
+
+            // Get MAC address from device info (not connection info)
+            let macAddress: string | undefined;
+            try {
+              const { stdout: deviceInfo } = await execAsync(
+                `nmcli --terse --fields GENERAL.HWADDR device show ${this.wifiDevice}`
+              );
+              const macLine = deviceInfo.trim().split("\n").find(line => line.startsWith("GENERAL.HWADDR:"));
+              if (macLine) {
+                const firstColon = macLine.indexOf(":");
+                if (firstColon !== -1) {
+                  macAddress = macLine.substring(firstColon + 1);
+                }
+              }
+            } catch (macError) {
+              logger.warn("Could not get MAC address", { error: macError });
+            }
+
+            return {
+              available: true,
+              enabled: true,
+              connected: true,
+              ssid: activeNetwork.ssid,
+              signalStrength: activeNetwork.signalStrength,
+              ipAddress: details["IP4.ADDRESS"]
+                ? details["IP4.ADDRESS"].split("/")[0]
+                : undefined,
+              macAddress,
+              frequency: activeNetwork.frequency,
+            };
+          } catch (detailsError) {
+            logger.warn("Could not get detailed connection info", { error: detailsError });
+            // Return basic connection info from scan
+            return {
+              available: true,
+              enabled: true,
+              connected: true,
+              ssid: activeNetwork.ssid,
+              signalStrength: activeNetwork.signalStrength,
+              frequency: activeNetwork.frequency,
+            };
+          }
+        } catch (scanError) {
+          logger.warn("Could not scan networks for connection check", { error: scanError });
+          return {
+            available: true,
+            enabled: true,
+            connected: false,
+          };
+        }
       }
 
       const [connectionName] = wifiConnection.split(":");
 
-      // Get connection details
+      // Get connection details (without GENERAL.HWADDR which doesn't work in connection show)
       const { stdout: connDetails } = await execAsync(
-        `nmcli --terse --fields connection.id,802-11-wireless.ssid,IP4.ADDRESS,GENERAL.HWADDR connection show "${connectionName}"`
+        `nmcli --terse --fields connection.id,802-11-wireless.ssid,IP4.ADDRESS connection show "${connectionName}"`
       );
 
-      const details: Record<string, string> = {};
-      connDetails
-        .trim()
-        .split("\n")
-        .forEach((line) => {
-          const colonIndex = line.indexOf(":");
-          if (colonIndex > 0) {
-            const key = line.substring(0, colonIndex).trim();
-            const value = line.substring(colonIndex + 1).trim();
-            if (key && value) {
-              details[key] = value;
-            }
+      const details = this.parseConnectionDetails(connDetails);
+
+      // Get MAC address from device info (not connection info)
+      let macAddress: string | undefined;
+      try {
+        const { stdout: deviceInfo } = await execAsync(
+          `nmcli --terse --fields GENERAL.HWADDR device show ${this.wifiDevice}`
+        );
+        const macLine = deviceInfo.trim().split("\n").find(line => line.startsWith("GENERAL.HWADDR:"));
+        if (macLine) {
+          const firstColon = macLine.indexOf(":");
+          if (firstColon !== -1) {
+            macAddress = macLine.substring(firstColon + 1);
           }
-        });
+        }
+      } catch (macError) {
+        logger.warn("Could not get MAC address", { error: macError });
+      }
 
       // Get signal strength from device WiFi list
       const networks = await this.scanNetworks(false);
@@ -362,7 +527,7 @@ export class WiFiService {
         ipAddress: details["IP4.ADDRESS"]
           ? details["IP4.ADDRESS"].split("/")[0]
           : undefined,
-        macAddress: details["GENERAL.HWADDR"],
+        macAddress,
         frequency: currentNetwork?.frequency,
       };
     } catch (error) {
@@ -416,13 +581,31 @@ export class WiFiService {
     try {
       logger.info(`Attempting to connect to WiFi network: ${ssid}`);
 
-      // Build nmcli connect command
-      let command = `nmcli device wifi connect "${ssid}"`;
-      if (password) {
-        command += ` password "${password}"`;
-      }
+      // For WPA/WPA2 networks, we need to create a connection profile first
+      // then activate it. This ensures proper key-mgmt configuration.
+      const useSudo = process.platform === "linux";
 
-      await execAsync(command);
+      if (password) {
+        // Create connection profile with proper WPA2-PSK settings
+        const addCmd = useSudo ? "sudo nmcli" : "nmcli";
+        const addCommand = `${addCmd} connection add type wifi con-name "${ssid}" ssid "${ssid}" wifi-sec.key-mgmt wpa-psk wifi-sec.psk "${password}"`;
+
+        try {
+          await execAsync(addCommand);
+        } catch {
+          // Connection might already exist, try to modify it instead
+          const modifyCmd = `${addCmd} connection modify "${ssid}" wifi-sec.psk "${password}"`;
+          await execAsync(modifyCmd);
+        }
+
+        // Activate the connection
+        const upCmd = `${addCmd} connection up "${ssid}"`;
+        await execAsync(upCmd);
+      } else {
+        // For open networks, use the simpler device wifi connect
+        const command = `${useSudo ? "sudo nmcli" : "nmcli"} device wifi connect "${ssid}"`;
+        await execAsync(command);
+      }
 
       logger.info(`Successfully connected to WiFi network: ${ssid}`);
       return {
@@ -488,15 +671,30 @@ export class WiFiService {
     try {
       logger.info(`Disconnecting from WiFi network: ${status.ssid}`);
 
-      // Get the connection name
+      // Get the connection name using robust detection
       const { stdout } = await execAsync(
-        `nmcli --terse --fields NAME,TYPE connection show --active`
+        `nmcli --terse --fields NAME,TYPE,DEVICE connection show --active`
       );
 
       const wifiConnection = stdout
         .trim()
         .split("\n")
-        .find((line) => line.includes(":802-11-wireless:"));
+        .find((line) => {
+          const parts = line.split(":");
+          if (parts.length < 3) { return false; }
+
+          // Check if device matches our WiFi device
+          const device = parts[parts.length - 1];
+          if (device === this.wifiDevice) { return true; }
+
+          // Also check for wireless connection types
+          const type = parts[parts.length - 2];
+          return type && (
+            type.includes("wireless") ||
+            type.includes("wifi") ||
+            type === "802-11-wireless"
+          );
+        });
 
       if (!wifiConnection) {
         return {
@@ -508,8 +706,12 @@ export class WiFiService {
 
       const [connectionName] = wifiConnection.split(":");
 
-      // Disconnect using connection name
-      await execAsync(`nmcli connection down "${connectionName}"`);
+      // Disconnect using connection name (use sudo on Linux)
+      const useSudo = process.platform === "linux";
+      const command = useSudo
+        ? `sudo nmcli connection down "${connectionName}"`
+        : `nmcli connection down "${connectionName}"`;
+      await execAsync(command);
 
       logger.info(`Successfully disconnected from WiFi network`);
       return {
@@ -543,7 +745,11 @@ export class WiFiService {
     }
 
     try {
-      const command = enabled ? "nmcli radio wifi on" : "nmcli radio wifi off";
+      // Use sudo on Linux systems where nmcli requires elevated permissions
+      const useSudo = process.platform === "linux";
+      const command = enabled
+        ? (useSudo ? "sudo nmcli radio wifi on" : "nmcli radio wifi on")
+        : (useSudo ? "sudo nmcli radio wifi off" : "nmcli radio wifi off");
       await execAsync(command);
 
       logger.info(`WiFi ${enabled ? "enabled" : "disabled"}`);
@@ -603,8 +809,12 @@ export class WiFiService {
         return true;
       }
 
-      // Delete the connection
-      await execAsync(`nmcli connection delete "${ssid}"`);
+      // Delete the connection (use sudo on Linux)
+      const useSudo = process.platform === "linux";
+      const command = useSudo
+        ? `sudo nmcli connection delete "${ssid}"`
+        : `nmcli connection delete "${ssid}"`;
+      await execAsync(command);
 
       logger.info(`Successfully forgot WiFi network: ${ssid}`);
       return true;

@@ -79,7 +79,7 @@ describe("WiFi GraphQL Resolvers", () => {
       );
 
       expect(result).toEqual(mockNetworks);
-      expect(wifiService.scanNetworks).toHaveBeenCalledWith(true);
+      expect(wifiService.scanNetworks).toHaveBeenCalledWith(true, true);
     });
 
     it("should use default rescan value of true", async () => {
@@ -87,7 +87,7 @@ describe("WiFi GraphQL Resolvers", () => {
 
       await wifiResolvers.Query.wifiNetworks(undefined, {});
 
-      expect(wifiService.scanNetworks).toHaveBeenCalledWith(true);
+      expect(wifiService.scanNetworks).toHaveBeenCalledWith(true, true);
     });
 
     it("should return empty array on WiFiError", async () => {
