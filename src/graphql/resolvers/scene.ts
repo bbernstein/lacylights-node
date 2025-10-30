@@ -2,6 +2,7 @@ import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { fadeEngine } from "../../services/fadeEngine";
 import { Prisma } from "@prisma/client";
+import { parseChannelValues } from "../../utils/db-helpers";
 
 // Type definitions for fixture values
 export interface FixtureValueInput {
@@ -787,7 +788,12 @@ export const sceneResolvers = {
   types: {
     FixtureValue: {
       channelValues: (parent: { channelValues: number[] | string }) => {
-        return parent.channelValues as number[];
+        // Handle both string (from database) and array (already deserialized) formats
+        // This acts as a safety net in case the Prisma middleware doesn't run
+        if (typeof parent.channelValues === 'string') {
+          return parseChannelValues(parent.channelValues);
+        }
+        return parent.channelValues;
       },
     },
   },

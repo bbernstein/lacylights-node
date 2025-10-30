@@ -7,86 +7,86 @@ import {
 
 describe('db-helpers', () => {
   describe('parseChannelValues', () => {
-    it('should parse valid JSON array', () => {
-      const result = parseChannelValues('[1, 2, 3]');
-      expect(result).toEqual([1, 2, 3]);
+    it('should parse valid JSON string to number array', () => {
+      expect(parseChannelValues('[255, 128, 64]')).toEqual([255, 128, 64]);
     });
 
     it('should return empty array for null', () => {
-      const result = parseChannelValues(null);
-      expect(result).toEqual([]);
+      expect(parseChannelValues(null)).toEqual([]);
     });
 
     it('should return empty array for undefined', () => {
-      const result = parseChannelValues(undefined);
-      expect(result).toEqual([]);
+      expect(parseChannelValues(undefined)).toEqual([]);
+    });
+
+    it('should return empty array for empty string', () => {
+      expect(parseChannelValues('')).toEqual([]);
     });
 
     it('should return empty array for invalid JSON', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const result = parseChannelValues('not valid json');
-      expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to parse channel values:', expect.any(Error));
+      expect(parseChannelValues('invalid json')).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to parse channel values:',
+        expect.any(Error)
+      );
       consoleSpy.mockRestore();
     });
 
     it('should return empty array for non-array JSON', () => {
-      const result = parseChannelValues('{"key": "value"}');
-      expect(result).toEqual([]);
+      expect(parseChannelValues('{"foo": "bar"}')).toEqual([]);
     });
   });
 
   describe('serializeChannelValues', () => {
-    it('should serialize array to JSON string', () => {
-      const result = serializeChannelValues([1, 2, 3]);
-      expect(result).toBe('[1,2,3]');
+    it('should serialize number array to JSON string', () => {
+      expect(serializeChannelValues([255, 128, 64])).toBe('[255,128,64]');
     });
 
     it('should serialize empty array', () => {
-      const result = serializeChannelValues([]);
-      expect(result).toBe('[]');
+      expect(serializeChannelValues([])).toBe('[]');
     });
   });
 
   describe('parseTags', () => {
-    it('should parse valid JSON array', () => {
-      const result = parseTags('["tag1", "tag2"]');
-      expect(result).toEqual(['tag1', 'tag2']);
+    it('should parse valid JSON string to string array', () => {
+      expect(parseTags('["wash", "color", "front"]')).toEqual(['wash', 'color', 'front']);
     });
 
     it('should return empty array for null', () => {
-      const result = parseTags(null);
-      expect(result).toEqual([]);
+      expect(parseTags(null)).toEqual([]);
     });
 
     it('should return empty array for undefined', () => {
-      const result = parseTags(undefined);
-      expect(result).toEqual([]);
+      expect(parseTags(undefined)).toEqual([]);
+    });
+
+    it('should return empty array for empty string', () => {
+      expect(parseTags('')).toEqual([]);
     });
 
     it('should return empty array for invalid JSON', () => {
       const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      const result = parseTags('not valid json');
-      expect(result).toEqual([]);
-      expect(consoleSpy).toHaveBeenCalledWith('Failed to parse tags:', expect.any(Error));
+      expect(parseTags('invalid json')).toEqual([]);
+      expect(consoleSpy).toHaveBeenCalledWith(
+        'Failed to parse tags:',
+        expect.any(Error)
+      );
       consoleSpy.mockRestore();
     });
 
     it('should return empty array for non-array JSON', () => {
-      const result = parseTags('{"key": "value"}');
-      expect(result).toEqual([]);
+      expect(parseTags('{"foo": "bar"}')).toEqual([]);
     });
   });
 
   describe('serializeTags', () => {
-    it('should serialize array to JSON string', () => {
-      const result = serializeTags(['tag1', 'tag2']);
-      expect(result).toBe('["tag1","tag2"]');
+    it('should serialize string array to JSON string', () => {
+      expect(serializeTags(['wash', 'color', 'front'])).toBe('["wash","color","front"]');
     });
 
     it('should serialize empty array', () => {
-      const result = serializeTags([]);
-      expect(result).toBe('[]');
+      expect(serializeTags([])).toBe('[]');
     });
   });
 });
