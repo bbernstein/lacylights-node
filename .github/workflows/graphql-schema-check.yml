@@ -46,6 +46,8 @@ jobs:
             origin/${{ github.base_ref }}:schema.graphql \
             schema.graphql \
             --fail-on-breaking
+        # Allow workflow to continue so we can generate the diff report and post a comment
+        # The workflow will fail later (line 74) if breaking changes were detected
         continue-on-error: true
         id: breaking_changes
 
