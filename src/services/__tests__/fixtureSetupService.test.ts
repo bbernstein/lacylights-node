@@ -89,6 +89,19 @@ describe("FixtureSetupService", () => {
   });
 
   describe("ensureFixturesPopulated", () => {
+    afterEach(() => {
+      delete process.env.SKIP_FIXTURE_IMPORT;
+    });
+
+    it("should skip import when SKIP_FIXTURE_IMPORT is set", async () => {
+      process.env.SKIP_FIXTURE_IMPORT = "true";
+
+      await service.ensureFixturesPopulated();
+
+      expect(mockDatabase.getFixtureCount).not.toHaveBeenCalled();
+      expect(console.log).toHaveBeenCalledWith("⏩ Skipping fixture import (SKIP_FIXTURE_IMPORT=true)");
+    });
+
     it("should skip import when fixtures already exist", async () => {
       mockDatabase.getFixtureCount.mockResolvedValue(100);
 
