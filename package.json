@@ -13,6 +13,7 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage --forceExit --collectCoverageFrom='src/**/*.{ts,tsx}' --collectCoverageFrom='!src/**/*.d.ts' --collectCoverageFrom='!src/**/__tests__/**' --collectCoverageFrom='!src/**/__mocks__/**'",
     "test:coverage:summary": "jest --coverage --coverageReporters=text-summary --forceExit --silent",
+    "test:contracts": "jest --testMatch='**/*.contract.test.ts' --runInBand",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "type-check": "tsc --noEmit",
