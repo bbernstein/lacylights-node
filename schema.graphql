@@ -1,0 +1,800 @@
+input BulkCueUpdateInput {
+  cueIds: [ID!]!
+  easingType: EasingType
+  fadeInTime: Float
+  fadeOutTime: Float
+  followTime: Float
+}
+
+input BulkFixtureCreateInput {
+  fixtures: [CreateFixtureInstanceInput!]!
+}
+
+input BulkFixtureUpdateInput {
+  fixtures: [FixtureUpdateItem!]!
+}
+
+input ChannelAssignmentInput {
+  fixtureSpecs: [FixtureSpecInput!]!
+  projectId: ID!
+  startingChannel: Int = 1
+  universe: Int = 1
+}
+
+type ChannelAssignmentSuggestion {
+  assignments: [FixtureChannelAssignment!]!
+  availableChannelsRemaining: Int!
+  totalChannelsNeeded: Int!
+  universe: Int!
+}
+
+type ChannelDefinition {
+  defaultValue: Int!
+  id: ID!
+  maxValue: Int!
+  minValue: Int!
+  name: String!
+  offset: Int!
+  type: ChannelType!
+}
+
+type ChannelMapFixture {
+  channelCount: Int!
+  endChannel: Int!
+  id: ID!
+  name: String!
+  startChannel: Int!
+  type: FixtureType!
+}
+
+type ChannelMapResult {
+  projectId: ID!
+  universes: [UniverseChannelMap!]!
+}
+
+enum ChannelType {
+  AMBER
+  BLUE
+  COLOR_WHEEL
+  EFFECT
+  FOCUS
+  GOBO
+  GREEN
+  INTENSITY
+  IRIS
+  MACRO
+  OTHER
+  PAN
+  RED
+  STROBE
+  TILT
+  UV
+  WHITE
+  ZOOM
+}
+
+type ChannelUsage {
+  channelType: ChannelType!
+  fixtureId: ID!
+  fixtureName: String!
+}
+
+input CreateChannelDefinitionInput {
+  defaultValue: Int!
+  maxValue: Int!
+  minValue: Int!
+  name: String!
+  offset: Int!
+  type: ChannelType!
+}
+
+input CreateCueInput {
+  cueListId: ID!
+  cueNumber: Float!
+  easingType: EasingType
+  fadeInTime: Float!
+  fadeOutTime: Float!
+  followTime: Float
+  name: String!
+  notes: String
+  sceneId: ID!
+}
+
+input CreateCueListInput {
+  description: String
+  loop: Boolean
+  name: String!
+  projectId: ID!
+}
+
+input CreateFixtureDefinitionInput {
+  channels: [CreateChannelDefinitionInput!]!
+  manufacturer: String!
+  model: String!
+  type: FixtureType!
+}
+
+input CreateFixtureInstanceInput {
+  definitionId: ID!
+  description: String
+  modeId: ID
+  name: String!
+  projectId: ID!
+  startChannel: Int!
+  tags: [String!]
+  universe: Int!
+}
+
+input CreateProjectInput {
+  description: String
+  name: String!
+}
+
+input CreateSceneInput {
+  description: String
+  fixtureValues: [FixtureValueInput!]!
+  name: String!
+  projectId: ID!
+}
+
+type Cue {
+  cueList: CueList!
+  cueNumber: Float!
+  easingType: EasingType
+  fadeInTime: Float!
+  fadeOutTime: Float!
+  followTime: Float
+  id: ID!
+  name: String!
+  notes: String
+  scene: Scene!
+}
+
+type CueList {
+  createdAt: String!
+  cueCount: Int!
+  cues: [Cue!]!
+  description: String
+  id: ID!
+  loop: Boolean!
+  name: String!
+  project: Project!
+  totalDuration: Float!
+  updatedAt: String!
+}
+
+type CueListPlaybackStatus {
+  cueListId: ID!
+  currentCue: Cue
+  currentCueIndex: Int
+  fadeProgress: Float
+  isPlaying: Boolean!
+  lastUpdated: String!
+  nextCue: Cue
+  previousCue: Cue
+}
+
+type CueListSummary {
+  createdAt: String!
+  cueCount: Int!
+  description: String
+  id: ID!
+  loop: Boolean!
+  name: String!
+  totalDuration: Float!
+}
+
+input CueOrderInput {
+  cueId: ID!
+  cueNumber: Float!
+}
+
+type CuePage {
+  cues: [Cue!]!
+  pagination: PaginationInfo!
+}
+
+type CueUsageSummary {
+  cueId: ID!
+  cueListId: ID!
+  cueListName: String!
+  cueName: String!
+  cueNumber: Float!
+}
+
+enum DifferenceType {
+  ONLY_IN_SCENE1
+  ONLY_IN_SCENE2
+  VALUES_CHANGED
+}
+
+enum EasingType {
+  BEZIER
+  EASE_IN_OUT_CUBIC
+  EASE_IN_OUT_SINE
+  EASE_OUT_EXPONENTIAL
+  LINEAR
+  S_CURVE
+}
+
+input ExportOptionsInput {
+  description: String
+  includeCueLists: Boolean
+  includeFixtures: Boolean
+  includeScenes: Boolean
+}
+
+type ExportResult {
+  jsonContent: String!
+  projectId: String!
+  projectName: String!
+  stats: ExportStats!
+}
+
+type ExportStats {
+  cueListsCount: Int!
+  cuesCount: Int!
+  fixtureDefinitionsCount: Int!
+  fixtureInstancesCount: Int!
+  scenesCount: Int!
+}
+
+type FixtureChannelAssignment {
+  channelCount: Int!
+  channelRange: String!
+  endChannel: Int!
+  fixtureName: String!
+  manufacturer: String!
+  mode: String
+  model: String!
+  startChannel: Int!
+}
+
+enum FixtureConflictStrategy {
+  ERROR
+  REPLACE
+  SKIP
+}
+
+type FixtureDefinition {
+  channels: [ChannelDefinition!]!
+  createdAt: String!
+  id: ID!
+  isBuiltIn: Boolean!
+  manufacturer: String!
+  model: String!
+  modes: [FixtureMode!]!
+  type: FixtureType!
+}
+
+input FixtureDefinitionFilter {
+  channelTypes: [ChannelType!]
+  isBuiltIn: Boolean
+  manufacturer: String
+  model: String
+  type: FixtureType
+}
+
+input FixtureFilterInput {
+  manufacturer: String
+  model: String
+  tags: [String!]
+  type: FixtureType
+  universe: Int
+}
+
+type FixtureInstance {
+  channelCount: Int!
+  channels: [InstanceChannel!]!
+  createdAt: String!
+  definitionId: ID!
+  description: String
+  id: ID!
+  layoutRotation: Float
+  layoutX: Float
+  layoutY: Float
+  manufacturer: String!
+  modeName: String!
+  model: String!
+  name: String!
+  project: Project!
+  projectOrder: Int
+  startChannel: Int!
+  tags: [String!]!
+  type: FixtureType!
+  universe: Int!
+}
+
+type FixtureInstancePage {
+  fixtures: [FixtureInstance!]!
+  pagination: PaginationInfo!
+}
+
+type FixtureMapping {
+  lacyLightsKey: String!
+  qlcManufacturer: String!
+  qlcMode: String!
+  qlcModel: String!
+}
+
+input FixtureMappingInput {
+  lacyLightsKey: String!
+  qlcManufacturer: String!
+  qlcMode: String!
+  qlcModel: String!
+}
+
+type FixtureMappingSuggestion {
+  fixture: LacyLightsFixture!
+  suggestions: [QLCFixtureDefinition!]!
+}
+
+type FixtureMode {
+  channelCount: Int!
+  channels: [ModeChannel!]!
+  id: ID!
+  name: String!
+  shortName: String
+}
+
+input FixtureOrderInput {
+  fixtureId: ID!
+  order: Int!
+}
+
+input FixturePositionInput {
+  fixtureId: ID!
+  layoutRotation: Float
+  layoutX: Float!
+  layoutY: Float!
+}
+
+input FixtureSpecInput {
+  channelCount: Int
+  manufacturer: String!
+  mode: String
+  model: String!
+  name: String!
+}
+
+enum FixtureType {
+  DIMMER
+  LED_PAR
+  MOVING_HEAD
+  OTHER
+  STROBE
+}
+
+input FixtureUpdateItem {
+  description: String
+  fixtureId: ID!
+  layoutRotation: Float
+  layoutX: Float
+  layoutY: Float
+  name: String
+  startChannel: Int
+  tags: [String!]
+  universe: Int
+}
+
+type FixtureUsage {
+  cues: [CueUsageSummary!]!
+  fixtureId: ID!
+  fixtureName: String!
+  scenes: [SceneSummary!]!
+}
+
+type FixtureValue {
+  channelValues: [Int!]!
+  fixture: FixtureInstance!
+  id: ID!
+  sceneOrder: Int
+}
+
+input FixtureValueInput {
+  channelValues: [Int!]!
+  fixtureId: ID!
+  sceneOrder: Int
+}
+
+enum ImportMode {
+  CREATE
+  MERGE
+}
+
+input ImportOptionsInput {
+  fixtureConflictStrategy: FixtureConflictStrategy
+  importBuiltInFixtures: Boolean
+  mode: ImportMode!
+  projectName: String
+  targetProjectId: ID
+}
+
+type ImportResult {
+  projectId: String!
+  stats: ImportStats!
+  warnings: [String!]!
+}
+
+type ImportStats {
+  cueListsCreated: Int!
+  cuesCreated: Int!
+  fixtureDefinitionsCreated: Int!
+  fixtureInstancesCreated: Int!
+  scenesCreated: Int!
+}
+
+type InstanceChannel {
+  defaultValue: Int!
+  id: ID!
+  maxValue: Int!
+  minValue: Int!
+  name: String!
+  offset: Int!
+  type: ChannelType!
+}
+
+type LacyLightsFixture {
+  manufacturer: String!
+  model: String!
+}
+
+type ModeChannel {
+  channel: ChannelDefinition!
+  id: ID!
+  offset: Int!
+}
+
+type Mutation {
+  addFixturesToScene(fixtureValues: [FixtureValueInput!]!, overwriteExisting: Boolean = false, sceneId: ID!): Scene!
+  bulkCreateFixtures(input: BulkFixtureCreateInput!): [FixtureInstance!]!
+  bulkUpdateCues(input: BulkCueUpdateInput!): [Cue!]!
+  bulkUpdateFixtures(input: BulkFixtureUpdateInput!): [FixtureInstance!]!
+  cancelPreviewSession(sessionId: ID!): Boolean!
+  cloneScene(newName: String!, sceneId: ID!): Scene!
+  commitPreviewSession(sessionId: ID!): Boolean!
+  connectWiFi(password: String, ssid: String!): WiFiConnectionResult!
+  createCue(input: CreateCueInput!): Cue!
+  createCueList(input: CreateCueListInput!): CueList!
+  createFixtureDefinition(input: CreateFixtureDefinitionInput!): FixtureDefinition!
+  createFixtureInstance(input: CreateFixtureInstanceInput!): FixtureInstance!
+  createProject(input: CreateProjectInput!): Project!
+  createScene(input: CreateSceneInput!): Scene!
+  deleteCue(id: ID!): Boolean!
+  deleteCueList(id: ID!): Boolean!
+  deleteFixtureDefinition(id: ID!): Boolean!
+  deleteFixtureInstance(id: ID!): Boolean!
+  deleteProject(id: ID!): Boolean!
+  deleteScene(id: ID!): Boolean!
+  disconnectWiFi: WiFiConnectionResult!
+  duplicateScene(id: ID!): Scene!
+  exportProject(options: ExportOptionsInput, projectId: ID!): ExportResult!
+  exportProjectToQLC(fixtureMappings: [FixtureMappingInput!], projectId: ID!): QLCExportResult!
+  fadeToBlack(fadeOutTime: Float!): Boolean!
+  forgetWiFiNetwork(ssid: String!): Boolean!
+  goToCue(cueIndex: Int!, cueListId: ID!, fadeInTime: Float): Boolean!
+  importProject(jsonContent: String!, options: ImportOptionsInput!): ImportResult!
+  importProjectFromQLC(originalFileName: String!, xmlContent: String!): QLCImportResult!
+  initializePreviewWithScene(sceneId: ID!, sessionId: ID!): Boolean!
+  nextCue(cueListId: ID!, fadeInTime: Float): Boolean!
+  playCue(cueId: ID!, fadeInTime: Float): Boolean!
+  previousCue(cueListId: ID!, fadeInTime: Float): Boolean!
+  removeFixturesFromScene(fixtureIds: [ID!]!, sceneId: ID!): Scene!
+  reorderCues(cueListId: ID!, cueOrders: [CueOrderInput!]!): Boolean!
+  reorderProjectFixtures(fixtureOrders: [FixtureOrderInput!]!, projectId: ID!): Boolean!
+  reorderSceneFixtures(fixtureOrders: [FixtureOrderInput!]!, sceneId: ID!): Boolean!
+  setChannelValue(channel: Int!, universe: Int!, value: Int!): Boolean!
+  setSceneLive(sceneId: ID!): Boolean!
+  setWiFiEnabled(enabled: Boolean!): WiFiStatus!
+  startCueList(cueListId: ID!, startFromCue: Int): Boolean!
+  startPreviewSession(projectId: ID!): PreviewSession!
+  stopCueList(cueListId: ID!): Boolean!
+  updateCue(id: ID!, input: CreateCueInput!): Cue!
+  updateCueList(id: ID!, input: CreateCueListInput!): CueList!
+  updateFixtureDefinition(id: ID!, input: CreateFixtureDefinitionInput!): FixtureDefinition!
+  updateFixtureInstance(id: ID!, input: UpdateFixtureInstanceInput!): FixtureInstance!
+  updateFixturePositions(positions: [FixturePositionInput!]!): Boolean!
+  updatePreviewChannel(channelIndex: Int!, fixtureId: ID!, sessionId: ID!, value: Int!): Boolean!
+  updateProject(id: ID!, input: CreateProjectInput!): Project!
+  updateScene(id: ID!, input: UpdateSceneInput!): Scene!
+  updateScenePartial(description: String, fixtureValues: [FixtureValueInput!], mergeFixtures: Boolean = true, name: String, sceneId: ID!): Scene!
+  updateSetting(input: UpdateSettingInput!): Setting!
+}
+
+type NetworkInterfaceOption {
+  address: String!
+  broadcast: String!
+  description: String!
+  interfaceType: String!
+  name: String!
+}
+
+type PaginationInfo {
+  hasMore: Boolean!
+  page: Int!
+  perPage: Int!
+  total: Int!
+  totalPages: Int!
+}
+
+type PreviewSession {
+  createdAt: String!
+  dmxOutput: [UniverseOutput!]!
+  id: ID!
+  isActive: Boolean!
+  project: Project!
+  user: User!
+}
+
+type Project {
+  createdAt: String!
+  cueListCount: Int!
+  cueLists: [CueList!]!
+  description: String
+  fixtureCount: Int!
+  fixtures: [FixtureInstance!]!
+  id: ID!
+  name: String!
+  sceneCount: Int!
+  scenes: [Scene!]!
+  updatedAt: String!
+  users: [ProjectUser!]!
+}
+
+enum ProjectRole {
+  EDITOR
+  OWNER
+  VIEWER
+}
+
+type ProjectUser {
+  id: ID!
+  joinedAt: String!
+  project: Project!
+  role: ProjectRole!
+  user: User!
+}
+
+type QLCExportResult {
+  cueListCount: Int!
+  fixtureCount: Int!
+  projectName: String!
+  sceneCount: Int!
+  xmlContent: String!
+}
+
+type QLCFixtureDefinition {
+  manufacturer: String!
+  model: String!
+  modes: [QLCFixtureMode!]!
+  type: String!
+}
+
+type QLCFixtureMappingResult {
+  defaultMappings: [FixtureMapping!]!
+  lacyLightsFixtures: [LacyLightsFixture!]!
+  projectId: String!
+  suggestions: [FixtureMappingSuggestion!]!
+}
+
+type QLCFixtureMode {
+  channelCount: Int!
+  name: String!
+}
+
+type QLCImportResult {
+  cueListCount: Int!
+  fixtureCount: Int!
+  originalFileName: String!
+  project: Project!
+  sceneCount: Int!
+  warnings: [String!]!
+}
+
+type Query {
+  allDmxOutput: [UniverseOutput!]!
+  channelMap(projectId: ID!, universe: Int): ChannelMapResult!
+  compareScenes(sceneId1: ID!, sceneId2: ID!): SceneComparison!
+  cue(id: ID!): Cue
+  cueList(id: ID!, includeSceneDetails: Boolean = false, page: Int = 1, perPage: Int = 50): CueList
+  cueListPlaybackStatus(cueListId: ID!): CueListPlaybackStatus
+  cueLists(projectId: ID!): [CueListSummary!]!
+  currentActiveScene: Scene
+  dmxOutput(universe: Int!): [Int!]!
+  fixtureDefinition(id: ID!): FixtureDefinition
+  fixtureDefinitions(filter: FixtureDefinitionFilter): [FixtureDefinition!]!
+  fixtureInstance(id: ID!): FixtureInstance
+  fixtureInstances(filter: FixtureFilterInput, page: Int = 1, perPage: Int = 50, projectId: ID!): FixtureInstancePage!
+  fixtureUsage(fixtureId: ID!): FixtureUsage!
+  getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
+  networkInterfaceOptions: [NetworkInterfaceOption!]!
+  previewSession(sessionId: ID!): PreviewSession
+  project(id: ID!): Project
+  projects: [Project!]!
+  savedWifiNetworks: [WiFiNetwork!]!
+  scene(id: ID!, includeFixtureValues: Boolean = true): Scene
+  sceneFixtures(sceneId: ID!): [SceneFixtureSummary!]!
+  sceneUsage(sceneId: ID!): SceneUsage!
+  scenes(filter: SceneFilterInput, page: Int = 1, perPage: Int = 50, projectId: ID!, sortBy: SceneSortField = CREATED_AT): ScenePage!
+  searchCues(cueListId: ID!, page: Int = 1, perPage: Int = 50, query: String!): CuePage!
+  searchFixtures(filter: FixtureFilterInput, page: Int = 1, perPage: Int = 50, projectId: ID!, query: String!): FixtureInstancePage!
+  searchScenes(filter: SceneFilterInput, page: Int = 1, perPage: Int = 50, projectId: ID!, query: String!): ScenePage!
+  setting(key: String!): Setting
+  settings: [Setting!]!
+  suggestChannelAssignment(input: ChannelAssignmentInput!): ChannelAssignmentSuggestion!
+  systemInfo: SystemInfo!
+  wifiNetworks(deduplicate: Boolean = true, rescan: Boolean = true): [WiFiNetwork!]!
+  wifiStatus: WiFiStatus!
+}
+
+type Scene {
+  createdAt: String!
+  description: String
+  fixtureValues: [FixtureValue!]!
+  id: ID!
+  name: String!
+  project: Project!
+  updatedAt: String!
+}
+
+type SceneComparison {
+  differences: [SceneDifference!]!
+  differentFixtureCount: Int!
+  identicalFixtureCount: Int!
+  scene1: SceneSummary!
+  scene2: SceneSummary!
+}
+
+type SceneDifference {
+  differenceType: DifferenceType!
+  fixtureId: ID!
+  fixtureName: String!
+  scene1Values: [Int!]
+  scene2Values: [Int!]
+}
+
+input SceneFilterInput {
+  nameContains: String
+  usesFixture: ID
+}
+
+type SceneFixtureSummary {
+  fixtureId: ID!
+  fixtureName: String!
+  fixtureType: FixtureType!
+}
+
+type ScenePage {
+  pagination: PaginationInfo!
+  scenes: [SceneSummary!]!
+}
+
+enum SceneSortField {
+  CREATED_AT
+  NAME
+  UPDATED_AT
+}
+
+type SceneSummary {
+  createdAt: String!
+  description: String
+  fixtureCount: Int!
+  id: ID!
+  name: String!
+  updatedAt: String!
+}
+
+type SceneUsage {
+  cues: [CueUsageSummary!]!
+  sceneId: ID!
+  sceneName: String!
+}
+
+type Setting {
+  createdAt: String!
+  id: ID!
+  key: String!
+  updatedAt: String!
+  value: String!
+}
+
+type Subscription {
+  cueListPlaybackUpdated(cueListId: ID!): CueListPlaybackStatus!
+  dmxOutputChanged(universe: Int): UniverseOutput!
+  previewSessionUpdated(projectId: ID!): PreviewSession!
+  projectUpdated(projectId: ID!): Project!
+  systemInfoUpdated: SystemInfo!
+  wifiStatusUpdated: WiFiStatus!
+}
+
+type SystemInfo {
+  artnetBroadcastAddress: String!
+  artnetEnabled: Boolean!
+}
+
+type UniverseChannelMap {
+  availableChannels: Int!
+  channelUsage: [ChannelUsage]!
+  fixtures: [ChannelMapFixture!]!
+  universe: Int!
+  usedChannels: Int!
+}
+
+type UniverseOutput {
+  channels: [Int!]!
+  universe: Int!
+}
+
+input UpdateFixtureInstanceInput {
+  definitionId: ID
+  description: String
+  layoutRotation: Float
+  layoutX: Float
+  layoutY: Float
+  modeId: ID
+  name: String
+  projectOrder: Int
+  startChannel: Int
+  tags: [String!]
+  universe: Int
+}
+
+input UpdateSceneInput {
+  description: String
+  fixtureValues: [FixtureValueInput!]
+  name: String
+}
+
+input UpdateSettingInput {
+  key: String!
+  value: String!
+}
+
+type User {
+  createdAt: String!
+  email: String!
+  id: ID!
+  name: String
+  role: UserRole!
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
+type WiFiConnectionResult {
+  connected: Boolean!
+  message: String
+  success: Boolean!
+}
+
+type WiFiNetwork {
+  frequency: String!
+  inUse: Boolean!
+  saved: Boolean!
+  security: WiFiSecurityType!
+  signalStrength: Int!
+  ssid: String!
+}
+
+enum WiFiSecurityType {
+  OPEN
+  OWE
+  WEP
+  WPA3_EAP
+  WPA3_PSK
+  WPA_EAP
+  WPA_PSK
+}
+
+type WiFiStatus {
+  available: Boolean!
+  connected: Boolean!
+  enabled: Boolean!
+  frequency: String
+  ipAddress: String
+  macAddress: String
+  signalStrength: Int
+  ssid: String
+}

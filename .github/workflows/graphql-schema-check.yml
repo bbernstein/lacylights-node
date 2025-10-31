@@ -1,0 +1,68 @@
+name: GraphQL Schema Check
+
+on:
+  pull_request:
+    paths:
+      - 'src/graphql/**'
+      - 'schema.graphql'
+
+jobs:
+  schema-check:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Need full history for comparison
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Export current schema
+        run: npm run schema:export
+
+      - name: Check for breaking changes
+        run: |
+          npx graphql-inspector diff \
+            origin/${{ github.base_ref }}:schema.graphql \
+            schema.graphql \
+            --fail-on-breaking
+        continue-on-error: true
+        id: breaking_changes
+
+      - name: Generate schema diff report
+        run: |
+          npx graphql-inspector diff \
+            origin/${{ github.base_ref }}:schema.graphql \
+            schema.graphql \
+            > schema-diff-report.txt || echo "No changes detected" > schema-diff-report.txt
+
+      - name: Comment PR with schema changes
+        uses: actions/github-script@v6
+        if: always()
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('schema-diff-report.txt', 'utf8');
+
+            const body = `## GraphQL Schema Changes\n\n\`\`\`\n${report}\n\`\`\``;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Fail on breaking changes
+        if: steps.breaking_changes.outcome == 'failure'
+        run: |
+          echo "❌ Breaking schema changes detected!"
+          echo "Please review the schema diff and update client code accordingly."
+          exit 1

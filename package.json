@@ -44,6 +44,8 @@
     "mapping:enhanced": "tsx scripts/test-enhanced-mapping.ts",
     "analyze:qlc": "tsx scripts/analyze-qlc-fixtures.ts",
     "deploy:pi": "bash scripts/deploy-to-pi.sh",
+    "schema:export": "graphql-inspector introspect src/graphql/schema.ts --write schema.graphql",
+    "schema:validate": "graphql-inspector introspect src/graphql/schema.ts",
     "prepare": "husky || true"
   },
   "keywords": [
@@ -71,6 +73,7 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@graphql-inspector/cli": "^5.0.8",
     "@types/cors": "^2.8.15",
     "@types/express": "^4.17.20",
     "@types/jest": "^29.5.7",
