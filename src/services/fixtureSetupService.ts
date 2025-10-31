@@ -140,6 +140,12 @@ export class FixtureSetupService {
 
   async ensureFixturesPopulated(): Promise<void> {
     try {
+      // Skip fixture import if SKIP_FIXTURE_IMPORT is set (useful for CI)
+      if (process.env.SKIP_FIXTURE_IMPORT === "true") {
+        console.log("⏩ Skipping fixture import (SKIP_FIXTURE_IMPORT=true)");
+        return;
+      }
+
       const fixtureCount = await this.database.getFixtureCount();
 
       if (fixtureCount === 0) {
