@@ -32,6 +32,9 @@ RUN npx tsc
 FROM base AS runner
 WORKDIR /app
 
+# Install OpenSSL 1.1 for Prisma compatibility
+RUN apk add --no-cache openssl1.1-compat
+
 ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs
