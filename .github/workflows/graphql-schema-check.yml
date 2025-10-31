@@ -30,7 +30,17 @@ jobs:
       - name: Export current schema
         run: npm run schema:export
 
+      - name: Check if baseline schema exists
+        id: check_baseline
+        run: |
+          if git cat-file -e origin/${{ github.base_ref }}:schema.graphql 2>/dev/null; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Check for breaking changes
+        if: steps.check_baseline.outputs.exists == 'true'
         run: |
           npx graphql-inspector diff \
             origin/${{ github.base_ref }}:schema.graphql \
@@ -41,10 +51,14 @@ jobs:
 
       - name: Generate schema diff report
         run: |
-          npx graphql-inspector diff \
-            origin/${{ github.base_ref }}:schema.graphql \
-            schema.graphql \
-            > schema-diff-report.txt || echo "No changes detected" > schema-diff-report.txt
+          if [ "${{ steps.check_baseline.outputs.exists }}" = "true" ]; then
+            npx graphql-inspector diff \
+              origin/${{ github.base_ref }}:schema.graphql \
+              schema.graphql \
+              > schema-diff-report.txt || echo "No changes detected" > schema-diff-report.txt
+          else
+            echo "Initial schema - no baseline to compare against" > schema-diff-report.txt
+          fi
 
       - name: Comment PR with schema changes
         uses: actions/github-script@v6
