@@ -138,6 +138,9 @@ jobs:
               generate_release_notes: true
             });
 
+      - name: Build project
+        run: npm run build
+
       - name: Install production dependencies
         run: npm ci --production
 
@@ -147,9 +150,7 @@ jobs:
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules/.cache' \
-            --exclude='*.test.ts' \
-            --exclude='__tests__' \
-            src/ dist/ node_modules/ package.json package-lock.json prisma/
+            dist/ node_modules/ package.json package-lock.json prisma/
 
       - name: Upload release asset
         env:
