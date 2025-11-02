@@ -138,6 +138,27 @@ jobs:
               generate_release_notes: true
             });
 
+      - name: Install production dependencies
+        run: npm ci --production
+
+      - name: Create release archive
+        run: |
+          tar -czf lacylights-node-${{ steps.new_version.outputs.version }}.tar.gz \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules/.cache' \
+            --exclude='*.test.ts' \
+            --exclude='__tests__' \
+            src/ dist/ node_modules/ package.json package-lock.json prisma/
+
+      - name: Upload release asset
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          gh release upload v${{ steps.new_version.outputs.version }} \
+            lacylights-node-${{ steps.new_version.outputs.version }}.tar.gz \
+            --clobber
+
       - name: Summary
         run: |
           echo "## Release Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
