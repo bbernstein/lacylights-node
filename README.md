@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/lacylights-logo-square.png" alt="LacyLights Logo" width="200"/>
+</p>
+
 # LacyLights Node.js Server
 
 A professional stage lighting control system built with Node.js, GraphQL, and TypeScript. This server provides real-time DMX control, scene management, and multi-user collaboration for stage lighting operations.
