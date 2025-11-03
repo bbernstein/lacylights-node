@@ -151,11 +151,15 @@ jobs:
 
       - name: Create release archive
         run: |
+          # Create directory structure for extraction
+          mkdir -p lacylights-node
+          cp -r dist/ node_modules/ package.json package-lock.json prisma/ lacylights-node/
           tar -czf lacylights-node-${{ steps.new_version.outputs.version }}.tar.gz \
             --exclude='.git' \
             --exclude='.github' \
             --exclude='node_modules/.cache' \
-            dist/ node_modules/ package.json package-lock.json prisma/
+            lacylights-node/
+          rm -rf lacylights-node
 
       - name: Upload release asset
         env:
