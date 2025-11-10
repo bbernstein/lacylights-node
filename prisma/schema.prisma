@@ -32,10 +32,11 @@ model Project {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  users     ProjectUser[]
-  fixtures  FixtureInstance[]
-  scenes    Scene[]
-  cueLists  CueList[]
+  users        ProjectUser[]
+  fixtures     FixtureInstance[]
+  scenes       Scene[]
+  cueLists     CueList[]
+  sceneBoards  SceneBoard[]
   previewSessions PreviewSession[]
 
   @@map("projects")
@@ -165,9 +166,10 @@ model Scene {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  project       Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project       Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   fixtureValues FixtureValue[]
   cues          Cue[]
+  boardButtons  SceneBoardButton[]
 
   @@map("scenes")
 }
@@ -262,6 +264,52 @@ model Setting {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("settings")
+}
+
+model SceneBoard {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  projectId       String   @map("project_id")
+
+  // Fade timing configuration (in seconds)
+  defaultFadeTime Float    @default(3.0) @map("default_fade_time")
+
+  // Visual configuration
+  gridSize        Int?     @default(50) @map("grid_size") // Grid size in pixels for snapping
+
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  project         Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  buttons         SceneBoardButton[]
+
+  @@map("scene_boards")
+}
+
+model SceneBoardButton {
+  id           String   @id @default(cuid())
+  sceneBoardId String   @map("scene_board_id")
+  sceneId      String   @map("scene_id")
+
+  // 2D Layout Position (normalized 0-1 coordinates, same pattern as fixtures)
+  layoutX      Float    @map("layout_x")
+  layoutY      Float    @map("layout_y")
+
+  // Visual customization (optional, for future enhancements)
+  width        Float?   @default(0.1) // Normalized width (0.1 = 10% of canvas)
+  height       Float?   @default(0.1) // Normalized height
+  color        String?  // Optional custom color override
+  label        String?  // Optional custom label (defaults to scene name)
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  sceneBoard   SceneBoard @relation(fields: [sceneBoardId], references: [id], onDelete: Cascade)
+  scene        Scene      @relation(fields: [sceneId], references: [id], onDelete: Cascade)
+
+  @@unique([sceneBoardId, sceneId]) // Each scene can only appear once per board
+  @@map("scene_board_buttons")
 }
 
 // SQLite doesn't support enums, so we store them as strings

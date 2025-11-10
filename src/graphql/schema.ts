@@ -14,6 +14,7 @@ export const typeDefs = gql`
     fixtures: [FixtureInstance!]!
     scenes: [Scene!]!
     cueLists: [CueList!]!
+    sceneBoards: [SceneBoard!]!
     users: [ProjectUser!]!
   }
 
@@ -107,6 +108,32 @@ export const typeDefs = gql`
     fixture: FixtureInstance!
     channelValues: [Int!]!
     sceneOrder: Int
+  }
+
+  type SceneBoard {
+    id: ID!
+    name: String!
+    description: String
+    project: Project!
+    defaultFadeTime: Float!
+    gridSize: Int
+    buttons: [SceneBoardButton!]!
+    createdAt: String!
+    updatedAt: String!
+  }
+
+  type SceneBoardButton {
+    id: ID!
+    sceneBoard: SceneBoard!
+    scene: Scene!
+    layoutX: Float!
+    layoutY: Float!
+    width: Float
+    height: Float
+    color: String
+    label: String
+    createdAt: String!
+    updatedAt: String!
   }
 
   type CueList {
@@ -627,6 +654,47 @@ export const typeDefs = gql`
     usesFixture: ID
   }
 
+  input CreateSceneBoardInput {
+    name: String!
+    description: String
+    projectId: ID!
+    defaultFadeTime: Float = 3.0
+    gridSize: Int = 50
+  }
+
+  input UpdateSceneBoardInput {
+    name: String
+    description: String
+    defaultFadeTime: Float
+    gridSize: Int
+  }
+
+  input CreateSceneBoardButtonInput {
+    sceneBoardId: ID!
+    sceneId: ID!
+    layoutX: Float!
+    layoutY: Float!
+    width: Float = 0.1
+    height: Float = 0.1
+    color: String
+    label: String
+  }
+
+  input UpdateSceneBoardButtonInput {
+    layoutX: Float
+    layoutY: Float
+    width: Float
+    height: Float
+    color: String
+    label: String
+  }
+
+  input SceneBoardButtonPositionInput {
+    buttonId: ID!
+    layoutX: Float!
+    layoutY: Float!
+  }
+
   input FixtureDefinitionFilter {
     manufacturer: String
     model: String
@@ -777,6 +845,11 @@ export const typeDefs = gql`
       perPage: Int = 50
     ): ScenePage!
 
+    # Scene Boards
+    sceneBoards(projectId: ID!): [SceneBoard!]!
+    sceneBoard(id: ID!): SceneBoard
+    sceneBoardButton(id: ID!): SceneBoardButton
+
     # Relationship Queries
     fixtureUsage(fixtureId: ID!): FixtureUsage!
     sceneUsage(sceneId: ID!): SceneUsage!
@@ -889,6 +962,29 @@ export const typeDefs = gql`
       fixtureValues: [FixtureValueInput!]
       mergeFixtures: Boolean = true
     ): Scene!
+
+    # Scene Boards
+    createSceneBoard(input: CreateSceneBoardInput!): SceneBoard!
+    updateSceneBoard(id: ID!, input: UpdateSceneBoardInput!): SceneBoard!
+    deleteSceneBoard(id: ID!): Boolean!
+
+    # Scene Board Buttons
+    addSceneToBoard(input: CreateSceneBoardButtonInput!): SceneBoardButton!
+    updateSceneBoardButton(
+      id: ID!
+      input: UpdateSceneBoardButtonInput!
+    ): SceneBoardButton!
+    removeSceneFromBoard(buttonId: ID!): Boolean!
+    updateSceneBoardButtonPositions(
+      positions: [SceneBoardButtonPositionInput!]!
+    ): Boolean!
+
+    # Scene Board Playback (activates scene with board's fade time)
+    activateSceneFromBoard(
+      sceneBoardId: ID!
+      sceneId: ID!
+      fadeTimeOverride: Float
+    ): Boolean!
 
     # Cue Lists
     createCueList(input: CreateCueListInput!): CueList!
