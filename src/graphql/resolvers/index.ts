@@ -49,11 +49,15 @@ export const resolvers = {
     ...settingsResolvers.Subscription,
     ...wifiResolvers.Subscription,
   },
-  // Type resolvers
-  ...projectResolvers.types,
+  // Type resolvers - merge Project type resolvers
+  Project: {
+    ...projectResolvers.types?.Project,
+    ...sceneBoardResolvers.types?.Project,
+  },
   ...fixtureResolvers.types,
   ...sceneResolvers.types,
-  ...sceneBoardResolvers.types,
+  SceneBoard: sceneBoardResolvers.types?.SceneBoard,
+  SceneBoardButton: sceneBoardResolvers.types?.SceneBoardButton,
   ...cueResolvers.types,
   CueListPlaybackStatus: cueResolvers.CueListPlaybackStatus,
 };
