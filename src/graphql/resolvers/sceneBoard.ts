@@ -336,7 +336,7 @@ export const sceneBoardResolvers = {
       // This allows smooth transitions between scenes and naturally overrides cue list fades
       fadeEngine.fadeChannels(
         channelsToFade,
-        fadeTime * 1000,
+        fadeTime, // fadeEngine.fadeChannels expects seconds, not milliseconds
         `scene-board-${sceneBoardId}`,
         undefined,
         EasingType.LINEAR,
