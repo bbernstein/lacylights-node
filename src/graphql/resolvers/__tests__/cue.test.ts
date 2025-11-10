@@ -725,13 +725,14 @@ describe("Cue Resolvers", () => {
         id: "cuelist-123",
         name: "Test Cue List",
         cues: [
-          { id: "cue-1", cueNumber: 1.0, scene: { id: "scene-1" } },
-          { id: "cue-2", cueNumber: 2.0, scene: { id: "scene-2" } }
+          { id: "cue-1", cueNumber: 1.0, scene: { id: "scene-1", fixtureValues: [] } },
+          { id: "cue-2", cueNumber: 2.0, scene: { id: "scene-2", fixtureValues: [] } }
         ]
       };
 
       const mockPlaybackStateService = {
-        startCue: jest.fn().mockResolvedValue(undefined)
+        startCue: jest.fn().mockResolvedValue(undefined),
+        executeCueDmx: jest.fn().mockResolvedValue(undefined)
       };
 
       (mockContext.prisma.cueList.findUnique as jest.Mock).mockResolvedValue(mockCueList);
@@ -748,11 +749,22 @@ describe("Cue Resolvers", () => {
         where: { id: "cuelist-123" },
         include: {
           cues: {
-            include: { scene: true },
+            include: {
+              scene: {
+                include: {
+                  fixtureValues: {
+                    include: {
+                      fixture: true
+                    }
+                  }
+                }
+              }
+            },
             orderBy: { cueNumber: "asc" }
           }
         }
       });
+      expect(mockPlaybackStateService.executeCueDmx).toHaveBeenCalledWith(mockCueList.cues[0]);
       expect(mockPlaybackStateService.startCue).toHaveBeenCalledWith(
         "cuelist-123",
         0,
@@ -765,13 +777,14 @@ describe("Cue Resolvers", () => {
         id: "cuelist-123",
         name: "Test Cue List",
         cues: [
-          { id: "cue-1", cueNumber: 1.0, scene: { id: "scene-1" } },
-          { id: "cue-2", cueNumber: 2.0, scene: { id: "scene-2" } }
+          { id: "cue-1", cueNumber: 1.0, scene: { id: "scene-1", fixtureValues: [] } },
+          { id: "cue-2", cueNumber: 2.0, scene: { id: "scene-2", fixtureValues: [] } }
         ]
       };
 
       const mockPlaybackStateService = {
-        startCue: jest.fn().mockResolvedValue(undefined)
+        startCue: jest.fn().mockResolvedValue(undefined),
+        executeCueDmx: jest.fn().mockResolvedValue(undefined)
       };
 
       (mockContext.prisma.cueList.findUnique as jest.Mock).mockResolvedValue(mockCueList);
@@ -784,6 +797,7 @@ describe("Cue Resolvers", () => {
       );
 
       expect(result).toBe(true);
+      expect(mockPlaybackStateService.executeCueDmx).toHaveBeenCalledWith(mockCueList.cues[1]);
       expect(mockPlaybackStateService.startCue).toHaveBeenCalledWith(
         "cuelist-123",
         1,
