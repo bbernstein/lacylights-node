@@ -423,12 +423,22 @@ export const cueResolvers = {
     ) => {
       const playbackStateService = getPlaybackStateService();
 
-      // Get the cue list with cues
+      // Get the cue list with cues including full scene data
       const cueList = await prisma.cueList.findUnique({
         where: { id: cueListId },
         include: {
           cues: {
-            include: { scene: true },
+            include: {
+              scene: {
+                include: {
+                  fixtureValues: {
+                    include: {
+                      fixture: true,
+                    },
+                  },
+                },
+              },
+            },
             orderBy: { cueNumber: "asc" },
           },
         },
@@ -443,10 +453,16 @@ export const cueResolvers = {
         throw new Error("Invalid cue index");
       }
 
+      const firstCue = cueList.cues[startIndex];
+
+      // Execute the cue's DMX output first
+      await playbackStateService.executeCueDmx(firstCue);
+
+      // Then update playback state
       await playbackStateService.startCue(
         cueListId,
         startIndex,
-        cueList.cues[startIndex],
+        firstCue,
       );
       return true;
     },
