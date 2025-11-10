@@ -30,32 +30,35 @@ jobs:
       - name: Export current schema
         run: npm run schema:export
 
-      - name: Check if baseline schema exists
-        id: check_baseline
+      - name: Extract baseline schema
+        id: extract_baseline
         run: |
-          if git cat-file -e origin/${{ github.base_ref }}:schema.graphql 2>/dev/null; then
+          # Try to extract the baseline schema from the base branch
+          if git show origin/${{ github.base_ref }}:schema.graphql > baseline-schema.graphql 2>/dev/null; then
             echo "exists=true" >> $GITHUB_OUTPUT
+            echo "Extracted baseline schema from origin/${{ github.base_ref }}"
           else
             echo "exists=false" >> $GITHUB_OUTPUT
+            echo "No baseline schema found"
           fi
 
       - name: Check for breaking changes
-        if: steps.check_baseline.outputs.exists == 'true'
+        if: steps.extract_baseline.outputs.exists == 'true'
         run: |
           npx graphql-inspector diff \
-            origin/${{ github.base_ref }}:schema.graphql \
+            baseline-schema.graphql \
             schema.graphql \
             --fail-on-breaking
         # Allow workflow to continue so we can generate the diff report and post a comment
-        # The workflow will fail later (line 74) if breaking changes were detected
+        # The workflow will fail later if breaking changes were detected
         continue-on-error: true
         id: breaking_changes
 
       - name: Generate schema diff report
         run: |
-          if [ "${{ steps.check_baseline.outputs.exists }}" = "true" ]; then
+          if [ "${{ steps.extract_baseline.outputs.exists }}" = "true" ]; then
             npx graphql-inspector diff \
-              origin/${{ github.base_ref }}:schema.graphql \
+              baseline-schema.graphql \
               schema.graphql \
               > schema-diff-report.txt || echo "No changes detected" > schema-diff-report.txt
           else
