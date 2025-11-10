@@ -286,14 +286,8 @@ class PlaybackStateService {
       this.followTimeouts.delete(cueListId);
     }
 
-    // Cancel the active fade for this cue
+    // Update state - do NOT cancel the fade, let the scene hold
     const state = this.states.get(cueListId);
-    if (state && state.currentCue) {
-      const fadeId = `cue-${state.currentCue.id}`;
-      fadeEngine.cancelFade(fadeId);
-    }
-
-    // Update state
     if (state) {
       state.isPlaying = false;
       state.fadeProgress = 0;
