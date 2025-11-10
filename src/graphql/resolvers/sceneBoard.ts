@@ -57,7 +57,15 @@ export const sceneBoardResolvers = {
         include: {
           buttons: {
             include: {
-              scene: true,
+              scene: {
+                include: {
+                  fixtureValues: {
+                    include: {
+                      fixture: true,
+                    },
+                  },
+                },
+              },
             },
           },
           project: true,
@@ -74,7 +82,15 @@ export const sceneBoardResolvers = {
         include: {
           buttons: {
             include: {
-              scene: true,
+              scene: {
+                include: {
+                  fixtureValues: {
+                    include: {
+                      fixture: true,
+                    },
+                  },
+                },
+              },
             },
             orderBy: {
               createdAt: "asc",
@@ -360,6 +376,19 @@ export const sceneBoardResolvers = {
       scene: async (parent: any, _: any, { prisma }: Context) => {
         return prisma.scene.findUnique({
           where: { id: parent.sceneId },
+          include: {
+            fixtureValues: {
+              include: {
+                fixture: {
+                  include: {
+                    channels: {
+                      orderBy: { offset: "asc" },
+                    },
+                  },
+                },
+              },
+            },
+          },
         });
       },
     },
