@@ -2,6 +2,7 @@ import { Context } from "../../context";
 import { dmxService } from "../../services/dmx";
 import { fadeEngine } from "../../services/fadeEngine";
 import { EasingType } from "../../services/fadeEngine";
+import { getPlaybackStateService } from "../../services/playbackStateService";
 
 // Type definitions for input types
 export interface CreateSceneBoardInput {
@@ -306,6 +307,10 @@ export const sceneBoardResolvers = {
 
       // Use fade time override if provided, otherwise use board's default
       const fadeTime = fadeTimeOverride ?? sceneBoard.defaultFadeTime;
+
+      // Stop all active cue list playback to prevent interference
+      const playbackService = getPlaybackStateService();
+      playbackService.stopAllCueLists();
 
       // Collect all channels that need to fade
       const channelsToFade: Array<{
