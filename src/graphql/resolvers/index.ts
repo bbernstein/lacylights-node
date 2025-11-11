@@ -1,6 +1,7 @@
 import { projectResolvers } from "./project";
 import { fixtureResolvers } from "./fixture";
 import { sceneResolvers } from "./scene";
+import { sceneBoardResolvers } from "./sceneBoard";
 import { cueResolvers } from "./cue";
 import { dmxResolvers } from "./dmx";
 import { previewResolvers } from "./preview";
@@ -17,6 +18,7 @@ export const resolvers = {
     ...projectResolvers.Query,
     ...fixtureResolvers.Query,
     ...sceneResolvers.Query,
+    ...sceneBoardResolvers.Query,
     ...cueResolvers.Query,
     ...dmxResolvers.Query,
     ...previewResolvers.Query,
@@ -30,6 +32,7 @@ export const resolvers = {
     ...projectResolvers.Mutation,
     ...fixtureResolvers.Mutation,
     ...sceneResolvers.Mutation,
+    ...sceneBoardResolvers.Mutation,
     ...cueResolvers.Mutation,
     ...dmxResolvers.Mutation,
     ...previewResolvers.Mutation,
@@ -46,10 +49,15 @@ export const resolvers = {
     ...settingsResolvers.Subscription,
     ...wifiResolvers.Subscription,
   },
-  // Type resolvers
-  ...projectResolvers.types,
+  // Type resolvers - merge Project type resolvers
+  Project: {
+    ...projectResolvers.types?.Project,
+    ...sceneBoardResolvers.types?.Project,
+  },
   ...fixtureResolvers.types,
   ...sceneResolvers.types,
+  SceneBoard: sceneBoardResolvers.types?.SceneBoard,
+  SceneBoardButton: sceneBoardResolvers.types?.SceneBoardButton,
   ...cueResolvers.types,
   CueListPlaybackStatus: cueResolvers.CueListPlaybackStatus,
 };
