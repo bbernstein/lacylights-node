@@ -249,7 +249,7 @@ export const sceneBoardResolvers = {
       { positions }: { positions: SceneBoardButtonPositionInput[] },
       { prisma }: Context,
     ) => {
-      // Batch update all button positions
+      // Batch update all button positions using a transaction to reduce database round trips
       const updates = positions.map((pos) =>
         prisma.sceneBoardButton.update({
           where: { id: pos.buttonId },
@@ -260,7 +260,7 @@ export const sceneBoardResolvers = {
         }),
       );
 
-      await Promise.all(updates);
+      await prisma.$transaction(updates);
       return true;
     },
 
@@ -336,7 +336,7 @@ export const sceneBoardResolvers = {
       // This allows smooth transitions between scenes and naturally overrides cue list fades
       fadeEngine.fadeChannels(
         channelsToFade,
-        fadeTime, // fadeEngine.fadeChannels expects seconds, not milliseconds
+        fadeTime, // fadeTime is already in seconds (from sceneBoard.defaultFadeTime or fadeTimeOverride); fadeEngine.fadeChannels expects seconds, not milliseconds
         `scene-board-${sceneBoardId}`,
         undefined,
         EasingType.LINEAR,
