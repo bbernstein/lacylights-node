@@ -753,6 +753,11 @@ export class WiFiService {
       await execAsync(command);
 
       logger.info(`WiFi ${enabled ? "enabled" : "disabled"}`);
+
+      // Wait a moment for NetworkManager to update state
+      // NetworkManager may need a brief moment to propagate the radio state change
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       return await this.getStatus();
     } catch (error) {
       logger.error(`Failed to ${enabled ? "enable" : "disable"} WiFi`, {
