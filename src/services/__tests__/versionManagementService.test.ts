@@ -246,6 +246,36 @@ describe('VersionManagementService', () => {
       );
     });
 
+    it('should throw error for invalid version format', async () => {
+      mockedFsAccess.mockResolvedValue(undefined);
+
+      await expect(service.updateRepository('lacylights-node', 'invalid-version')).rejects.toThrow(
+        'Invalid version format'
+      );
+    });
+
+    it('should throw error for version with shell injection attempt', async () => {
+      mockedFsAccess.mockResolvedValue(undefined);
+
+      await expect(service.updateRepository('lacylights-node', 'v1.0.0; rm -rf /')).rejects.toThrow(
+        'Invalid version format'
+      );
+    });
+
+    it('should accept valid version formats', async () => {
+      mockedFsAccess.mockResolvedValue(undefined);
+      mockExecAsync('Update successful');
+
+      // Test v-prefixed version
+      await expect(service.updateRepository('lacylights-node', 'v1.2.3')).resolves.toBeTruthy();
+
+      // Test non-prefixed version
+      await expect(service.updateRepository('lacylights-node', '1.2.3')).resolves.toBeTruthy();
+
+      // Test 'latest'
+      await expect(service.updateRepository('lacylights-node', 'latest')).resolves.toBeTruthy();
+    });
+
     it('should return error result when update fails', async () => {
       mockedFsAccess.mockResolvedValue(undefined);
       mockedFsReadFile.mockResolvedValue('v1.0.0'); // Both calls return same version

@@ -28,6 +28,9 @@ export interface UpdateResult {
 }
 
 export class VersionManagementService {
+  private static readonly VALID_REPOSITORIES = ['lacylights-fe', 'lacylights-node', 'lacylights-mcp'] as const;
+  private static readonly VERSION_PATTERN = /^(latest|v?\d+\.\d+\.\d+)$/;
+
   private updateScriptPath: string;
   private reposBasePath: string;
 
@@ -37,6 +40,29 @@ export class VersionManagementService {
   ) {
     this.updateScriptPath = updateScriptPath;
     this.reposBasePath = reposBasePath;
+  }
+
+  /**
+   * Validate repository name against whitelist
+   */
+  private validateRepositoryName(repository: string): void {
+    const validRepos: readonly string[] = VersionManagementService.VALID_REPOSITORIES;
+    if (!validRepos.includes(repository)) {
+      throw new Error(
+        `Invalid repository name: ${repository}. Must be one of: ${VersionManagementService.VALID_REPOSITORIES.join(', ')}`
+      );
+    }
+  }
+
+  /**
+   * Validate version string to prevent command injection
+   */
+  private validateVersion(version: string): void {
+    if (!VersionManagementService.VERSION_PATTERN.test(version)) {
+      throw new Error(
+        `Invalid version format: ${version}. Must be 'latest' or a semantic version (e.g., '1.2.3' or 'v1.2.3')`
+      );
+    }
   }
 
   /**
@@ -92,11 +118,7 @@ export class VersionManagementService {
       throw new Error('Update script not available. Version management is not supported on this system.');
     }
 
-    // Validate repository name
-    const validRepos = ['lacylights-fe', 'lacylights-node', 'lacylights-mcp'];
-    if (!validRepos.includes(repository)) {
-      throw new Error(`Invalid repository name: ${repository}. Must be one of: ${validRepos.join(', ')}`);
-    }
+    this.validateRepositoryName(repository);
 
     try {
       const { stdout } = await execAsync(`${this.updateScriptPath} available ${repository}`);
@@ -135,11 +157,8 @@ export class VersionManagementService {
       throw new Error('Update script not available. Version management is not supported on this system.');
     }
 
-    // Validate repository name
-    const validRepos = ['lacylights-fe', 'lacylights-node', 'lacylights-mcp'];
-    if (!validRepos.includes(repository)) {
-      throw new Error(`Invalid repository name: ${repository}. Must be one of: ${validRepos.join(', ')}`);
-    }
+    this.validateRepositoryName(repository);
+    this.validateVersion(version);
 
     const previousVersion = await this.getInstalledVersion(repository);
 
@@ -178,13 +197,12 @@ export class VersionManagementService {
       throw new Error('Update script not available. Version management is not supported on this system.');
     }
 
-    const repos = ['lacylights-fe', 'lacylights-node', 'lacylights-mcp'];
-    const results: UpdateResult[] = [];
-
-    for (const repo of repos) {
-      const result = await this.updateRepository(repo, 'latest');
-      results.push(result);
-    }
+    // Run updates in parallel for efficiency
+    const results = await Promise.all(
+      VersionManagementService.VALID_REPOSITORIES.map(repo =>
+        this.updateRepository(repo, 'latest')
+      )
+    );
 
     return results;
   }

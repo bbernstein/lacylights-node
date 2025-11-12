@@ -3,6 +3,23 @@ import {
   VersionManagementService,
 } from '../../services/versionManagementService';
 
+/**
+ * Wrap error message with action context
+ */
+function wrapError(action: string, error: unknown): Error {
+  const message = error instanceof Error ? error.message : String(error);
+  return new Error(`${action}: ${message}`);
+}
+
+/**
+ * Ensure version management is supported, throw if not
+ */
+function ensureVersionManagementSupported(): void {
+  if (!VersionManagementService.isVersionManagementSupported()) {
+    throw new Error('Version management is not supported on this system');
+  }
+}
+
 export const versionManagementResolvers = {
   Query: {
     systemVersions: async () => {
@@ -26,25 +43,18 @@ export const versionManagementResolvers = {
           versionManagementSupported: true,
         };
       } catch (error) {
-        throw new Error(
-          `Failed to get system versions: ${error instanceof Error ? error.message : String(error)}`
-        );
+        throw wrapError('Failed to get system versions', error);
       }
     },
 
     availableVersions: async (_: unknown, { repository }: { repository: string }) => {
       const service = getVersionManagementService();
-
-      if (!VersionManagementService.isVersionManagementSupported()) {
-        throw new Error('Version management is not supported on this system');
-      }
+      ensureVersionManagementSupported();
 
       try {
         return await service.getAvailableVersions(repository);
       } catch (error) {
-        throw new Error(
-          `Failed to get available versions for ${repository}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        throw wrapError(`Failed to get available versions for ${repository}`, error);
       }
     },
   },
@@ -55,33 +65,23 @@ export const versionManagementResolvers = {
       { repository, version = 'latest' }: { repository: string; version?: string }
     ) => {
       const service = getVersionManagementService();
-
-      if (!VersionManagementService.isVersionManagementSupported()) {
-        throw new Error('Version management is not supported on this system');
-      }
+      ensureVersionManagementSupported();
 
       try {
         return await service.updateRepository(repository, version);
       } catch (error) {
-        throw new Error(
-          `Failed to update ${repository}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        throw wrapError(`Failed to update ${repository}`, error);
       }
     },
 
     updateAllRepositories: async () => {
       const service = getVersionManagementService();
-
-      if (!VersionManagementService.isVersionManagementSupported()) {
-        throw new Error('Version management is not supported on this system');
-      }
+      ensureVersionManagementSupported();
 
       try {
         return await service.updateAllRepositories();
       } catch (error) {
-        throw new Error(
-          `Failed to update all repositories: ${error instanceof Error ? error.message : String(error)}`
-        );
+        throw wrapError('Failed to update all repositories', error);
       }
     },
   },
