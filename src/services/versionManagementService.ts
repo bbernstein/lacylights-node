@@ -1,10 +1,10 @@
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import fs from 'fs/promises';
 import { existsSync } from 'fs';
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 
 export interface RepositoryVersion {
   repository: string;
@@ -86,7 +86,7 @@ export class VersionManagementService {
     }
 
     try {
-      const { stdout } = await execAsync(`${this.updateScriptPath} versions json`);
+      const { stdout } = await execFileAsync(this.updateScriptPath, ['versions', 'json']);
       const versionsData = JSON.parse(stdout);
 
       const repositories: RepositoryVersion[] = Object.entries(versionsData).map(([repo, versions]) => {
@@ -121,7 +121,7 @@ export class VersionManagementService {
     this.validateRepositoryName(repository);
 
     try {
-      const { stdout } = await execAsync(`${this.updateScriptPath} available ${repository}`);
+      const { stdout } = await execFileAsync(this.updateScriptPath, ['available', repository]);
       const versions = stdout
         .trim()
         .split('\n')
@@ -139,10 +139,21 @@ export class VersionManagementService {
    * Get the currently installed version for a specific repository
    */
   async getInstalledVersion(repository: string): Promise<string> {
+    // Validate repository name to prevent path traversal
+    this.validateRepositoryName(repository);
+
+    // Construct and resolve the path
     const versionFile = path.join(this.reposBasePath, repository, '.lacylights-version');
+    const resolvedPath = path.resolve(versionFile);
+    const expectedBasePath = path.resolve(this.reposBasePath);
+
+    // Ensure the resolved path is within the expected base directory
+    if (!resolvedPath.startsWith(expectedBasePath + path.sep)) {
+      throw new Error(`Invalid repository path: ${repository}`);
+    }
 
     try {
-      const version = await fs.readFile(versionFile, 'utf-8');
+      const version = await fs.readFile(resolvedPath, 'utf-8');
       return version.trim();
     } catch {
       return 'unknown';
@@ -163,7 +174,7 @@ export class VersionManagementService {
     const previousVersion = await this.getInstalledVersion(repository);
 
     try {
-      await execAsync(`${this.updateScriptPath} update ${repository} ${version}`, {
+      await execFileAsync(this.updateScriptPath, ['update', repository, version], {
         timeout: 300000, // 5 minute timeout
       });
 

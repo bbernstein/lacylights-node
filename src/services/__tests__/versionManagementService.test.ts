@@ -1,6 +1,6 @@
 import { VersionManagementService } from '../versionManagementService';
 import fs from 'fs/promises';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 
 // Mock fs/promises
 jest.mock('fs/promises');
@@ -8,22 +8,22 @@ jest.mock('fs/promises');
 // Mock child_process
 jest.mock('child_process');
 
-const mockedExec = exec as jest.MockedFunction<typeof exec>;
+const mockedExecFile = execFile as jest.MockedFunction<typeof execFile>;
 const mockedFsAccess = fs.access as jest.MockedFunction<typeof fs.access>;
 const mockedFsReadFile = fs.readFile as jest.MockedFunction<typeof fs.readFile>;
 
-// Helper to make exec work with promisify
-const mockExecAsync = (stdout: string, stderr = ''): void => {
-  mockedExec.mockImplementation((cmd: string, options: any, callback: any) => {
-    // Handle both 2-arg and 3-arg forms
+// Helper to make execFile work with promisify
+const mockExecFileAsync = (stdout: string, stderr = ''): void => {
+  mockedExecFile.mockImplementation((file: string, args: any, options: any, callback: any) => {
+    // Handle both 3-arg and 4-arg forms
     const cb = typeof options === 'function' ? options : callback;
     process.nextTick(() => cb(null, { stdout, stderr }));
     return null as any;
   });
 };
 
-const mockExecAsyncError = (error: Error): void => {
-  mockedExec.mockImplementation((cmd: string, options: any, callback: any) => {
+const mockExecFileAsyncError = (error: Error): void => {
+  mockedExecFile.mockImplementation((file: string, args: any, options: any, callback: any) => {
     const cb = typeof options === 'function' ? options : callback;
     process.nextTick(() => cb(error));
     return null as any;
@@ -75,7 +75,7 @@ describe('VersionManagementService', () => {
         'lacylights-mcp': { installed: 'v1.0.0', latest: 'v1.2.0' },
       });
 
-      mockExecAsync(mockVersionOutput);
+      mockExecFileAsync(mockVersionOutput);
 
       const result = await service.getSystemVersions();
 
@@ -112,7 +112,7 @@ describe('VersionManagementService', () => {
     it('should throw error when script execution fails', async () => {
       mockedFsAccess.mockResolvedValue(undefined);
 
-      mockExecAsyncError(new Error('Script execution failed'));
+      mockExecFileAsyncError(new Error('Script execution failed'));
 
       await expect(service.getSystemVersions()).rejects.toThrow('Failed to get system versions');
     });
@@ -125,7 +125,7 @@ describe('VersionManagementService', () => {
         'lacylights-node': { installed: 'v2.0.0', latest: 'unknown' },
       });
 
-      mockExecAsync(mockVersionOutput);
+      mockExecFileAsync(mockVersionOutput);
 
       const result = await service.getSystemVersions();
 
@@ -140,7 +140,7 @@ describe('VersionManagementService', () => {
 
       const mockVersions = 'v1.3.0\nv1.2.0\nv1.1.0\nv1.0.0';
 
-      mockExecAsync(mockVersions);
+      mockExecFileAsync(mockVersions);
 
       const result = await service.getAvailableVersions('lacylights-node');
 
@@ -168,7 +168,7 @@ describe('VersionManagementService', () => {
 
       const mockVersions = 'v1.3.0\n\nv1.2.0\n\n';
 
-      mockExecAsync(mockVersions);
+      mockExecFileAsync(mockVersions);
 
       const result = await service.getAvailableVersions('lacylights-fe');
 
@@ -209,7 +209,7 @@ describe('VersionManagementService', () => {
     it('should successfully update repository to specific version', async () => {
       mockedFsAccess.mockResolvedValue(undefined);
 
-      mockExecAsync('Update successful');
+      mockExecFileAsync('Update successful');
 
       const result = await service.updateRepository('lacylights-node', 'v1.1.0');
 
@@ -223,7 +223,7 @@ describe('VersionManagementService', () => {
     it('should update to latest when version is not specified', async () => {
       mockedFsAccess.mockResolvedValue(undefined);
 
-      mockExecAsync('Update successful');
+      mockExecFileAsync('Update successful');
 
       const result = await service.updateRepository('lacylights-fe');
 
@@ -264,7 +264,7 @@ describe('VersionManagementService', () => {
 
     it('should accept valid version formats', async () => {
       mockedFsAccess.mockResolvedValue(undefined);
-      mockExecAsync('Update successful');
+      mockExecFileAsync('Update successful');
 
       // Test v-prefixed version
       await expect(service.updateRepository('lacylights-node', 'v1.2.3')).resolves.toBeTruthy();
@@ -280,7 +280,7 @@ describe('VersionManagementService', () => {
       mockedFsAccess.mockResolvedValue(undefined);
       mockedFsReadFile.mockResolvedValue('v1.0.0'); // Both calls return same version
 
-      mockExecAsyncError(new Error('Update failed: network error'));
+      mockExecFileAsyncError(new Error('Update failed: network error'));
 
       const result = await service.updateRepository('lacylights-mcp', 'v1.2.0');
 
@@ -294,7 +294,7 @@ describe('VersionManagementService', () => {
     it('should use 5 minute timeout for update command', async () => {
       mockedFsAccess.mockResolvedValue(undefined);
 
-      mockedExec.mockImplementation((cmd: string, options: any, callback: any) => {
+      mockedExecFile.mockImplementation((file: string, args: any, options: any, callback: any) => {
         const cb = typeof options === 'function' ? options : callback;
         if (typeof options === 'object' && options.timeout) {
           expect(options.timeout).toBe(300000); // 5 minutes
@@ -318,7 +318,7 @@ describe('VersionManagementService', () => {
         .mockResolvedValueOnce('v1.0.0') // lacylights-mcp prev
         .mockResolvedValueOnce('v1.2.0'); // lacylights-mcp new
 
-      mockExecAsync('Update successful');
+      mockExecFileAsync('Update successful');
 
       const results = await service.updateAllRepositories();
 
@@ -333,18 +333,18 @@ describe('VersionManagementService', () => {
       mockedFsAccess.mockResolvedValue(undefined);
       mockedFsReadFile.mockResolvedValue('v1.0.0');
 
-      mockedExec
-        .mockImplementationOnce((cmd: string, options: any, callback: any) => {
+      mockedExecFile
+        .mockImplementationOnce((file: string, args: any, options: any, callback: any) => {
           const cb = typeof options === 'function' ? options : callback;
           process.nextTick(() => cb(new Error('First update failed')));
           return null as any;
         })
-        .mockImplementationOnce((cmd: string, options: any, callback: any) => {
+        .mockImplementationOnce((file: string, args: any, options: any, callback: any) => {
           const cb = typeof options === 'function' ? options : callback;
           process.nextTick(() => cb(null, { stdout: 'Update successful', stderr: '' }));
           return null as any;
         })
-        .mockImplementationOnce((cmd: string, options: any, callback: any) => {
+        .mockImplementationOnce((file: string, args: any, options: any, callback: any) => {
           const cb = typeof options === 'function' ? options : callback;
           process.nextTick(() => cb(null, { stdout: 'Update successful', stderr: '' }));
           return null as any;
