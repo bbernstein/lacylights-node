@@ -12,6 +12,7 @@ import { settingsResolvers } from "./settings";
 import { relationshipResolvers } from "./relationships";
 import { searchResolvers } from "./search";
 import { wifiResolvers } from "./wifi";
+import { versionManagementResolvers } from "./versionManagement";
 
 export const resolvers = {
   Query: {
@@ -27,6 +28,7 @@ export const resolvers = {
     ...relationshipResolvers.Query,
     ...searchResolvers.Query,
     ...wifiResolvers.Query,
+    ...versionManagementResolvers.Query,
   },
   Mutation: {
     ...projectResolvers.Mutation,
@@ -41,6 +43,7 @@ export const resolvers = {
     ...exportResolvers.Mutation,
     ...settingsResolvers.Mutation,
     ...wifiResolvers.Mutation,
+    ...versionManagementResolvers.Mutation,
   },
   Subscription: {
     ...projectResolvers.Subscription,

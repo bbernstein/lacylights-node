@@ -241,6 +241,29 @@ export const typeDefs = gql`
     artnetEnabled: Boolean!
   }
 
+  # Version Management
+  type RepositoryVersion {
+    repository: String!
+    installed: String!
+    latest: String!
+    updateAvailable: Boolean!
+  }
+
+  type SystemVersionInfo {
+    repositories: [RepositoryVersion!]!
+    lastChecked: String!
+    versionManagementSupported: Boolean!
+  }
+
+  type UpdateResult {
+    success: Boolean!
+    repository: String!
+    previousVersion: String!
+    newVersion: String!
+    message: String
+    error: String
+  }
+
   type NetworkInterfaceOption {
     name: String!
     address: String!
@@ -900,6 +923,10 @@ export const typeDefs = gql`
 
     # QLC+ Fixture Mapping Suggestions (read-only)
     getQLCFixtureMappingSuggestions(projectId: ID!): QLCFixtureMappingResult!
+
+    # Version Management
+    systemVersions: SystemVersionInfo!
+    availableVersions(repository: String!): [String!]!
   }
   # Mutations
   type Mutation {
@@ -1045,6 +1072,10 @@ export const typeDefs = gql`
     disconnectWiFi: WiFiConnectionResult!
     setWiFiEnabled(enabled: Boolean!): WiFiStatus!
     forgetWiFiNetwork(ssid: String!): Boolean!
+
+    # Version Management
+    updateRepository(repository: String!, version: String = "latest"): UpdateResult!
+    updateAllRepositories: [UpdateResult!]!
   }
 
   # Subscriptions
