@@ -164,7 +164,12 @@ export class VersionManagementService {
     const expectedBasePath = path.resolve(this.reposBasePath);
 
     // Ensure the resolved path is within the expected base directory
-    if (!resolvedPath.startsWith(expectedBasePath + path.sep) && resolvedPath !== expectedBasePath) {
+    // Path must either start with base directory + separator, or equal the base directory itself
+    const isWithinBase =
+      resolvedPath.startsWith(expectedBasePath + path.sep) ||
+      resolvedPath === expectedBasePath;
+
+    if (!isWithinBase) {
       throw new Error(`Invalid repository path: ${repository}`);
     }
 
