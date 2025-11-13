@@ -5,6 +5,12 @@ import { logger } from "../utils/logger";
 const execAsync = promisify(exec);
 
 /**
+ * Delay in milliseconds for NetworkManager to propagate state changes
+ * This allows NetworkManager time to update internal state after WiFi radio changes
+ */
+const NETWORK_STATE_PROPAGATION_DELAY_MS = 500;
+
+/**
  * WiFi security types supported by NetworkManager
  */
 export enum WiFiSecurityType {
@@ -754,9 +760,8 @@ export class WiFiService {
 
       logger.info(`WiFi ${enabled ? "enabled" : "disabled"}`);
 
-      // Wait a moment for NetworkManager to update state
-      // NetworkManager may need a brief moment to propagate the radio state change
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Wait for NetworkManager to update state after radio change
+      await new Promise(resolve => setTimeout(resolve, NETWORK_STATE_PROPAGATION_DELAY_MS));
 
       return await this.getStatus();
     } catch (error) {

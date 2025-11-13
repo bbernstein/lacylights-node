@@ -4,10 +4,13 @@ import {
 } from '../../services/versionManagementService';
 
 /**
- * Wrap error message with action context
+ * Wrap error message with action context, preserving original error cause
  */
 function wrapError(action: string, error: unknown): Error {
   const message = error instanceof Error ? error.message : String(error);
+  if (error instanceof Error) {
+    return new Error(`${action}: ${message}`, { cause: error });
+  }
   return new Error(`${action}: ${message}`);
 }
 

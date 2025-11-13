@@ -16,6 +16,7 @@ export interface RepositoryVersion {
 export interface SystemVersionInfo {
   repositories: RepositoryVersion[];
   lastChecked: string;
+  versionManagementSupported?: boolean;
 }
 
 export interface UpdateResult {
@@ -29,7 +30,9 @@ export interface UpdateResult {
 
 export class VersionManagementService {
   private static readonly VALID_REPOSITORIES = ['lacylights-fe', 'lacylights-node', 'lacylights-mcp'] as const;
-  private static readonly VERSION_PATTERN = /^(latest|v?\d+\.\d+\.\d+)$/;
+  // Matches "latest" or full semver: v?MAJOR.MINOR.PATCH(-PRERELEASE)?(+BUILD)?
+  private static readonly VERSION_PATTERN = /^(latest|v?\d+\.\d+\.\d+(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?)$/;
+  private static readonly UPDATE_TIMEOUT_MS = 300000; // 5 minutes
 
   private updateScriptPath: string;
   private reposBasePath: string;
@@ -66,6 +69,13 @@ export class VersionManagementService {
   }
 
   /**
+   * Normalize version string by removing 'v' prefix for comparison
+   */
+  private normalizeVersion(version: string): string {
+    return version.startsWith('v') ? version.substring(1) : version;
+  }
+
+  /**
    * Check if the update script exists and is executable
    */
   async isUpdateScriptAvailable(): Promise<boolean> {
@@ -91,11 +101,17 @@ export class VersionManagementService {
 
       const repositories: RepositoryVersion[] = Object.entries(versionsData).map(([repo, versions]) => {
         const v = versions as { installed?: string; latest?: string };
+        const installed = v.installed || 'unknown';
+        const latest = v.latest || 'unknown';
+        // Normalize versions for comparison (remove 'v' prefix)
+        const updateAvailable =
+          latest !== 'unknown' &&
+          this.normalizeVersion(installed) !== this.normalizeVersion(latest);
         return {
           repository: repo,
-          installed: v.installed || 'unknown',
-          latest: v.latest || 'unknown',
-          updateAvailable: v.installed !== v.latest && v.latest !== 'unknown',
+          installed,
+          latest,
+          updateAvailable,
         };
       });
 
@@ -148,7 +164,7 @@ export class VersionManagementService {
     const expectedBasePath = path.resolve(this.reposBasePath);
 
     // Ensure the resolved path is within the expected base directory
-    if (!resolvedPath.startsWith(expectedBasePath + path.sep)) {
+    if (!resolvedPath.startsWith(expectedBasePath + path.sep) && resolvedPath !== expectedBasePath) {
       throw new Error(`Invalid repository path: ${repository}`);
     }
 
@@ -175,7 +191,7 @@ export class VersionManagementService {
 
     try {
       await execFileAsync(this.updateScriptPath, ['update', repository, version], {
-        timeout: 300000, // 5 minute timeout
+        timeout: VersionManagementService.UPDATE_TIMEOUT_MS,
       });
 
       const newVersion = await this.getInstalledVersion(repository);
