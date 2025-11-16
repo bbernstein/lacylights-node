@@ -15,6 +15,9 @@ yarn-error.log*
 dist/
 build/
 
+# Extracted release directories (e.g., lacylights-node-1.4.0/)
+lacylights-node-*/
+
 # Database
 *.db
 *.sqlite
