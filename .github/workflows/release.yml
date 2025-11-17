@@ -24,6 +24,8 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      COMPONENT: node
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -169,6 +171,152 @@ jobs:
             lacylights-node-${{ steps.new_version.outputs.version }}.tar.gz \
             --clobber
 
+      - name: Calculate SHA256 checksum
+        id: checksum
+        run: |
+          set -e
+          ARTIFACT="lacylights-node-${{ steps.new_version.outputs.version }}.tar.gz"
+
+          # Verify artifact exists
+          if [ ! -f "$ARTIFACT" ]; then
+            echo "Error: Artifact $ARTIFACT not found"
+            exit 1
+          fi
+
+          SHA256=$(sha256sum "$ARTIFACT" | awk '{print $1}')
+          FILE_SIZE=$(stat -c%s "$ARTIFACT")
+
+          if [ -z "$SHA256" ]; then
+            echo "Error: Failed to calculate SHA256 checksum"
+            exit 1
+          fi
+          if [ -z "$FILE_SIZE" ]; then
+            echo "Error: Failed to get file size"
+            exit 1
+          fi
+
+          echo "sha256=$SHA256" >> $GITHUB_OUTPUT
+          echo "artifact=$ARTIFACT" >> $GITHUB_OUTPUT
+          echo "file_size=$FILE_SIZE" >> $GITHUB_OUTPUT
+          echo "SHA256: $SHA256"
+          echo "File Size: $FILE_SIZE bytes"
+
+      - name: Check prerelease status
+        id: prerelease_check
+        run: |
+          VERSION="${{ steps.new_version.outputs.version }}"
+          if [[ "$VERSION" =~ (alpha|beta|rc) ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Calculate release metadata
+        id: release_metadata
+        run: |
+          echo "release_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_OUTPUT
+
+      - name: Upload to S3
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          set -e
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+
+          echo "Uploading $ARTIFACT to S3..."
+          aws s3 cp "$ARTIFACT" \
+            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${{ env.COMPONENT }}/$ARTIFACT" \
+            --content-type "application/gzip"
+
+          echo "✓ Upload successful"
+
+      - name: Update latest.json
+        if: ${{ steps.prerelease_check.outputs.is_prerelease == 'false' }}
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          set -e
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
+          IS_PRERELEASE="${{ steps.prerelease_check.outputs.is_prerelease }}"
+          RELEASE_DATE="${{ steps.release_metadata.outputs.release_date }}"
+
+          # Create latest.json using jq for proper JSON escaping
+          jq -n \
+            --arg version "$VERSION" \
+            --arg url "https://dist.lacylights.com/releases/${{ env.COMPONENT }}/$ARTIFACT" \
+            --arg sha256 "$SHA256" \
+            --arg releaseDate "$RELEASE_DATE" \
+            --argjson isPrerelease "$IS_PRERELEASE" \
+            --argjson fileSize "$FILE_SIZE" \
+            '{
+              version: $version,
+              url: $url,
+              sha256: $sha256,
+              releaseDate: $releaseDate,
+              isPrerelease: $isPrerelease,
+              fileSize: $fileSize
+            }' > latest.json
+
+          echo "Uploading latest.json..."
+          aws s3 cp latest.json \
+            "s3://${{ secrets.AWS_DIST_BUCKET }}/releases/${{ env.COMPONENT }}/latest.json" \
+            --content-type "application/json" \
+            --cache-control "max-age=300, must-revalidate" \
+            --metadata-directive REPLACE
+
+          echo "✓ latest.json updated"
+
+      - name: Update DynamoDB
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_DIST_REGION }}
+        run: |
+          set -e
+          VERSION="${{ steps.new_version.outputs.version }}"
+          ARTIFACT="${{ steps.checksum.outputs.artifact }}"
+          SHA256="${{ steps.checksum.outputs.sha256 }}"
+          FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
+          IS_PRERELEASE="${{ steps.prerelease_check.outputs.is_prerelease }}"
+          RELEASE_DATE="${{ steps.release_metadata.outputs.release_date }}"
+          TABLE_NAME="${{ secrets.AWS_DIST_TABLE_NAME || 'lacylights-releases' }}"
+
+          echo "Updating DynamoDB..."
+
+          # Create DynamoDB item using jq for proper JSON escaping
+          jq -n \
+            --arg component "${{ env.COMPONENT }}" \
+            --arg version "$VERSION" \
+            --arg url "https://dist.lacylights.com/releases/${{ env.COMPONENT }}/$ARTIFACT" \
+            --arg sha256 "$SHA256" \
+            --arg releaseDate "$RELEASE_DATE" \
+            --arg isPrerelease "$IS_PRERELEASE" \
+            --arg fileSize "$FILE_SIZE" \
+            '{
+              TableName: env.TABLE_NAME,
+              Item: {
+                component: {S: $component},
+                version: {S: $version},
+                url: {S: $url},
+                sha256: {S: $sha256},
+                releaseDate: {S: $releaseDate},
+                isPrerelease: {BOOL: ($isPrerelease == "true")},
+                fileSize: {N: $fileSize}
+              }
+            }' | TABLE_NAME="$TABLE_NAME" jq '.TableName = env.TABLE_NAME' > dynamodb-item.json
+
+          aws dynamodb put-item --cli-input-json file://dynamodb-item.json
+
+          echo "✓ DynamoDB updated: component=${{ env.COMPONENT }}, version=$VERSION"
+
       - name: Summary
         run: |
           echo "## Release Created Successfully! 🎉" >> $GITHUB_STEP_SUMMARY
@@ -178,3 +326,11 @@ jobs:
           echo "**Previous Version:** v${{ steps.current_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Release URL:** https://github.com/${{ github.repository }}/releases/tag/v${{ steps.new_version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Distribution" >> $GITHUB_STEP_SUMMARY
+          echo "**Download URL:** https://dist.lacylights.com/releases/${{ env.COMPONENT }}/${{ steps.checksum.outputs.artifact }}" >> $GITHUB_STEP_SUMMARY
+          echo "**SHA256:** \`${{ steps.checksum.outputs.sha256 }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**API Endpoints:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Latest: https://dist.lacylights.com/releases/${{ env.COMPONENT }}/latest.json" >> $GITHUB_STEP_SUMMARY
+          echo "- Manifest: https://dist.lacylights.com/api/manifest" >> $GITHUB_STEP_SUMMARY
