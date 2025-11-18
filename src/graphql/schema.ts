@@ -611,6 +611,12 @@ export const typeDefs = gql`
     maxValue: Int!
     defaultValue: Int!
   }
+
+  input ImportOFLFixtureInput {
+    manufacturer: String!
+    oflFixtureJson: String!
+  }
+
   input CreateFixtureInstanceInput {
     name: String!
     description: String
@@ -939,6 +945,7 @@ export const typeDefs = gql`
     createFixtureDefinition(
       input: CreateFixtureDefinitionInput!
     ): FixtureDefinition!
+    importOFLFixture(input: ImportOFLFixtureInput!): FixtureDefinition!
     updateFixtureDefinition(
       id: ID!
       input: CreateFixtureDefinitionInput!

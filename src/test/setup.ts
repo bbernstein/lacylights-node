@@ -4,6 +4,16 @@ process.env.LOG_LEVEL = "ERROR"; // Only show errors during tests
 // Set a mock database URL - tests should not require real database
 process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
 
+// Mock localStorage for tests that might need it
+const localStorageMock = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).localStorage = localStorageMock;
+
 // Mock PrismaClient globally for all tests
 const mockPrismaClient = {
   $connect: jest.fn().mockResolvedValue(undefined),

@@ -2,6 +2,7 @@ import { Context } from "../../context";
 import { ChannelType, FixtureType } from "../../types/enums";
 import { parseTags, serializeTags } from "../../utils/db-helpers";
 import { Prisma } from "@prisma/client";
+import { OFLImportService } from "../../services/oflImportService";
 
 // Input types for GraphQL queries and mutations
 export interface FixtureDefinitionFilter {
@@ -509,6 +510,45 @@ export const fixtureResolvers = {
           channels: true,
         },
       });
+    },
+
+    importOFLFixture: async (
+      _: any,
+      { input }: { input: { manufacturer: string; oflFixtureJson: string } },
+      { prisma }: Context,
+    ) => {
+      const importService = new OFLImportService(prisma);
+
+      try {
+        const result = await importService.importFixture(
+          input.manufacturer,
+          input.oflFixtureJson,
+        );
+
+        // Fetch the complete fixture definition with modes
+        return prisma.fixtureDefinition.findUnique({
+          where: { id: result.id },
+          include: {
+            channels: {
+              orderBy: { offset: "asc" },
+            },
+            modes: {
+              include: {
+                modeChannels: {
+                  include: {
+                    channel: true,
+                  },
+                  orderBy: { offset: "asc" },
+                },
+              },
+            },
+          },
+        });
+      } catch (error) {
+        throw new Error(
+          `Failed to import OFL fixture: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
     },
 
     createFixtureInstance: async (
