@@ -26,6 +26,7 @@ export interface OFLCapability {
 export interface OFLChannel {
   capability?: OFLCapability;
   capabilities?: OFLCapability[];
+  fineChannelAliases?: string[];
 }
 
 export interface OFLMode {
@@ -159,11 +160,19 @@ export class OFLImportService {
       // Create mode channels
       for (let i = 0; i < oflMode.channels.length; i++) {
         const channelName = oflMode.channels[i];
-        const channelId = channelNameToId.get(channelName);
+
+        // Handle switched channels (e.g., "Dimmer fine / Step Duration")
+        // OFL uses " / " to separate channel aliases for switching channels
+        // We'll use the first channel name as the primary channel for this mode
+        const primaryChannelName = channelName.includes(" / ")
+          ? channelName.split(" / ")[0]
+          : channelName;
+
+        const channelId = channelNameToId.get(primaryChannelName);
 
         if (!channelId) {
           throw new Error(
-            `Channel "${channelName}" in mode "${oflMode.name}" not found in availableChannels`,
+            `Channel "${channelName}" (primary: "${primaryChannelName}") in mode "${oflMode.name}" not found in availableChannels`,
           );
         }
 
@@ -222,6 +231,7 @@ export class OFLImportService {
 
   /**
    * Process OFL channels into our channel definition format
+   * This also creates fine channel aliases as separate channels
    */
   private processChannels(availableChannels: {
     [key: string]: OFLChannel;
@@ -268,6 +278,7 @@ export class OFLImportService {
       const { min, max } = this.getMinMaxValues(capability);
       const defaultValue = this.getDefaultValue(capability);
 
+      // Add the main channel
       channels.push({
         name: channelName,
         type: channelType,
@@ -276,6 +287,20 @@ export class OFLImportService {
         maxValue: max,
         defaultValue,
       });
+
+      // Add fine channel aliases if they exist
+      if (channelData.fineChannelAliases) {
+        for (const fineAlias of channelData.fineChannelAliases) {
+          channels.push({
+            name: fineAlias,
+            type: channelType, // Same type as parent channel
+            offset: offset++,
+            minValue: 0,
+            maxValue: 255,
+            defaultValue: 0,
+          });
+        }
+      }
     }
 
     return channels;
