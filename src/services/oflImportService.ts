@@ -70,11 +70,13 @@ export class OFLImportService {
    * Import a single fixture from OFL JSON format
    * @param manufacturer The manufacturer name
    * @param oflFixtureJson The OFL fixture JSON as a string
+   * @param replace Whether to replace an existing fixture with the same name
    * @returns The created fixture definition
    */
   async importFixture(
     manufacturer: string,
     oflFixtureJson: string,
+    replace = false,
   ): Promise<ImportOFLFixtureResult> {
     // Parse and validate the OFL JSON
     let oflFixture: OFLFixture;
@@ -100,98 +102,117 @@ export class OFLImportService {
           model,
         },
       },
+      include: {
+        instances: true,
+      },
     });
 
-    if (existing) {
+    if (existing && !replace) {
       throw new Error(
-        `Fixture "${manufacturer} ${model}" already exists in the database`,
+        `FIXTURE_EXISTS:${manufacturer} ${model}:${existing.instances.length}`,
       );
     }
 
-    // Map OFL fixture type to our FixtureType enum
-    const fixtureType = this.mapFixtureType(oflFixture.categories);
-
-    // Process channels - create a list of all unique channels
-    const channelDefinitions = this.processChannels(
-      oflFixture.availableChannels,
-    );
-
-    // Create the fixture definition with channels first
-    const fixtureDefinition = await this.prisma.fixtureDefinition.create({
-      data: {
-        manufacturer,
-        model,
-        type: fixtureType,
-        isBuiltIn: false, // Custom imported fixtures are not built-in
-        channels: {
-          create: channelDefinitions.map((ch) => ({
-            name: ch.name,
-            type: ch.type,
-            offset: ch.offset,
-            minValue: ch.minValue,
-            maxValue: ch.maxValue,
-            defaultValue: ch.defaultValue,
-          })),
-        },
-      },
-      include: {
-        channels: true,
-      },
-    });
-
-    // Now create modes with references to the created channels
-    // Build a map of channel names to their IDs
-    const channelNameToId = new Map<string, string>();
-    for (const channel of fixtureDefinition.channels) {
-      channelNameToId.set(channel.name, channel.id);
-    }
-
-    // Create modes
-    for (const oflMode of oflFixture.modes) {
-      const mode = await this.prisma.fixtureMode.create({
-        data: {
-          definitionId: fixtureDefinition.id,
-          name: oflMode.name,
-          shortName: oflMode.shortName,
-          channelCount: oflMode.channels.length,
-        },
-      });
-
-      // Create mode channels
-      for (let i = 0; i < oflMode.channels.length; i++) {
-        const channelName = oflMode.channels[i];
-
-        // Handle switched channels (e.g., "Dimmer fine / Step Duration")
-        // OFL uses " / " to separate channel aliases for switching channels
-        // We'll use the first channel name as the primary channel for this mode
-        const primaryChannelName = channelName.includes(" / ")
-          ? channelName.split(" / ")[0]
-          : channelName;
-
-        const channelId = channelNameToId.get(primaryChannelName);
-
-        if (!channelId) {
-          throw new Error(
-            `Channel "${channelName}" (primary: "${primaryChannelName}") in mode "${oflMode.name}" not found in availableChannels`,
-          );
+    // Use a transaction to ensure atomicity
+    return await this.prisma.$transaction(
+      async (tx) => {
+        // Delete existing fixture if replacing
+        if (existing && replace) {
+          // Delete the existing fixture (cascade will handle related records)
+          await tx.fixtureDefinition.delete({
+            where: { id: existing.id },
+          });
         }
 
-        await this.prisma.modeChannel.create({
+        // Map OFL fixture type to our FixtureType enum
+        const fixtureType = this.mapFixtureType(oflFixture.categories);
+
+        // Process channels - create a list of all unique channels
+        const channelDefinitions = this.processChannels(
+          oflFixture.availableChannels,
+        );
+
+        // Create the fixture definition with channels first
+        const fixtureDefinition = await tx.fixtureDefinition.create({
           data: {
-            modeId: mode.id,
-            channelId,
-            offset: i,
+            manufacturer,
+            model,
+            type: fixtureType,
+            isBuiltIn: false, // Custom imported fixtures are not built-in
+            channels: {
+              create: channelDefinitions.map((ch) => ({
+                name: ch.name,
+                type: ch.type,
+                offset: ch.offset,
+                minValue: ch.minValue,
+                maxValue: ch.maxValue,
+                defaultValue: ch.defaultValue,
+              })),
+            },
+          },
+          include: {
+            channels: true,
           },
         });
-      }
-    }
 
-    return {
-      id: fixtureDefinition.id,
-      manufacturer: fixtureDefinition.manufacturer,
-      model: fixtureDefinition.model,
-      type: fixtureDefinition.type as FixtureType,
-    };
+        // Now create modes with references to the created channels
+        // Build a map of channel names to their IDs
+        const channelNameToId = new Map<string, string>();
+        for (const channel of fixtureDefinition.channels) {
+          channelNameToId.set(channel.name, channel.id);
+        }
+
+        // Create modes
+        for (const oflMode of oflFixture.modes) {
+          const mode = await tx.fixtureMode.create({
+            data: {
+              definitionId: fixtureDefinition.id,
+              name: oflMode.name,
+              shortName: oflMode.shortName,
+              channelCount: oflMode.channels.length,
+            },
+          });
+
+          // Create mode channels
+          for (let i = 0; i < oflMode.channels.length; i++) {
+            const channelName = oflMode.channels[i];
+
+            // Handle switched channels (e.g., "Dimmer fine / Step Duration")
+            // OFL uses " / " to separate channel aliases for switching channels
+            // We'll use the first channel name as the primary channel for this mode
+            const primaryChannelName = channelName.includes(" / ")
+              ? channelName.split(" / ")[0]
+              : channelName;
+
+            const channelId = channelNameToId.get(primaryChannelName);
+
+            if (!channelId) {
+              throw new Error(
+                `Channel "${channelName}" (primary: "${primaryChannelName}") in mode "${oflMode.name}" not found in availableChannels`,
+              );
+            }
+
+            await tx.modeChannel.create({
+              data: {
+                modeId: mode.id,
+                channelId,
+                offset: i,
+              },
+            });
+          }
+        }
+
+        return {
+          id: fixtureDefinition.id,
+          manufacturer: fixtureDefinition.manufacturer,
+          model: fixtureDefinition.model,
+          type: fixtureDefinition.type as FixtureType,
+        };
+      },
+      {
+        timeout: 30000, // 30 second timeout for complex fixtures
+      },
+    );
   }
 
   /**

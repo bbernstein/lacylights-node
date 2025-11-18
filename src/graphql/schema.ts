@@ -615,6 +615,7 @@ export const typeDefs = gql`
   input ImportOFLFixtureInput {
     manufacturer: String!
     oflFixtureJson: String!
+    replace: Boolean
   }
 
   input CreateFixtureInstanceInput {

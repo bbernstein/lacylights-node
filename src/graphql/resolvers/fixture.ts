@@ -514,7 +514,9 @@ export const fixtureResolvers = {
 
     importOFLFixture: async (
       _: any,
-      { input }: { input: { manufacturer: string; oflFixtureJson: string } },
+      {
+        input,
+      }: { input: { manufacturer: string; oflFixtureJson: string; replace?: boolean } },
       { prisma }: Context,
     ) => {
       const importService = new OFLImportService(prisma);
@@ -523,6 +525,7 @@ export const fixtureResolvers = {
         const result = await importService.importFixture(
           input.manufacturer,
           input.oflFixtureJson,
+          input.replace || false,
         );
 
         // Fetch the complete fixture definition with modes
@@ -545,8 +548,9 @@ export const fixtureResolvers = {
           },
         });
       } catch (error) {
+        // Pass through the error message as-is so frontend can parse it
         throw new Error(
-          `Failed to import OFL fixture: ${error instanceof Error ? error.message : String(error)}`,
+          error instanceof Error ? error.message : String(error),
         );
       }
     },
