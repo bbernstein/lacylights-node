@@ -339,24 +339,56 @@ export class OFLImportService {
 
     if (type === "ColorIntensity" && capability.color) {
       const color = capability.color.toLowerCase();
-      if (color === "red") {return ChannelType.RED;}
-      if (color === "green") {return ChannelType.GREEN;}
-      if (color === "blue") {return ChannelType.BLUE;}
-      if (color === "white") {return ChannelType.WHITE;}
-      if (color === "amber") {return ChannelType.AMBER;}
-      if (color === "uv") {return ChannelType.UV;}
+      if (color === "red") {
+        return ChannelType.RED;
+      }
+      if (color === "green") {
+        return ChannelType.GREEN;
+      }
+      if (color === "blue") {
+        return ChannelType.BLUE;
+      }
+      if (color === "white") {
+        return ChannelType.WHITE;
+      }
+      if (color === "amber") {
+        return ChannelType.AMBER;
+      }
+      if (color === "uv") {
+        return ChannelType.UV;
+      }
     }
 
-    if (type === "Pan") {return ChannelType.PAN;}
-    if (type === "Tilt") {return ChannelType.TILT;}
-    if (type === "Zoom") {return ChannelType.ZOOM;}
-    if (type === "Focus") {return ChannelType.FOCUS;}
-    if (type === "Iris") {return ChannelType.IRIS;}
-    if (type === "Gobo") {return ChannelType.GOBO;}
-    if (type === "ColorWheel") {return ChannelType.COLOR_WHEEL;}
-    if (type === "Effect") {return ChannelType.EFFECT;}
-    if (type === "ShutterStrobe") {return ChannelType.STROBE;}
-    if (type === "Maintenance") {return ChannelType.MACRO;}
+    if (type === "Pan") {
+      return ChannelType.PAN;
+    }
+    if (type === "Tilt") {
+      return ChannelType.TILT;
+    }
+    if (type === "Zoom") {
+      return ChannelType.ZOOM;
+    }
+    if (type === "Focus") {
+      return ChannelType.FOCUS;
+    }
+    if (type === "Iris") {
+      return ChannelType.IRIS;
+    }
+    if (type === "Gobo") {
+      return ChannelType.GOBO;
+    }
+    if (type === "ColorWheel") {
+      return ChannelType.COLOR_WHEEL;
+    }
+    if (type === "Effect") {
+      return ChannelType.EFFECT;
+    }
+    if (type === "ShutterStrobe") {
+      return ChannelType.STROBE;
+    }
+    if (type === "Maintenance") {
+      return ChannelType.MACRO;
+    }
 
     return ChannelType.OTHER;
   }

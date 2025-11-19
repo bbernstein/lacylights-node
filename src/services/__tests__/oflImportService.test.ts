@@ -7,6 +7,7 @@ const mockPrisma = {
   fixtureDefinition: {
     findUnique: jest.fn(),
     create: jest.fn(),
+    delete: jest.fn(),
   },
   fixtureMode: {
     create: jest.fn(),
@@ -14,6 +15,7 @@ const mockPrisma = {
   modeChannel: {
     create: jest.fn(),
   },
+  $transaction: jest.fn(async (cb) => cb(mockPrisma)),
 } as unknown as PrismaClient;
 
 describe("OFLImportService", () => {
@@ -218,13 +220,12 @@ describe("OFLImportService", () => {
         id: "existing-id",
         manufacturer: "TestManufacturer",
         model: "Test Fixture",
+        instances: [{ id: "instance-1" }],
       });
 
       await expect(
         service.importFixture("TestManufacturer", JSON.stringify(validOflFixture)),
-      ).rejects.toThrow(
-        'Fixture "TestManufacturer Test Fixture" already exists in the database',
-      );
+      ).rejects.toThrow("FIXTURE_EXISTS:TestManufacturer Test Fixture:1");
     });
 
     it("should successfully import a valid fixture", async () => {
