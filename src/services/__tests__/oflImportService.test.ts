@@ -15,10 +15,7 @@ const mockPrisma = {
   modeChannel: {
     create: jest.fn(),
   },
-  $transaction: jest.fn(async (cb) => {
-    const result = await cb(mockPrisma);
-    return result;
-  }),
+  $transaction: jest.fn(),
 } as unknown as PrismaClient;
 
 describe("OFLImportService", () => {
@@ -27,6 +24,11 @@ describe("OFLImportService", () => {
   beforeEach(() => {
     service = new OFLImportService(mockPrisma);
     jest.clearAllMocks();
+
+    // Re-implement $transaction after clearAllMocks
+    (mockPrisma.$transaction as jest.Mock).mockImplementation(async (cb) => {
+      return await cb(mockPrisma);
+    });
   });
 
   describe("mapChannelType", () => {
