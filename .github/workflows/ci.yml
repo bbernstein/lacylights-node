@@ -54,11 +54,19 @@ jobs:
       - name: Generate Prisma client
         run: npx prisma generate
 
-      - name: Run tests with coverage
+      - name: Run unit tests with coverage
         run: npm run test:coverage
         env:
           NODE_ENV: test
           DATABASE_URL: file:./test.db
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          NODE_ENV: test
+          DATABASE_URL: file:./test.db
+          NON_INTERACTIVE: true
+          ARTNET_ENABLED: false
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
