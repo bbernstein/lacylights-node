@@ -608,6 +608,7 @@ export const cueResolvers = {
     stopCueList: async (
       _: unknown,
       { cueListId }: { cueListId: string },
+      _context: Context,
     ) => {
       const playbackStateService = getPlaybackStateService();
       playbackStateService.stopCueList(cueListId);

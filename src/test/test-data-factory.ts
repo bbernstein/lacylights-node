@@ -100,7 +100,6 @@ export class TestDataFactory {
     async createTestFixtureInstance(
         projectId: string,
         definitionId: string,
-        modeId: string, // Kept for API compatibility but not used
         overrides: {
             name?: string;
             universe?: number;
@@ -247,7 +246,6 @@ export class TestDataFactory {
         const fixture1 = await this.createTestFixtureInstance(
             project.id,
             definition.id,
-            mode.id,
             {
                 name: 'Fixture 1',
                 universe: 1,
@@ -259,7 +257,6 @@ export class TestDataFactory {
         const fixture2 = await this.createTestFixtureInstance(
             project.id,
             definition.id,
-            mode.id,
             {
                 name: 'Fixture 2',
                 universe: 1,
@@ -271,7 +268,6 @@ export class TestDataFactory {
         const fixture3 = await this.createTestFixtureInstance(
             project.id,
             definition.id,
-            mode.id,
             {
                 name: 'Fixture 3',
                 universe: 1,

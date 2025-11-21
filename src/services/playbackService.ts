@@ -247,24 +247,32 @@ export function getPlaybackService(
   if (!playbackServiceInstance) {
     // Use provided instances or get shared instances from context
     // Lazy import to avoid circular dependency
-    let sharedPrisma: PrismaClient = prisma!;
-    let sharedPubSub: PubSub = pubsub!;
+    let sharedPrisma: PrismaClient | undefined = prisma;
+    let sharedPubSub: PubSub | undefined = pubsub;
 
     if (!prisma || !pubsub) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const context = require("../context");
-        sharedPrisma = prisma || context.getSharedPrisma();
-        sharedPubSub = pubsub || context.getSharedPubSub();
+        if (!sharedPrisma) {
+          sharedPrisma = context.getSharedPrisma();
+        }
+        if (!sharedPubSub) {
+          sharedPubSub = context.getSharedPubSub();
+        }
       } catch {
         // Fallback for test environments or when context is not available
-        if (!prisma) {
+        if (!sharedPrisma) {
           sharedPrisma = new PrismaClient();
         }
-        if (!pubsub) {
+        if (!sharedPubSub) {
           sharedPubSub = new PubSub();
         }
       }
+    }
+
+    if (!sharedPrisma || !sharedPubSub) {
+      throw new Error("Failed to initialize PlaybackService: PrismaClient or PubSub is undefined.");
     }
 
     playbackServiceInstance = new PlaybackService(sharedPrisma, sharedPubSub);

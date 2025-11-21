@@ -900,7 +900,8 @@ describe("Cue Resolvers", () => {
 
       const result = await cueResolvers.Mutation.stopCueList(
         {},
-        { cueListId: "cuelist-123" }
+        { cueListId: "cuelist-123" },
+        mockContext
       );
 
       expect(result).toBe(true);
