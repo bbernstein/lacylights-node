@@ -13,6 +13,11 @@ module.exports = {
     "project\\.test\\.ts",
     "qlcImportExport\\.integration\\.test\\.ts",
   ],
+  coveragePathIgnorePatterns: [
+    "/node_modules/",
+    "/src/test/",
+    "/src/__tests__/",
+  ],
   transform: {
     "^.+\\.ts$": "ts-jest",
   },
@@ -21,8 +26,8 @@ module.exports = {
     "!src/**/*.d.ts",
     "!src/**/__tests__/**",
     "!src/**/node_modules/**",
-    "!src/test/**/*", // Exclude test infrastructure helpers
-    "!src/__tests__/**", // Exclude integration tests directory
+    "!src/test/*.ts", // Exclude test infrastructure helpers - specific files
+    "!src/__tests__/**/*.ts", // Exclude integration tests directory
   ],
   coverageDirectory: "coverage",
   coverageReporters: ["text", "text-summary", "lcov", "html"],
