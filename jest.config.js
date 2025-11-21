@@ -21,15 +21,16 @@ module.exports = {
     "!src/**/*.d.ts",
     "!src/**/__tests__/**",
     "!src/**/node_modules/**",
+    "!src/test/**", // Exclude test infrastructure helpers
   ],
   coverageDirectory: "coverage",
   coverageReporters: ["text", "text-summary", "lcov", "html"],
   coverageThreshold: {
     global: {
-      branches: 67, // Temporarily lowered from 71 due to new test infrastructure
-      functions: 77, // Temporarily lowered from 85 due to new test infrastructure
-      lines: 79, // Temporarily lowered from 85 due to new test infrastructure
-      statements: 79, // Temporarily lowered from 85 due to new test infrastructure
+      branches: 71,
+      functions: 85,
+      lines: 85,
+      statements: 85,
     },
   },
   setupFilesAfterEnv: ["<rootDir>/src/test/setup.ts"],
