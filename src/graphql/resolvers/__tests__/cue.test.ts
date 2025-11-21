@@ -1,21 +1,31 @@
 import { cueResolvers } from "../cue";
-import { playbackService } from "../../../services/playbackService";
 import { getPlaybackStateService } from "../../../services/playbackStateService";
 import type { Context } from "../../../context";
 import { EasingType } from "../../../types/enums";
 
-// Mock the playback service
-jest.mock("../../../services/playbackService", () => ({
-  playbackService: {
-    getPlaybackStatus: jest.fn(),
-    invalidateCache: jest.fn(),
-  },
-}));
+// Mock playback service - create the mock functions inside the factory
+jest.mock("../../../services/playbackService", () => {
+  // This function will be called when the module is required
+  return {
+    getPlaybackService: jest.fn(() => ({
+      getPlaybackStatus: jest.fn(),
+      invalidateCache: jest.fn(),
+    })),
+    playbackService: {
+      getPlaybackStatus: jest.fn(),
+      invalidateCache: jest.fn(),
+    },
+  };
+});
 
 // Mock the playback state service
 jest.mock("../../../services/playbackStateService", () => ({
   getPlaybackStateService: jest.fn(),
 }));
+
+// Get the mocked service to check calls
+import { getPlaybackService } from "../../../services/playbackService";
+const mockedGetPlaybackService = getPlaybackService as jest.MockedFunction<typeof getPlaybackService>;
 
 const mockContext: Context = {
   prisma: {
@@ -197,7 +207,10 @@ describe("Cue Resolvers", () => {
         data: mockInput,
         include: { scene: true },
       });
-      expect(playbackService.invalidateCache).toHaveBeenCalledWith("list-1");
+      // Check that getPlaybackService was called and invalidateCache was called on the result
+      expect(mockedGetPlaybackService).toHaveBeenCalled();
+      const service = mockedGetPlaybackService.mock.results[0].value;
+      expect(service.invalidateCache).toHaveBeenCalledWith("list-1");
     });
   });
 
@@ -244,7 +257,9 @@ describe("Cue Resolvers", () => {
         data: mockInput,
         include: { scene: true },
       });
-      expect(playbackService.invalidateCache).toHaveBeenCalledWith("list-1");
+      expect(mockedGetPlaybackService).toHaveBeenCalled();
+      const service = mockedGetPlaybackService.mock.results[0].value;
+      expect(service.invalidateCache).toHaveBeenCalledWith("list-1");
     });
 
     it("should throw error if cue not found", async () => {
@@ -284,7 +299,9 @@ describe("Cue Resolvers", () => {
       expect(mockContext.prisma.cue.delete).toHaveBeenCalledWith({
         where: { id: "cue-1" },
       });
-      expect(playbackService.invalidateCache).toHaveBeenCalledWith("list-1");
+      expect(mockedGetPlaybackService).toHaveBeenCalled();
+      const service = mockedGetPlaybackService.mock.results[0].value;
+      expect(service.invalidateCache).toHaveBeenCalledWith("list-1");
     });
 
     it("should throw error if cue not found", async () => {
@@ -325,7 +342,9 @@ describe("Cue Resolvers", () => {
       );
 
       expect(result).toBe(true);
-      expect(playbackService.invalidateCache).toHaveBeenCalledWith("list-1");
+      expect(mockedGetPlaybackService).toHaveBeenCalled();
+      const service = mockedGetPlaybackService.mock.results[0].value;
+      expect(service.invalidateCache).toHaveBeenCalledWith("list-1");
     });
 
     it("should throw error if cue list not found", async () => {
