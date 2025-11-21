@@ -1,5 +1,5 @@
 import { Context } from "../../context";
-import { previewService } from "../../services/previewService";
+import { getPreviewService } from "../../services/previewService";
 
 export const previewResolvers = {
   Query: {
@@ -8,7 +8,7 @@ export const previewResolvers = {
       { sessionId }: { sessionId: string },
       context: Context,
     ) => {
-      const session = await previewService.getPreviewSession(sessionId);
+      const session = await getPreviewService().getPreviewSession(sessionId);
       if (!session) {
         throw new Error("Preview session not found");
       }
@@ -43,7 +43,7 @@ export const previewResolvers = {
         throw new Error("Project not found");
       }
 
-      const session = await previewService.startPreviewSession(projectId);
+      const session = await getPreviewService().startPreviewSession(projectId);
 
       return {
         id: session.id,
@@ -60,7 +60,7 @@ export const previewResolvers = {
       { sessionId }: { sessionId: string },
       _context: Context,
     ) => {
-      return await previewService.commitPreviewSession(sessionId);
+      return await getPreviewService().commitPreviewSession(sessionId);
     },
 
     cancelPreviewSession: async (
@@ -68,7 +68,7 @@ export const previewResolvers = {
       { sessionId }: { sessionId: string },
       _context: Context,
     ) => {
-      return await previewService.cancelPreviewSession(sessionId);
+      return await getPreviewService().cancelPreviewSession(sessionId);
     },
 
     updatePreviewChannel: async (
@@ -86,7 +86,7 @@ export const previewResolvers = {
       },
       _context: Context,
     ) => {
-      return await previewService.updateChannelValue(
+      return await getPreviewService().updateChannelValue(
         sessionId,
         fixtureId,
         channelIndex,
@@ -99,7 +99,7 @@ export const previewResolvers = {
       { sessionId, sceneId }: { sessionId: string; sceneId: string },
       _context: Context,
     ) => {
-      return await previewService.initializeWithScene(sessionId, sceneId);
+      return await getPreviewService().initializeWithScene(sessionId, sceneId);
     },
   },
 
@@ -130,7 +130,7 @@ export const previewResolvers = {
 
 // Helper function to get DMX output for a session
 async function getDMXOutput(sessionId: string) {
-  const session = await previewService.getPreviewSession(sessionId);
+  const session = await getPreviewService().getPreviewSession(sessionId);
   if (!session) {
     return [];
   }

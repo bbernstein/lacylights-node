@@ -2,7 +2,7 @@
 process.env.NODE_ENV = "test";
 process.env.LOG_LEVEL = "ERROR"; // Only show errors during tests
 // Set a mock database URL - tests should not require real database
-process.env.DATABASE_URL = "postgresql://test:test@localhost:5432/test_db";
+process.env.DATABASE_URL = "file:./prisma/test.db";
 
 // Mock localStorage for tests that might need it
 const localStorageMock = {

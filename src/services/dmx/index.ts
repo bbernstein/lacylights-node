@@ -47,6 +47,7 @@ export class DMXService {
       process.env.DMX_HIGH_RATE_DURATION || "2000",
     );
     this.artNetEnabled = process.env.ARTNET_ENABLED !== "false";
+    this.artNetPort = parseInt(process.env.ARTNET_PORT || "6454");
 
     // Configure timing monitoring (can be disabled for production)
     this.significantDriftThreshold = parseInt(
@@ -155,7 +156,7 @@ export class DMXService {
       this.significantDriftThreshold > 0 &&
       actualInterval > 0 &&
       Math.abs(actualInterval - expectedInterval) >
-        this.significantDriftThreshold
+      this.significantDriftThreshold
     ) {
       if (currentTime - this.lastDriftWarningTime > this.driftWarningThrottle) {
         logger.warn(

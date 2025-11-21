@@ -1,8 +1,12 @@
 module.exports = {
   preset: "ts-jest",
-  testEnvironment: "node",
+  testEnvironment: "<rootDir>/jest-environment-with-localstorage.js",
   roots: ["<rootDir>/src"],
-  testMatch: ["**/__tests__/**/*.ts", "**/?(*.)+(spec|test).ts"],
+  testMatch: [
+    "**/__tests__/**/*.ts",
+    "**/?(*.)+(spec|test).ts",
+    "!**/*.integration.test.ts", // Exclude integration tests by default
+  ],
   testPathIgnorePatterns: [
     "/node_modules/",
     "healthcheck\\.test\\.ts",

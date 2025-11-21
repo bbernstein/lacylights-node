@@ -19,7 +19,7 @@ export class PreviewService {
   constructor(
     private prisma: PrismaClient,
     private pubsub: PubSub,
-  ) {}
+  ) { }
 
   async startPreviewSession(
     projectId: string,
@@ -326,20 +326,41 @@ export class PreviewService {
 // Export singleton instance
 let previewServiceInstance: PreviewService | null = null;
 
-export function getPreviewService(): PreviewService {
+export function getPreviewService(
+  prisma?: PrismaClient,
+  pubsub?: PubSub,
+): PreviewService {
   if (!previewServiceInstance) {
-    // Dynamic imports to avoid circular dependency
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PubSub } = require("graphql-subscriptions");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaClient } = require("@prisma/client");
+    // Use provided instances or get shared instances from context
+    // Lazy import to avoid circular dependency
+    let sharedPrisma: PrismaClient = prisma!;
+    let sharedPubSub: PubSub = pubsub!;
 
-    previewServiceInstance = new PreviewService(
-      new PrismaClient(),
-      new PubSub(),
-    );
+    if (!prisma || !pubsub) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const context = require("../context");
+        sharedPrisma = prisma || context.getSharedPrisma();
+        sharedPubSub = pubsub || context.getSharedPubSub();
+      } catch {
+        // Fallback for test environments or when context is not available
+        if (!prisma) {
+          sharedPrisma = new PrismaClient();
+        }
+        if (!pubsub) {
+          sharedPubSub = new PubSub();
+        }
+      }
+    }
+
+    previewServiceInstance = new PreviewService(sharedPrisma, sharedPubSub);
   }
   return previewServiceInstance;
+}
+
+// Function to reset the singleton (useful for testing)
+export function resetPreviewService(): void {
+  previewServiceInstance = null;
 }
 
 // Export singleton instance for backwards compatibility

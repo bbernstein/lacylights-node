@@ -3,16 +3,20 @@ import { previewService } from "../../../services/previewService";
 import type { Context } from "../../../context";
 
 // Mock the preview service
-jest.mock("../../../services/previewService", () => ({
-  previewService: {
+jest.mock("../../../services/previewService", () => {
+  const mockService = {
     getPreviewSession: jest.fn(),
     startPreviewSession: jest.fn(),
     commitPreviewSession: jest.fn(),
     cancelPreviewSession: jest.fn(),
     updateChannelValue: jest.fn(),
     initializeWithScene: jest.fn(),
-  },
-}));
+  };
+  return {
+    previewService: mockService,
+    getPreviewService: () => mockService,
+  };
+});
 
 const mockContext: Context = {
   prisma: {
