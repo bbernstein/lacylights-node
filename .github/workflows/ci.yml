@@ -36,9 +36,10 @@ jobs:
 
       - name: Setup test environment
         run: |
-          cp .env.example .env || echo "No .env.example found, creating .env"
+          # Create a writable directory for the test database
+          mkdir -p ${{ github.workspace }}/tmp
           cat > .env << EOF
-          DATABASE_URL="file:./test.db"
+          DATABASE_URL="file:${{ github.workspace }}/tmp/test.db"
           PORT=4000
           NODE_ENV=test
           CORS_ORIGIN="http://localhost:3000"
@@ -48,23 +49,25 @@ jobs:
           NON_INTERACTIVE=true
           EOF
 
-      - name: Run database migrations
-        run: npx prisma migrate deploy
-
       - name: Generate Prisma client
         run: npx prisma generate
+
+      - name: Run database migrations
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: file:${{ github.workspace }}/tmp/test.db
 
       - name: Run unit tests with coverage
         run: npm run test:coverage
         env:
           NODE_ENV: test
-          DATABASE_URL: file:./test.db
+          DATABASE_URL: file:${{ github.workspace }}/tmp/test.db
 
       - name: Run integration tests
         run: npm run test:integration
         env:
           NODE_ENV: test
-          DATABASE_URL: file:./test.db
+          DATABASE_URL: file:${{ github.workspace }}/tmp/test.db
           NON_INTERACTIVE: true
           ARTNET_ENABLED: false
 
