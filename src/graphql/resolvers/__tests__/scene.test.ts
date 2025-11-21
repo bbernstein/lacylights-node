@@ -534,7 +534,7 @@ describe("Scene Resolvers", () => {
               create: [
                 {
                   fixtureId: "fixture-1",
-                  channelValues: [255, 128, 0],
+                  channelValues: JSON.stringify([255, 128, 0]),
                   sceneOrder: 1,
                 },
               ],
@@ -641,7 +641,7 @@ describe("Scene Resolvers", () => {
               create: [
                 {
                   fixtureId: "fixture-1",
-                  channelValues: [100, 200, 50],
+                  channelValues: JSON.stringify([100, 200, 50]),
                   sceneOrder: 1,
                 },
               ],

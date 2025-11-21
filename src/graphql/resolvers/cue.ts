@@ -1,7 +1,7 @@
 import type { Context, WebSocketContext } from "../../context";
 import { withFilter } from "graphql-subscriptions";
 import { logger } from "../../utils/logger";
-import { playbackService } from "../../services/playbackService";
+import { getPlaybackService } from "../../services/playbackService";
 import { getPlaybackStateService } from "../../services/playbackStateService";
 import type { EasingType } from "../../types/enums";
 
@@ -149,14 +149,14 @@ export const cueResolvers = {
         include: {
           scene: includeSceneDetails
             ? {
-                include: {
-                  fixtureValues: {
-                    include: {
-                      fixture: true,
-                    },
+              include: {
+                fixtureValues: {
+                  include: {
+                    fixture: true,
                   },
                 },
-              }
+              },
+            }
             : true,
         },
         orderBy: {
@@ -293,7 +293,7 @@ export const cueResolvers = {
       });
 
       // Invalidate cache since cue list structure changed
-      playbackService.invalidateCache(input.cueListId);
+      getPlaybackService().invalidateCache(input.cueListId);
 
       return newCue;
     },
@@ -331,7 +331,7 @@ export const cueResolvers = {
       });
 
       // Invalidate cache since cue properties changed
-      playbackService.invalidateCache(existingCue.cueListId);
+      getPlaybackService().invalidateCache(existingCue.cueListId);
 
       return updatedCue;
     },
@@ -356,7 +356,7 @@ export const cueResolvers = {
       });
 
       // Invalidate cache since cue list structure changed
-      playbackService.invalidateCache(existingCue.cueListId);
+      getPlaybackService().invalidateCache(existingCue.cueListId);
 
       return true;
     },
@@ -411,7 +411,7 @@ export const cueResolvers = {
       });
 
       // Invalidate cache since cue order changed
-      playbackService.invalidateCache(cueListId);
+      getPlaybackService().invalidateCache(cueListId);
 
       return true;
     },
@@ -605,9 +605,21 @@ export const cueResolvers = {
       return true;
     },
 
-    stopCueList: async (_: unknown, { cueListId }: { cueListId: string }) => {
+    stopCueList: async (
+      _: unknown,
+      { cueListId }: { cueListId: string },
+      _context: Context,
+    ) => {
       const playbackStateService = getPlaybackStateService();
       playbackStateService.stopCueList(cueListId);
+
+      // Also fade to black to clear output
+      const { dmxResolvers } = await import("./dmx");
+      await dmxResolvers.Mutation.fadeToBlack(
+        null,
+        { fadeOutTime: 1.0 },
+      );
+
       return true;
     },
 
@@ -676,7 +688,7 @@ export const cueResolvers = {
         existingCues.map((cue) => cue.cueListId),
       );
       for (const cueListId of affectedCueListIds) {
-        playbackService.invalidateCache(cueListId);
+        getPlaybackService().invalidateCache(cueListId);
       }
 
       return updatedCues;
@@ -685,7 +697,7 @@ export const cueResolvers = {
 
   CueList: {
     cueCount: async (
-      parent: { id: string; _pagination?: any },
+      parent: { id: string; _pagination?: { total?: number } },
       _: unknown,
       { prisma }: Context,
     ) => {
@@ -748,7 +760,7 @@ export const cueResolvers = {
   },
 
   CueListPlaybackStatus: {
-    currentCue: async (parent: any, _: unknown, { prisma }: Context) => {
+    currentCue: async (parent: { currentCue?: { id: string } | null }, _: unknown, { prisma }: Context) => {
       if (!parent.currentCue || !parent.currentCue.id) {
         return null;
       }
@@ -790,7 +802,7 @@ export const cueResolvers = {
           );
         },
       ),
-      resolve: (payload: any) => payload.cueListPlaybackUpdated,
+      resolve: (payload: { cueListPlaybackUpdated: unknown }) => payload.cueListPlaybackUpdated,
     },
   },
 

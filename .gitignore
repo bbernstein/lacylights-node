@@ -104,6 +104,8 @@ temp/
 coverage_output.txt
 *.tmp
 test-output.txt
+test_output*.txt
+test-artnet-flow.js
 
 # GraphQL generated files
 graphql.schema.json

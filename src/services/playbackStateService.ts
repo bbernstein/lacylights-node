@@ -1,6 +1,5 @@
 import { PubSub } from "graphql-subscriptions";
 import { PrismaClient } from "@prisma/client";
-import { prisma, pubsub } from "../context";
 import { dmxService } from "./dmx";
 import { fadeEngine, EasingType } from "./fadeEngine";
 
@@ -40,7 +39,7 @@ class PlaybackStateService {
   constructor(
     private prisma: PrismaClient,
     private pubsub: PubSub,
-  ) {}
+  ) { }
 
   // Get current playback state for a cue list
   getPlaybackState(cueListId: string): PlaybackState | null {
@@ -432,12 +431,48 @@ class PlaybackStateService {
 // Singleton instance
 let playbackStateServiceInstance: PlaybackStateService | null = null;
 
-export function getPlaybackStateService(): PlaybackStateService {
+export function getPlaybackStateService(
+  prisma?: PrismaClient,
+  pubsub?: PubSub,
+): PlaybackStateService {
   if (!playbackStateServiceInstance) {
-    // Use shared singleton instances from context
-    playbackStateServiceInstance = new PlaybackStateService(prisma, pubsub);
+    // Use provided instances or get shared instances from context
+    // Lazy import to avoid circular dependency
+    let sharedPrisma: PrismaClient | undefined = prisma;
+    let sharedPubSub: PubSub | undefined = pubsub;
+
+    if (!prisma || !pubsub) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const context = require("../context");
+        if (!sharedPrisma) {
+          sharedPrisma = context.getSharedPrisma();
+        }
+        if (!sharedPubSub) {
+          sharedPubSub = context.getSharedPubSub();
+        }
+      } catch {
+        // Fallback for test environments or when context is not available
+        if (!sharedPrisma) {
+          sharedPrisma = new PrismaClient();
+        }
+        if (!sharedPubSub) {
+          sharedPubSub = new PubSub();
+        }
+      }
+    }
+
+    if (!sharedPrisma || !sharedPubSub) {
+      throw new Error("Failed to initialize PlaybackStateService: PrismaClient or PubSub is undefined.");
+    }
+
+    playbackStateServiceInstance = new PlaybackStateService(sharedPrisma, sharedPubSub);
   }
   return playbackStateServiceInstance;
+}
+
+export function resetPlaybackStateService(): void {
+  playbackStateServiceInstance = null;
 }
 
 export function setPlaybackStateService(service: PlaybackStateService): void {

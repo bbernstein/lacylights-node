@@ -22,7 +22,7 @@ jest.mock("../../context", () => ({
   pubsub: mockPubSub,
 }));
 
-import { getPlaybackStateService } from "../playbackStateService";
+import { getPlaybackStateService, resetPlaybackStateService } from "../playbackStateService";
 
 describe("PlaybackStateService", () => {
   let playbackStateService: ReturnType<typeof getPlaybackStateService>;
@@ -35,8 +35,11 @@ describe("PlaybackStateService", () => {
     mockPrisma.cueList.findUnique = jest.fn();
     mockPrisma.cue.findUnique = jest.fn();
 
-    // Get the service instance for testing
-    playbackStateService = getPlaybackStateService();
+    // Reset the singleton to ensure clean state
+    resetPlaybackStateService();
+
+    // Get the service instance for testing - pass mock dependencies
+    playbackStateService = getPlaybackStateService(mockPrisma, mockPubSub);
   });
 
   afterEach(() => {

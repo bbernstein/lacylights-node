@@ -1,6 +1,5 @@
-import type { PrismaClient, Cue, Scene } from "@prisma/client";
-import type { PubSub } from "graphql-subscriptions";
-import { getSharedPrisma, getSharedPubSub } from "../context";
+import { PrismaClient, Cue, Scene } from "@prisma/client";
+import { PubSub } from "graphql-subscriptions";
 import { logger } from "../utils/logger";
 
 type CueWithScene = Cue & { scene: Scene };
@@ -29,9 +28,9 @@ class PlaybackService {
   private lastEmissionTime: Map<string, number> = new Map();
   private readonly EMISSION_THROTTLE = 100; // Minimum 100ms between emissions
 
-  constructor() {
-    this.prisma = getSharedPrisma();
-    this.pubsub = getSharedPubSub();
+  constructor(prisma: PrismaClient, pubsub: PubSub) {
+    this.prisma = prisma;
+    this.pubsub = pubsub;
   }
 
   /**
@@ -239,4 +238,52 @@ class PlaybackService {
 }
 
 // Export singleton instance
-export const playbackService = new PlaybackService();
+let playbackServiceInstance: PlaybackService | null = null;
+
+export function getPlaybackService(
+  prisma?: PrismaClient,
+  pubsub?: PubSub,
+): PlaybackService {
+  if (!playbackServiceInstance) {
+    // Use provided instances or get shared instances from context
+    // Lazy import to avoid circular dependency
+    let sharedPrisma: PrismaClient | undefined = prisma;
+    let sharedPubSub: PubSub | undefined = pubsub;
+
+    if (!prisma || !pubsub) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const context = require("../context");
+        if (!sharedPrisma) {
+          sharedPrisma = context.getSharedPrisma();
+        }
+        if (!sharedPubSub) {
+          sharedPubSub = context.getSharedPubSub();
+        }
+      } catch {
+        // Fallback for test environments or when context is not available
+        if (!sharedPrisma) {
+          sharedPrisma = new PrismaClient();
+        }
+        if (!sharedPubSub) {
+          sharedPubSub = new PubSub();
+        }
+      }
+    }
+
+    if (!sharedPrisma || !sharedPubSub) {
+      throw new Error("Failed to initialize PlaybackService: PrismaClient or PubSub is undefined.");
+    }
+
+    playbackServiceInstance = new PlaybackService(sharedPrisma, sharedPubSub);
+  }
+  return playbackServiceInstance;
+}
+
+// Function to reset the singleton (useful for testing)
+export function resetPlaybackService(): void {
+  playbackServiceInstance = null;
+}
+
+// Export singleton instance for backwards compatibility
+export const playbackService = getPlaybackService();

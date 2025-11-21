@@ -19,7 +19,7 @@ export class PreviewService {
   constructor(
     private prisma: PrismaClient,
     private pubsub: PubSub,
-  ) {}
+  ) { }
 
   async startPreviewSession(
     projectId: string,
@@ -326,20 +326,49 @@ export class PreviewService {
 // Export singleton instance
 let previewServiceInstance: PreviewService | null = null;
 
-export function getPreviewService(): PreviewService {
+export function getPreviewService(
+  prisma?: PrismaClient,
+  pubsub?: PubSub,
+): PreviewService {
   if (!previewServiceInstance) {
-    // Dynamic imports to avoid circular dependency
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PubSub } = require("graphql-subscriptions");
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { PrismaClient } = require("@prisma/client");
+    // Use provided instances or get shared instances from context
+    // Lazy import to avoid circular dependency
+    let sharedPrisma: PrismaClient | undefined = prisma;
+    let sharedPubSub: PubSub | undefined = pubsub;
 
-    previewServiceInstance = new PreviewService(
-      new PrismaClient(),
-      new PubSub(),
-    );
+    if (!prisma || !pubsub) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-require-imports
+        const context = require("../context");
+        if (!sharedPrisma) {
+          sharedPrisma = context.getSharedPrisma();
+        }
+        if (!sharedPubSub) {
+          sharedPubSub = context.getSharedPubSub();
+        }
+      } catch {
+        // Fallback for test environments or when context is not available
+        if (!sharedPrisma) {
+          sharedPrisma = new PrismaClient();
+        }
+        if (!sharedPubSub) {
+          sharedPubSub = new PubSub();
+        }
+      }
+    }
+
+    if (!sharedPrisma || !sharedPubSub) {
+      throw new Error("Failed to initialize PreviewService: PrismaClient or PubSub is undefined.");
+    }
+
+    previewServiceInstance = new PreviewService(sharedPrisma, sharedPubSub);
   }
   return previewServiceInstance;
+}
+
+// Function to reset the singleton (useful for testing)
+export function resetPreviewService(): void {
+  previewServiceInstance = null;
 }
 
 // Export singleton instance for backwards compatibility
