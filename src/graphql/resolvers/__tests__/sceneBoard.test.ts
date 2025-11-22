@@ -70,6 +70,8 @@ describe("Scene Board Resolvers", () => {
             projectId: "project-1",
             defaultFadeTime: 3.0,
             gridSize: 50,
+            canvasWidth: 2000,
+            canvasHeight: 2000,
             createdAt: new Date("2025-01-01"),
             updatedAt: new Date("2025-01-02"),
             buttons: [],
@@ -122,6 +124,8 @@ describe("Scene Board Resolvers", () => {
           projectId: "project-1",
           defaultFadeTime: 3.0,
           gridSize: 50,
+          canvasWidth: 2000,
+          canvasHeight: 2000,
           buttons: [],
           project: { id: "project-1", name: "Test Project" },
         };
@@ -168,10 +172,10 @@ describe("Scene Board Resolvers", () => {
           id: "button-1",
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
-          width: 0.1,
-          height: 0.1,
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
         };
 
         mockContext.prisma.sceneBoardButton.findUnique = jest
@@ -234,6 +238,8 @@ describe("Scene Board Resolvers", () => {
             projectId: input.projectId,
             defaultFadeTime: 3.0,
             gridSize: 50,
+            canvasWidth: 2000,
+            canvasHeight: 2000,
           },
           include: {
             buttons: {
@@ -364,15 +370,20 @@ describe("Scene Board Resolvers", () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
-          width: 0.1,
-          height: 0.1,
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
           .fn()
           .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
 
         const mockCreatedButton = {
           id: "button-1",
@@ -422,8 +433,8 @@ describe("Scene Board Resolvers", () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
+          layoutX: 1000,
+          layoutY: 1000,
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
@@ -439,13 +450,18 @@ describe("Scene Board Resolvers", () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
+          layoutX: 1000,
+          layoutY: 1000,
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
           .fn()
           .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
         mockContext.prisma.sceneBoardButton.create = jest
           .fn()
           .mockResolvedValue({ id: "button-1", ...input });
@@ -459,8 +475,8 @@ describe("Scene Board Resolvers", () => {
         expect(mockContext.prisma.sceneBoardButton.create).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({
-              width: 0.1,
-              height: 0.1,
+              width: 200,
+              height: 120,
             }),
           }),
         );
@@ -470,10 +486,25 @@ describe("Scene Board Resolvers", () => {
     describe("updateSceneBoardButton", () => {
       it("should update button properties", async () => {
         const input = {
-          layoutX: 0.7,
-          layoutY: 0.3,
+          layoutX: 1400,
+          layoutY: 600,
           color: "#FF0000",
           label: "Custom Label",
+        };
+
+        const mockButton = {
+          id: "button-1",
+          sceneBoardId: "board-1",
+          sceneId: "scene-1",
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
+          sceneBoard: {
+            id: "board-1",
+            canvasWidth: 2000,
+            canvasHeight: 2000,
+          },
         };
 
         const mockUpdatedButton = {
@@ -481,6 +512,9 @@ describe("Scene Board Resolvers", () => {
           ...input,
         };
 
+        mockContext.prisma.sceneBoardButton.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockButton);
         mockContext.prisma.sceneBoardButton.update = jest
           .fn()
           .mockResolvedValue(mockUpdatedButton);
@@ -533,10 +567,40 @@ describe("Scene Board Resolvers", () => {
     describe("updateSceneBoardButtonPositions", () => {
       it("should batch update button positions using transaction", async () => {
         const positions = [
-          { buttonId: "button-1", layoutX: 0.2, layoutY: 0.3 },
-          { buttonId: "button-2", layoutX: 0.5, layoutY: 0.6 },
+          { buttonId: "button-1", layoutX: 400, layoutY: 600 },
+          { buttonId: "button-2", layoutX: 1000, layoutY: 1200 },
         ];
 
+        const mockButtons = [
+          {
+            id: "button-1",
+            layoutX: 1000,
+            layoutY: 1000,
+            width: 200,
+            height: 120,
+            sceneBoard: {
+              id: "board-1",
+              canvasWidth: 2000,
+              canvasHeight: 2000,
+            },
+          },
+          {
+            id: "button-2",
+            layoutX: 800,
+            layoutY: 800,
+            width: 200,
+            height: 120,
+            sceneBoard: {
+              id: "board-1",
+              canvasWidth: 2000,
+              canvasHeight: 2000,
+            },
+          },
+        ];
+
+        mockContext.prisma.sceneBoardButton.findMany = jest
+          .fn()
+          .mockResolvedValue(mockButtons);
         mockContext.prisma.$transaction = jest.fn().mockResolvedValue([]);
 
         const result =

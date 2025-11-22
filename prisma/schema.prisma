@@ -277,6 +277,8 @@ model SceneBoard {
 
   // Visual configuration
   gridSize        Int?     @default(50) @map("grid_size") // Grid size in pixels for snapping
+  canvasWidth     Int      @default(2000) @map("canvas_width") // Canvas width in pixels
+  canvasHeight    Int      @default(2000) @map("canvas_height") // Canvas height in pixels
 
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -292,13 +294,13 @@ model SceneBoardButton {
   sceneBoardId String   @map("scene_board_id")
   sceneId      String   @map("scene_id")
 
-  // 2D Layout Position (normalized 0-1 coordinates, same pattern as fixtures)
-  layoutX      Float    @map("layout_x")
-  layoutY      Float    @map("layout_y")
+  // 2D Layout Position (pixel coordinates within canvas)
+  layoutX      Int      @map("layout_x")
+  layoutY      Int      @map("layout_y")
 
-  // Visual customization (optional, for future enhancements)
-  width        Float?   @default(0.1) // Normalized width (0.1 = 10% of canvas)
-  height       Float?   @default(0.1) // Normalized height
+  // Visual customization (optional, in pixels)
+  width        Int?     @default(200) // Width in pixels
+  height       Int?     @default(120) // Height in pixels
   color        String?  // Optional custom color override
   label        String?  // Optional custom label (defaults to scene name)
 
