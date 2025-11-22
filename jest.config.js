@@ -36,7 +36,7 @@ module.exports = {
       branches: 71,
       functions: 84, // Adjusted from 85 to account for test infrastructure exclusion
       lines: 85,
-      statements: 84.9, // Adjusted to account for simplified validation logic
+      statements: 85,
     },
   },
   setupFilesAfterEnv: ["<rootDir>/src/test/setup.ts"],
