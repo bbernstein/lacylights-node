@@ -10,6 +10,8 @@ export interface CreateSceneBoardInput {
   projectId: string;
   defaultFadeTime?: number;
   gridSize?: number;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 export interface UpdateSceneBoardInput {
@@ -17,6 +19,8 @@ export interface UpdateSceneBoardInput {
   description?: string;
   defaultFadeTime?: number;
   gridSize?: number;
+  canvasWidth?: number;
+  canvasHeight?: number;
 }
 
 export interface CreateSceneBoardButtonInput {
@@ -43,6 +47,36 @@ export interface SceneBoardButtonPositionInput {
   buttonId: string;
   layoutX: number;
   layoutY: number;
+}
+
+/**
+ * Validate button position is within canvas bounds
+ * Valid coordinates are 0 to canvasSize-1 (e.g., for 2000px canvas: 0-1999)
+ */
+function validateButtonPosition(
+  layoutX: number,
+  layoutY: number,
+  width: number,
+  height: number,
+  canvasWidth: number,
+  canvasHeight: number,
+): void {
+  if (layoutX < 0 || layoutX >= canvasWidth) {
+    throw new Error(`layoutX must be between 0 and ${canvasWidth - 1}`);
+  }
+  if (layoutY < 0 || layoutY >= canvasHeight) {
+    throw new Error(`layoutY must be between 0 and ${canvasHeight - 1}`);
+  }
+  if (layoutX + width > canvasWidth) {
+    throw new Error(
+      `Button extends beyond canvas width (layoutX: ${layoutX} + width: ${width} > canvasWidth: ${canvasWidth})`,
+    );
+  }
+  if (layoutY + height > canvasHeight) {
+    throw new Error(
+      `Button extends beyond canvas height (layoutY: ${layoutY} + height: ${height} > canvasHeight: ${canvasHeight})`,
+    );
+  }
 }
 
 export const sceneBoardResolvers = {
@@ -129,6 +163,8 @@ export const sceneBoardResolvers = {
           projectId: input.projectId,
           defaultFadeTime: input.defaultFadeTime ?? 3.0,
           gridSize: input.gridSize ?? 50,
+          canvasWidth: input.canvasWidth ?? 2000,
+          canvasHeight: input.canvasHeight ?? 2000,
         },
         include: {
           buttons: {
@@ -146,6 +182,44 @@ export const sceneBoardResolvers = {
       { id, input }: { id: string; input: UpdateSceneBoardInput },
       { prisma }: Context,
     ) => {
+      // If canvas size is being changed, validate existing buttons will still fit
+      if (input.canvasWidth !== undefined || input.canvasHeight !== undefined) {
+        const currentBoard = await prisma.sceneBoard.findUnique({
+          where: { id },
+          include: { buttons: true },
+        });
+
+        if (!currentBoard) {
+          throw new Error("Scene board not found");
+        }
+
+        const newCanvasWidth = input.canvasWidth ?? currentBoard.canvasWidth;
+        const newCanvasHeight = input.canvasHeight ?? currentBoard.canvasHeight;
+
+        // Validate all existing buttons will fit in new canvas size
+        for (const button of currentBoard.buttons) {
+          const width = button.width ?? 200;
+          const height = button.height ?? 120;
+
+          try {
+            validateButtonPosition(
+              button.layoutX,
+              button.layoutY,
+              width,
+              height,
+              newCanvasWidth,
+              newCanvasHeight,
+            );
+          } catch (error) {
+            throw new Error(
+              `Cannot resize canvas: Button "${button.id}" at (${button.layoutX}, ${button.layoutY}) ` +
+                `with size ${width}x${height} would not fit in ${newCanvasWidth}x${newCanvasHeight} canvas. ` +
+                `Original error: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
+      }
+
       return prisma.sceneBoard.update({
         where: { id },
         data: {
@@ -157,6 +231,12 @@ export const sceneBoardResolvers = {
             defaultFadeTime: input.defaultFadeTime,
           }),
           ...(input.gridSize !== undefined && { gridSize: input.gridSize }),
+          ...(input.canvasWidth !== undefined && {
+            canvasWidth: input.canvasWidth,
+          }),
+          ...(input.canvasHeight !== undefined && {
+            canvasHeight: input.canvasHeight,
+          }),
         },
         include: {
           buttons: {
@@ -195,14 +275,37 @@ export const sceneBoardResolvers = {
         throw new Error("Scene already exists on this board");
       }
 
+      // Fetch scene board to get canvas dimensions for validation
+      const sceneBoard = await prisma.sceneBoard.findUnique({
+        where: { id: input.sceneBoardId },
+      });
+
+      if (!sceneBoard) {
+        throw new Error("Scene board not found");
+      }
+
+      // Set defaults for width and height
+      const width = input.width ?? 200;
+      const height = input.height ?? 120;
+
+      // Validate button position is within canvas bounds
+      validateButtonPosition(
+        input.layoutX,
+        input.layoutY,
+        width,
+        height,
+        sceneBoard.canvasWidth,
+        sceneBoard.canvasHeight,
+      );
+
       return prisma.sceneBoardButton.create({
         data: {
           sceneBoardId: input.sceneBoardId,
           sceneId: input.sceneId,
           layoutX: input.layoutX,
           layoutY: input.layoutY,
-          width: input.width ?? 0.1,
-          height: input.height ?? 0.1,
+          width,
+          height,
           color: input.color,
           label: input.label,
         },
@@ -218,6 +321,39 @@ export const sceneBoardResolvers = {
       { id, input }: { id: string; input: UpdateSceneBoardButtonInput },
       { prisma }: Context,
     ) => {
+      // Fetch current button and scene board for validation
+      const button = await prisma.sceneBoardButton.findUnique({
+        where: { id },
+        include: { sceneBoard: true },
+      });
+
+      if (!button) {
+        throw new Error("Scene board button not found");
+      }
+
+      // Calculate new values (use current if not updating)
+      const layoutX = input.layoutX ?? button.layoutX;
+      const layoutY = input.layoutY ?? button.layoutY;
+      const width = input.width ?? button.width ?? 200;
+      const height = input.height ?? button.height ?? 120;
+
+      // Validate new position if any coordinates changed
+      if (
+        input.layoutX !== undefined ||
+        input.layoutY !== undefined ||
+        input.width !== undefined ||
+        input.height !== undefined
+      ) {
+        validateButtonPosition(
+          layoutX,
+          layoutY,
+          width,
+          height,
+          button.sceneBoard.canvasWidth,
+          button.sceneBoard.canvasHeight,
+        );
+      }
+
       return prisma.sceneBoardButton.update({
         where: { id },
         data: {
@@ -249,6 +385,30 @@ export const sceneBoardResolvers = {
       { positions }: { positions: SceneBoardButtonPositionInput[] },
       { prisma }: Context,
     ) => {
+      // Fetch all buttons with scene board info for validation
+      const buttonIds = positions.map((p) => p.buttonId);
+      const buttons = await prisma.sceneBoardButton.findMany({
+        where: { id: { in: buttonIds } },
+        include: { sceneBoard: true },
+      });
+
+      // Validate all positions before updating
+      for (const pos of positions) {
+        const button = buttons.find((b) => b.id === pos.buttonId);
+        if (!button) {
+          throw new Error(`Button ${pos.buttonId} not found`);
+        }
+
+        validateButtonPosition(
+          pos.layoutX,
+          pos.layoutY,
+          button.width ?? 200,
+          button.height ?? 120,
+          button.sceneBoard.canvasWidth,
+          button.sceneBoard.canvasHeight,
+        );
+      }
+
       // Batch update all button positions using a transaction to reduce database round trips
       const updates = positions.map((pos) =>
         prisma.sceneBoardButton.update({

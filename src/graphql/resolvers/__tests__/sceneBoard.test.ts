@@ -70,6 +70,8 @@ describe("Scene Board Resolvers", () => {
             projectId: "project-1",
             defaultFadeTime: 3.0,
             gridSize: 50,
+            canvasWidth: 2000,
+            canvasHeight: 2000,
             createdAt: new Date("2025-01-01"),
             updatedAt: new Date("2025-01-02"),
             buttons: [],
@@ -122,6 +124,8 @@ describe("Scene Board Resolvers", () => {
           projectId: "project-1",
           defaultFadeTime: 3.0,
           gridSize: 50,
+          canvasWidth: 2000,
+          canvasHeight: 2000,
           buttons: [],
           project: { id: "project-1", name: "Test Project" },
         };
@@ -168,10 +172,10 @@ describe("Scene Board Resolvers", () => {
           id: "button-1",
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
-          width: 0.1,
-          height: 0.1,
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
         };
 
         mockContext.prisma.sceneBoardButton.findUnique = jest
@@ -234,6 +238,8 @@ describe("Scene Board Resolvers", () => {
             projectId: input.projectId,
             defaultFadeTime: 3.0,
             gridSize: 50,
+            canvasWidth: 2000,
+            canvasHeight: 2000,
           },
           include: {
             buttons: {
@@ -364,15 +370,20 @@ describe("Scene Board Resolvers", () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
-          width: 0.1,
-          height: 0.1,
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
           .fn()
           .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
 
         const mockCreatedButton = {
           id: "button-1",
@@ -422,8 +433,8 @@ describe("Scene Board Resolvers", () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
+          layoutX: 1000,
+          layoutY: 1000,
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
@@ -439,13 +450,18 @@ describe("Scene Board Resolvers", () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 0.5,
-          layoutY: 0.5,
+          layoutX: 1000,
+          layoutY: 1000,
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
           .fn()
           .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
         mockContext.prisma.sceneBoardButton.create = jest
           .fn()
           .mockResolvedValue({ id: "button-1", ...input });
@@ -459,8 +475,8 @@ describe("Scene Board Resolvers", () => {
         expect(mockContext.prisma.sceneBoardButton.create).toHaveBeenCalledWith(
           expect.objectContaining({
             data: expect.objectContaining({
-              width: 0.1,
-              height: 0.1,
+              width: 200,
+              height: 120,
             }),
           }),
         );
@@ -470,10 +486,25 @@ describe("Scene Board Resolvers", () => {
     describe("updateSceneBoardButton", () => {
       it("should update button properties", async () => {
         const input = {
-          layoutX: 0.7,
-          layoutY: 0.3,
+          layoutX: 1400,
+          layoutY: 600,
           color: "#FF0000",
           label: "Custom Label",
+        };
+
+        const mockButton = {
+          id: "button-1",
+          sceneBoardId: "board-1",
+          sceneId: "scene-1",
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
+          sceneBoard: {
+            id: "board-1",
+            canvasWidth: 2000,
+            canvasHeight: 2000,
+          },
         };
 
         const mockUpdatedButton = {
@@ -481,6 +512,9 @@ describe("Scene Board Resolvers", () => {
           ...input,
         };
 
+        mockContext.prisma.sceneBoardButton.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockButton);
         mockContext.prisma.sceneBoardButton.update = jest
           .fn()
           .mockResolvedValue(mockUpdatedButton);
@@ -533,10 +567,40 @@ describe("Scene Board Resolvers", () => {
     describe("updateSceneBoardButtonPositions", () => {
       it("should batch update button positions using transaction", async () => {
         const positions = [
-          { buttonId: "button-1", layoutX: 0.2, layoutY: 0.3 },
-          { buttonId: "button-2", layoutX: 0.5, layoutY: 0.6 },
+          { buttonId: "button-1", layoutX: 400, layoutY: 600 },
+          { buttonId: "button-2", layoutX: 1000, layoutY: 1200 },
         ];
 
+        const mockButtons = [
+          {
+            id: "button-1",
+            layoutX: 1000,
+            layoutY: 1000,
+            width: 200,
+            height: 120,
+            sceneBoard: {
+              id: "board-1",
+              canvasWidth: 2000,
+              canvasHeight: 2000,
+            },
+          },
+          {
+            id: "button-2",
+            layoutX: 800,
+            layoutY: 800,
+            width: 200,
+            height: 120,
+            sceneBoard: {
+              id: "board-1",
+              canvasWidth: 2000,
+              canvasHeight: 2000,
+            },
+          },
+        ];
+
+        mockContext.prisma.sceneBoardButton.findMany = jest
+          .fn()
+          .mockResolvedValue(mockButtons);
         mockContext.prisma.$transaction = jest.fn().mockResolvedValue([]);
 
         const result =
@@ -555,6 +619,439 @@ describe("Scene Board Resolvers", () => {
         // Verify that $transaction was called with an array of length 2
         const transactionCall = (mockContext.prisma.$transaction as jest.Mock).mock.calls[0][0];
         expect(transactionCall).toHaveLength(2);
+      });
+    });
+
+    describe("addSceneToBoard - validation tests", () => {
+      it("should throw error if button position is at canvas boundary", async () => {
+        const input = {
+          sceneBoardId: "board-1",
+          sceneId: "scene-1",
+          layoutX: 2000, // At canvas boundary (invalid)
+          layoutY: 1000,
+        };
+
+        mockContext.prisma.sceneBoardButton.findFirst = jest
+          .fn()
+          .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
+
+        await expect(
+          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
+        ).rejects.toThrow("layoutX must be between 0 and 1999");
+      });
+
+      it("should throw error if button extends beyond canvas width", async () => {
+        const input = {
+          sceneBoardId: "board-1",
+          sceneId: "scene-1",
+          layoutX: 1900,
+          layoutY: 1000,
+          width: 200, // 1900 + 200 = 2100 > 2000
+        };
+
+        mockContext.prisma.sceneBoardButton.findFirst = jest
+          .fn()
+          .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
+
+        await expect(
+          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
+        ).rejects.toThrow("Button extends beyond canvas width");
+      });
+
+      it("should throw error if button extends beyond canvas height", async () => {
+        const input = {
+          sceneBoardId: "board-1",
+          sceneId: "scene-1",
+          layoutX: 1000,
+          layoutY: 1950,
+          height: 120, // 1950 + 120 = 2070 > 2000
+        };
+
+        mockContext.prisma.sceneBoardButton.findFirst = jest
+          .fn()
+          .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
+
+        await expect(
+          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
+        ).rejects.toThrow("Button extends beyond canvas height");
+      });
+
+      it("should throw error if layoutX is negative", async () => {
+        const input = {
+          sceneBoardId: "board-1",
+          sceneId: "scene-1",
+          layoutX: -10,
+          layoutY: 1000,
+        };
+
+        mockContext.prisma.sceneBoardButton.findFirst = jest
+          .fn()
+          .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
+
+        await expect(
+          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
+        ).rejects.toThrow("layoutX must be between 0 and 1999");
+      });
+
+      it("should accept button at maximum valid position", async () => {
+        const input = {
+          sceneBoardId: "board-1",
+          sceneId: "scene-1",
+          layoutX: 1800, // 1800 + 200 = 2000 (exactly fits)
+          layoutY: 1880, // 1880 + 120 = 2000 (exactly fits)
+          width: 200,
+          height: 120,
+        };
+
+        mockContext.prisma.sceneBoardButton.findFirst = jest
+          .fn()
+          .mockResolvedValue(null);
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+        });
+        mockContext.prisma.sceneBoardButton.create = jest
+          .fn()
+          .mockResolvedValue({ id: "button-1", ...input });
+
+        const result = await sceneBoardResolvers.Mutation.addSceneToBoard(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(mockContext.prisma.sceneBoardButton.create).toHaveBeenCalled();
+      });
+    });
+
+    describe("updateSceneBoard - canvas resize validation", () => {
+      it("should throw error if board not found during canvas resize", async () => {
+        const input = {
+          canvasWidth: 1000,
+        };
+
+        mockContext.prisma.sceneBoard.findUnique = jest
+          .fn()
+          .mockResolvedValue(null);
+
+        await expect(
+          sceneBoardResolvers.Mutation.updateSceneBoard(
+            {},
+            { id: "nonexistent-board", input },
+            mockContext,
+          ),
+        ).rejects.toThrow("Scene board not found");
+      });
+
+      it("should throw error if existing button would not fit in smaller canvas", async () => {
+        const input = {
+          canvasWidth: 1500, // Shrinking from 2000 to 1500
+        };
+
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+          buttons: [
+            {
+              id: "button-1",
+              layoutX: 1600, // Would be out of bounds in 1500px canvas
+              layoutY: 1000,
+              width: 200,
+              height: 120,
+            },
+          ],
+        });
+
+        await expect(
+          sceneBoardResolvers.Mutation.updateSceneBoard(
+            {},
+            { id: "board-1", input },
+            mockContext,
+          ),
+        ).rejects.toThrow("Cannot resize canvas");
+      });
+
+      it("should allow canvas resize if all buttons still fit", async () => {
+        const input = {
+          canvasWidth: 3000, // Expanding from 2000 to 3000
+        };
+
+        const mockBoard = {
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+          buttons: [
+            {
+              id: "button-1",
+              layoutX: 1000,
+              layoutY: 1000,
+              width: 200,
+              height: 120,
+            },
+          ],
+        };
+
+        mockContext.prisma.sceneBoard.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockBoard);
+        mockContext.prisma.sceneBoard.update = jest.fn().mockResolvedValue({
+          ...mockBoard,
+          canvasWidth: 3000,
+        });
+
+        const result = await sceneBoardResolvers.Mutation.updateSceneBoard(
+          {},
+          { id: "board-1", input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(mockContext.prisma.sceneBoard.update).toHaveBeenCalled();
+      });
+
+      it("should validate when only canvasHeight is changed", async () => {
+        const input = {
+          canvasHeight: 1500, // Shrinking height
+        };
+
+        mockContext.prisma.sceneBoard.findUnique = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 2000,
+          buttons: [
+            {
+              id: "button-1",
+              layoutX: 1000,
+              layoutY: 1600, // Would extend beyond 1500px height
+              width: 200,
+              height: 120,
+            },
+          ],
+        });
+
+        await expect(
+          sceneBoardResolvers.Mutation.updateSceneBoard(
+            {},
+            { id: "board-1", input },
+            mockContext,
+          ),
+        ).rejects.toThrow("Cannot resize canvas");
+      });
+
+      it("should not validate when canvas size is not being changed", async () => {
+        const input = {
+          name: "Updated Name",
+          defaultFadeTime: 5.0,
+        };
+
+        mockContext.prisma.sceneBoard.update = jest.fn().mockResolvedValue({
+          id: "board-1",
+          name: "Updated Name",
+        });
+
+        const result = await sceneBoardResolvers.Mutation.updateSceneBoard(
+          {},
+          { id: "board-1", input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        // findUnique should not be called when not changing canvas size
+        expect(mockContext.prisma.sceneBoard.findUnique).not.toHaveBeenCalled();
+      });
+    });
+
+    describe("updateSceneBoardButton - validation tests", () => {
+      it("should throw error if button not found", async () => {
+        const input = {
+          layoutX: 1000,
+          layoutY: 1000,
+        };
+
+        mockContext.prisma.sceneBoardButton.findUnique = jest
+          .fn()
+          .mockResolvedValue(null);
+
+        await expect(
+          sceneBoardResolvers.Mutation.updateSceneBoardButton(
+            {},
+            { id: "nonexistent-button", input },
+            mockContext,
+          ),
+        ).rejects.toThrow("Scene board button not found");
+      });
+
+      it("should validate new position when coordinates are updated", async () => {
+        const input = {
+          layoutX: 2000, // At canvas boundary (invalid)
+        };
+
+        const mockButton = {
+          id: "button-1",
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
+          sceneBoard: {
+            id: "board-1",
+            canvasWidth: 2000,
+            canvasHeight: 2000,
+          },
+        };
+
+        mockContext.prisma.sceneBoardButton.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockButton);
+
+        await expect(
+          sceneBoardResolvers.Mutation.updateSceneBoardButton(
+            {},
+            { id: "button-1", input },
+            mockContext,
+          ),
+        ).rejects.toThrow("layoutX must be between 0 and 1999");
+      });
+
+      it("should not validate if only color/label are updated", async () => {
+        const input = {
+          color: "#FF0000",
+          label: "New Label",
+        };
+
+        const mockButton = {
+          id: "button-1",
+          layoutX: 1000,
+          layoutY: 1000,
+          width: 200,
+          height: 120,
+          sceneBoard: {
+            id: "board-1",
+            canvasWidth: 2000,
+            canvasHeight: 2000,
+          },
+        };
+
+        mockContext.prisma.sceneBoardButton.findUnique = jest
+          .fn()
+          .mockResolvedValue(mockButton);
+        mockContext.prisma.sceneBoardButton.update = jest.fn().mockResolvedValue({
+          ...mockButton,
+          ...input,
+        });
+
+        const result = await sceneBoardResolvers.Mutation.updateSceneBoardButton(
+          {},
+          { id: "button-1", input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(mockContext.prisma.sceneBoardButton.update).toHaveBeenCalled();
+      });
+    });
+
+    describe("updateSceneBoardButtonPositions - validation tests", () => {
+      it("should throw error if button not found in positions", async () => {
+        const positions = [
+          { buttonId: "button-1", layoutX: 400, layoutY: 600 },
+          { buttonId: "nonexistent", layoutX: 1000, layoutY: 1200 },
+        ];
+
+        const mockButtons = [
+          {
+            id: "button-1",
+            layoutX: 1000,
+            layoutY: 1000,
+            width: 200,
+            height: 120,
+            sceneBoard: {
+              id: "board-1",
+              canvasWidth: 2000,
+              canvasHeight: 2000,
+            },
+          },
+        ];
+
+        mockContext.prisma.sceneBoardButton.findMany = jest
+          .fn()
+          .mockResolvedValue(mockButtons);
+
+        await expect(
+          sceneBoardResolvers.Mutation.updateSceneBoardButtonPositions(
+            {},
+            { positions },
+            mockContext,
+          ),
+        ).rejects.toThrow("Button nonexistent not found");
+      });
+
+      it("should validate all positions before updating", async () => {
+        const positions = [
+          { buttonId: "button-1", layoutX: 400, layoutY: 600 },
+          { buttonId: "button-2", layoutX: 2000, layoutY: 1200 }, // Invalid
+        ];
+
+        const mockButtons = [
+          {
+            id: "button-1",
+            layoutX: 1000,
+            layoutY: 1000,
+            width: 200,
+            height: 120,
+            sceneBoard: {
+              id: "board-1",
+              canvasWidth: 2000,
+              canvasHeight: 2000,
+            },
+          },
+          {
+            id: "button-2",
+            layoutX: 800,
+            layoutY: 800,
+            width: 200,
+            height: 120,
+            sceneBoard: {
+              id: "board-1",
+              canvasWidth: 2000,
+              canvasHeight: 2000,
+            },
+          },
+        ];
+
+        mockContext.prisma.sceneBoardButton.findMany = jest
+          .fn()
+          .mockResolvedValue(mockButtons);
+
+        await expect(
+          sceneBoardResolvers.Mutation.updateSceneBoardButtonPositions(
+            {},
+            { positions },
+            mockContext,
+          ),
+        ).rejects.toThrow("layoutX must be between 0 and 1999");
       });
     });
 

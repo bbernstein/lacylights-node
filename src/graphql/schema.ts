@@ -117,6 +117,8 @@ export const typeDefs = gql`
     project: Project!
     defaultFadeTime: Float!
     gridSize: Int
+    canvasWidth: Int!
+    canvasHeight: Int!
     buttons: [SceneBoardButton!]!
     createdAt: String!
     updatedAt: String!
@@ -126,10 +128,10 @@ export const typeDefs = gql`
     id: ID!
     sceneBoard: SceneBoard!
     scene: Scene!
-    layoutX: Float!
-    layoutY: Float!
-    width: Float
-    height: Float
+    layoutX: Int!
+    layoutY: Int!
+    width: Int
+    height: Int
     color: String
     label: String
     createdAt: String!
@@ -690,6 +692,8 @@ export const typeDefs = gql`
     projectId: ID!
     defaultFadeTime: Float = 3.0
     gridSize: Int = 50
+    canvasWidth: Int = 2000
+    canvasHeight: Int = 2000
   }
 
   input UpdateSceneBoardInput {
@@ -697,32 +701,34 @@ export const typeDefs = gql`
     description: String
     defaultFadeTime: Float
     gridSize: Int
+    canvasWidth: Int
+    canvasHeight: Int
   }
 
   input CreateSceneBoardButtonInput {
     sceneBoardId: ID!
     sceneId: ID!
-    layoutX: Float!
-    layoutY: Float!
-    width: Float = 0.1
-    height: Float = 0.1
+    layoutX: Int!
+    layoutY: Int!
+    width: Int = 200
+    height: Int = 120
     color: String
     label: String
   }
 
   input UpdateSceneBoardButtonInput {
-    layoutX: Float
-    layoutY: Float
-    width: Float
-    height: Float
+    layoutX: Int
+    layoutY: Int
+    width: Int
+    height: Int
     color: String
     label: String
   }
 
   input SceneBoardButtonPositionInput {
     buttonId: ID!
-    layoutX: Float!
-    layoutY: Float!
+    layoutX: Int!
+    layoutY: Int!
   }
 
   input FixtureDefinitionFilter {
