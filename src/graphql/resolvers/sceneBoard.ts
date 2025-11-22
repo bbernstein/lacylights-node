@@ -50,32 +50,23 @@ export interface SceneBoardButtonPositionInput {
 }
 
 /**
- * Validate button position is within canvas bounds
- * Valid coordinates are 0 to canvasSize-1 (e.g., for 2000px canvas: 0-1999)
+ * Validate button position is within reasonable bounds
+ * Allows negative coordinates for flexible scene organization
+ * Validates coordinates are within reasonable limits to prevent extreme values
  */
 function validateButtonPosition(
   layoutX: number,
   layoutY: number,
-  width: number,
-  height: number,
-  canvasWidth: number,
-  canvasHeight: number,
 ): void {
-  if (layoutX < 0 || layoutX >= canvasWidth) {
-    throw new Error(`layoutX must be between 0 and ${canvasWidth - 1}`);
+  // Allow negative and extended positive coordinates for flexible scene organization
+  const MIN_COORDINATE = -10000;
+  const MAX_COORDINATE = 20000;
+
+  if (layoutX < MIN_COORDINATE || layoutX > MAX_COORDINATE) {
+    throw new Error(`layoutX must be between ${MIN_COORDINATE} and ${MAX_COORDINATE}`);
   }
-  if (layoutY < 0 || layoutY >= canvasHeight) {
-    throw new Error(`layoutY must be between 0 and ${canvasHeight - 1}`);
-  }
-  if (layoutX + width > canvasWidth) {
-    throw new Error(
-      `Button extends beyond canvas width (layoutX: ${layoutX} + width: ${width} > canvasWidth: ${canvasWidth})`,
-    );
-  }
-  if (layoutY + height > canvasHeight) {
-    throw new Error(
-      `Button extends beyond canvas height (layoutY: ${layoutY} + height: ${height} > canvasHeight: ${canvasHeight})`,
-    );
+  if (layoutY < MIN_COORDINATE || layoutY > MAX_COORDINATE) {
+    throw new Error(`layoutY must be between ${MIN_COORDINATE} and ${MAX_COORDINATE}`);
   }
 }
 
@@ -193,28 +184,17 @@ export const sceneBoardResolvers = {
           throw new Error("Scene board not found");
         }
 
-        const newCanvasWidth = input.canvasWidth ?? currentBoard.canvasWidth;
-        const newCanvasHeight = input.canvasHeight ?? currentBoard.canvasHeight;
-
-        // Validate all existing buttons will fit in new canvas size
+        // Validate all existing button positions are within reasonable bounds
         for (const button of currentBoard.buttons) {
-          const width = button.width ?? 200;
-          const height = button.height ?? 120;
-
           try {
             validateButtonPosition(
               button.layoutX,
               button.layoutY,
-              width,
-              height,
-              newCanvasWidth,
-              newCanvasHeight,
             );
           } catch (error) {
             throw new Error(
               `Cannot resize canvas: Button "${button.id}" at (${button.layoutX}, ${button.layoutY}) ` +
-                `with size ${width}x${height} would not fit in ${newCanvasWidth}x${newCanvasHeight} canvas. ` +
-                `Original error: ${error instanceof Error ? error.message : String(error)}`,
+                `has invalid coordinates. ${error instanceof Error ? error.message : String(error)}`,
             );
           }
         }
@@ -288,14 +268,10 @@ export const sceneBoardResolvers = {
       const width = input.width ?? 200;
       const height = input.height ?? 120;
 
-      // Validate button position is within canvas bounds
+      // Validate button position is within reasonable bounds
       validateButtonPosition(
         input.layoutX,
         input.layoutY,
-        width,
-        height,
-        sceneBoard.canvasWidth,
-        sceneBoard.canvasHeight,
       );
 
       return prisma.sceneBoardButton.create({
@@ -331,26 +307,17 @@ export const sceneBoardResolvers = {
         throw new Error("Scene board button not found");
       }
 
-      // Calculate new values (use current if not updating)
-      const layoutX = input.layoutX ?? button.layoutX;
-      const layoutY = input.layoutY ?? button.layoutY;
-      const width = input.width ?? button.width ?? 200;
-      const height = input.height ?? button.height ?? 120;
-
-      // Validate new position if any coordinates changed
+      // Validate new position if coordinates changed
       if (
         input.layoutX !== undefined ||
-        input.layoutY !== undefined ||
-        input.width !== undefined ||
-        input.height !== undefined
+        input.layoutY !== undefined
       ) {
+        const layoutX = input.layoutX ?? button.layoutX;
+        const layoutY = input.layoutY ?? button.layoutY;
+
         validateButtonPosition(
           layoutX,
           layoutY,
-          width,
-          height,
-          button.sceneBoard.canvasWidth,
-          button.sceneBoard.canvasHeight,
         );
       }
 
@@ -402,10 +369,6 @@ export const sceneBoardResolvers = {
         validateButtonPosition(
           pos.layoutX,
           pos.layoutY,
-          button.width ?? 200,
-          button.height ?? 120,
-          button.sceneBoard.canvasWidth,
-          button.sceneBoard.canvasHeight,
         );
       }
 
