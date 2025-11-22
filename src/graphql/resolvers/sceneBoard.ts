@@ -51,6 +51,7 @@ export interface SceneBoardButtonPositionInput {
 
 /**
  * Validate button position is within canvas bounds
+ * Valid coordinates are 0 to canvasSize-1 (e.g., for 2000px canvas: 0-1999)
  */
 function validateButtonPosition(
   layoutX: number,
@@ -60,11 +61,11 @@ function validateButtonPosition(
   canvasWidth: number,
   canvasHeight: number,
 ): void {
-  if (layoutX < 0 || layoutX > canvasWidth) {
-    throw new Error(`layoutX must be between 0 and ${canvasWidth}`);
+  if (layoutX < 0 || layoutX >= canvasWidth) {
+    throw new Error(`layoutX must be between 0 and ${canvasWidth - 1}`);
   }
-  if (layoutY < 0 || layoutY > canvasHeight) {
-    throw new Error(`layoutY must be between 0 and ${canvasHeight}`);
+  if (layoutY < 0 || layoutY >= canvasHeight) {
+    throw new Error(`layoutY must be between 0 and ${canvasHeight - 1}`);
   }
   if (layoutX + width > canvasWidth) {
     throw new Error(
@@ -181,6 +182,44 @@ export const sceneBoardResolvers = {
       { id, input }: { id: string; input: UpdateSceneBoardInput },
       { prisma }: Context,
     ) => {
+      // If canvas size is being changed, validate existing buttons will still fit
+      if (input.canvasWidth !== undefined || input.canvasHeight !== undefined) {
+        const currentBoard = await prisma.sceneBoard.findUnique({
+          where: { id },
+          include: { buttons: true },
+        });
+
+        if (!currentBoard) {
+          throw new Error("Scene board not found");
+        }
+
+        const newCanvasWidth = input.canvasWidth ?? currentBoard.canvasWidth;
+        const newCanvasHeight = input.canvasHeight ?? currentBoard.canvasHeight;
+
+        // Validate all existing buttons will fit in new canvas size
+        for (const button of currentBoard.buttons) {
+          const width = button.width ?? 200;
+          const height = button.height ?? 120;
+
+          try {
+            validateButtonPosition(
+              button.layoutX,
+              button.layoutY,
+              width,
+              height,
+              newCanvasWidth,
+              newCanvasHeight,
+            );
+          } catch (error) {
+            throw new Error(
+              `Cannot resize canvas: Button "${button.id}" at (${button.layoutX}, ${button.layoutY}) ` +
+                `with size ${width}x${height} would not fit in ${newCanvasWidth}x${newCanvasHeight} canvas. ` +
+                `Original error: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
+      }
+
       return prisma.sceneBoard.update({
         where: { id },
         data: {
