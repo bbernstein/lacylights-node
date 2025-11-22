@@ -623,11 +623,11 @@ describe("Scene Board Resolvers", () => {
     });
 
     describe("addSceneToBoard - validation tests", () => {
-      it("should throw error if button position is at canvas boundary", async () => {
+      it("should allow button position at canvas boundary", async () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
-          layoutX: 2000, // At canvas boundary (invalid)
+          layoutX: 2000, // At canvas boundary (now allowed)
           layoutY: 1000,
         };
 
@@ -639,19 +639,27 @@ describe("Scene Board Resolvers", () => {
           canvasWidth: 2000,
           canvasHeight: 2000,
         });
+        mockContext.prisma.sceneBoardButton.create = jest
+          .fn()
+          .mockResolvedValue({ id: "button-1", ...input });
 
-        await expect(
-          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
-        ).rejects.toThrow("layoutX must be between 0 and 1999");
+        const result = await sceneBoardResolvers.Mutation.addSceneToBoard(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.layoutX).toBe(2000);
       });
 
-      it("should throw error if button extends beyond canvas width", async () => {
+      it("should allow button extending beyond canvas width", async () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
           layoutX: 1900,
           layoutY: 1000,
-          width: 200, // 1900 + 200 = 2100 > 2000
+          width: 200, // 1900 + 200 = 2100 > 2000 (now allowed)
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
@@ -662,19 +670,27 @@ describe("Scene Board Resolvers", () => {
           canvasWidth: 2000,
           canvasHeight: 2000,
         });
+        mockContext.prisma.sceneBoardButton.create = jest
+          .fn()
+          .mockResolvedValue({ id: "button-1", ...input });
 
-        await expect(
-          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
-        ).rejects.toThrow("Button extends beyond canvas width");
+        const result = await sceneBoardResolvers.Mutation.addSceneToBoard(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.layoutX).toBe(1900);
       });
 
-      it("should throw error if button extends beyond canvas height", async () => {
+      it("should allow button extending beyond canvas height", async () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
           layoutX: 1000,
           layoutY: 1950,
-          height: 120, // 1950 + 120 = 2070 > 2000
+          height: 120, // 1950 + 120 = 2070 > 2000 (now allowed)
         };
 
         mockContext.prisma.sceneBoardButton.findFirst = jest
@@ -685,13 +701,21 @@ describe("Scene Board Resolvers", () => {
           canvasWidth: 2000,
           canvasHeight: 2000,
         });
+        mockContext.prisma.sceneBoardButton.create = jest
+          .fn()
+          .mockResolvedValue({ id: "button-1", ...input });
 
-        await expect(
-          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
-        ).rejects.toThrow("Button extends beyond canvas height");
+        const result = await sceneBoardResolvers.Mutation.addSceneToBoard(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.layoutY).toBe(1950);
       });
 
-      it("should throw error if layoutX is negative", async () => {
+      it("should allow negative layoutX coordinates", async () => {
         const input = {
           sceneBoardId: "board-1",
           sceneId: "scene-1",
@@ -707,10 +731,18 @@ describe("Scene Board Resolvers", () => {
           canvasWidth: 2000,
           canvasHeight: 2000,
         });
+        mockContext.prisma.sceneBoardButton.create = jest
+          .fn()
+          .mockResolvedValue({ id: "button-1", ...input });
 
-        await expect(
-          sceneBoardResolvers.Mutation.addSceneToBoard({}, { input }, mockContext),
-        ).rejects.toThrow("layoutX must be between 0 and 1999");
+        const result = await sceneBoardResolvers.Mutation.addSceneToBoard(
+          {},
+          { input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.layoutX).toBe(-10);
       });
 
       it("should accept button at maximum valid position", async () => {
@@ -765,7 +797,7 @@ describe("Scene Board Resolvers", () => {
         ).rejects.toThrow("Scene board not found");
       });
 
-      it("should throw error if existing button would not fit in smaller canvas", async () => {
+      it("should allow canvas resize even when buttons would be outside new bounds", async () => {
         const input = {
           canvasWidth: 1500, // Shrinking from 2000 to 1500
         };
@@ -777,7 +809,7 @@ describe("Scene Board Resolvers", () => {
           buttons: [
             {
               id: "button-1",
-              layoutX: 1600, // Would be out of bounds in 1500px canvas
+              layoutX: 1600, // Outside new 1500px canvas bounds
               layoutY: 1000,
               width: 200,
               height: 120,
@@ -785,13 +817,20 @@ describe("Scene Board Resolvers", () => {
           ],
         });
 
-        await expect(
-          sceneBoardResolvers.Mutation.updateSceneBoard(
-            {},
-            { id: "board-1", input },
-            mockContext,
-          ),
-        ).rejects.toThrow("Cannot resize canvas");
+        mockContext.prisma.sceneBoard.update = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 1500,
+          canvasHeight: 2000,
+        });
+
+        const result = await sceneBoardResolvers.Mutation.updateSceneBoard(
+          {},
+          { id: "board-1", input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.canvasWidth).toBe(1500);
       });
 
       it("should allow canvas resize if all buttons still fit", async () => {
@@ -832,7 +871,7 @@ describe("Scene Board Resolvers", () => {
         expect(mockContext.prisma.sceneBoard.update).toHaveBeenCalled();
       });
 
-      it("should validate when only canvasHeight is changed", async () => {
+      it("should allow resize when only canvasHeight is changed", async () => {
         const input = {
           canvasHeight: 1500, // Shrinking height
         };
@@ -845,20 +884,27 @@ describe("Scene Board Resolvers", () => {
             {
               id: "button-1",
               layoutX: 1000,
-              layoutY: 1600, // Would extend beyond 1500px height
+              layoutY: 1600, // Outside new 1500px height
               width: 200,
               height: 120,
             },
           ],
         });
 
-        await expect(
-          sceneBoardResolvers.Mutation.updateSceneBoard(
-            {},
-            { id: "board-1", input },
-            mockContext,
-          ),
-        ).rejects.toThrow("Cannot resize canvas");
+        mockContext.prisma.sceneBoard.update = jest.fn().mockResolvedValue({
+          id: "board-1",
+          canvasWidth: 2000,
+          canvasHeight: 1500,
+        });
+
+        const result = await sceneBoardResolvers.Mutation.updateSceneBoard(
+          {},
+          { id: "board-1", input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.canvasHeight).toBe(1500);
       });
 
       it("should not validate when canvas size is not being changed", async () => {
@@ -904,9 +950,9 @@ describe("Scene Board Resolvers", () => {
         ).rejects.toThrow("Scene board button not found");
       });
 
-      it("should validate new position when coordinates are updated", async () => {
+      it("should allow positions outside canvas bounds", async () => {
         const input = {
-          layoutX: 2000, // At canvas boundary (invalid)
+          layoutX: 2000, // Outside canvas bounds (now allowed)
         };
 
         const mockButton = {
@@ -926,13 +972,18 @@ describe("Scene Board Resolvers", () => {
           .fn()
           .mockResolvedValue(mockButton);
 
-        await expect(
-          sceneBoardResolvers.Mutation.updateSceneBoardButton(
-            {},
-            { id: "button-1", input },
-            mockContext,
-          ),
-        ).rejects.toThrow("layoutX must be between 0 and 1999");
+        mockContext.prisma.sceneBoardButton.update = jest
+          .fn()
+          .mockResolvedValue({ ...mockButton, layoutX: 2000 });
+
+        const result = await sceneBoardResolvers.Mutation.updateSceneBoardButton(
+          {},
+          { id: "button-1", input },
+          mockContext,
+        );
+
+        expect(result).toBeDefined();
+        expect(result.layoutX).toBe(2000);
       });
 
       it("should not validate if only color/label are updated", async () => {
@@ -1008,10 +1059,10 @@ describe("Scene Board Resolvers", () => {
         ).rejects.toThrow("Button nonexistent not found");
       });
 
-      it("should validate all positions before updating", async () => {
+      it("should allow all positions including outside canvas bounds", async () => {
         const positions = [
           { buttonId: "button-1", layoutX: 400, layoutY: 600 },
-          { buttonId: "button-2", layoutX: 2000, layoutY: 1200 }, // Invalid
+          { buttonId: "button-2", layoutX: 2000, layoutY: 1200 }, // Outside canvas (now allowed)
         ];
 
         const mockButtons = [
@@ -1045,13 +1096,15 @@ describe("Scene Board Resolvers", () => {
           .fn()
           .mockResolvedValue(mockButtons);
 
-        await expect(
-          sceneBoardResolvers.Mutation.updateSceneBoardButtonPositions(
-            {},
-            { positions },
-            mockContext,
-          ),
-        ).rejects.toThrow("layoutX must be between 0 and 1999");
+        mockContext.prisma.$transaction = jest.fn().mockResolvedValue(true);
+
+        const result = await sceneBoardResolvers.Mutation.updateSceneBoardButtonPositions(
+          {},
+          { positions },
+          mockContext,
+        );
+
+        expect(result).toBe(true);
       });
     });
 
