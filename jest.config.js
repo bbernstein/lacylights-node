@@ -10,7 +10,6 @@ module.exports = {
   testPathIgnorePatterns: [
     "/node_modules/",
     "healthcheck\\.test\\.ts",
-    "project\\.test\\.ts",
     "qlcImportExport\\.integration\\.test\\.ts",
   ],
   coveragePathIgnorePatterns: [
