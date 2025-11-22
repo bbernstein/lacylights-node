@@ -11,6 +11,7 @@ module.exports = {
     "/node_modules/",
     "healthcheck\\.test\\.ts",
     "qlcImportExport\\.integration\\.test\\.ts",
+    "src/graphql/__tests__/project\\.test\\.ts", // Integration test requiring real DB
   ],
   coveragePathIgnorePatterns: [
     "/node_modules/",
