@@ -50,33 +50,31 @@ export interface SceneBoardButtonPositionInput {
 }
 
 /**
- * Validate button position is within canvas bounds
- * Valid coordinates are 0 to canvasSize-1 (e.g., for 2000px canvas: 0-1999)
+ * Validate button position is within reasonable bounds
+ * Allows negative coordinates for flexible scene organization
+ * Validates coordinates are within reasonable limits to prevent extreme values
  */
 function validateButtonPosition(
   layoutX: number,
   layoutY: number,
-  width: number,
-  height: number,
-  canvasWidth: number,
-  canvasHeight: number,
+  _width: number,
+  _height: number,
+  _canvasWidth: number,
+  _canvasHeight: number,
 ): void {
-  if (layoutX < 0 || layoutX >= canvasWidth) {
-    throw new Error(`layoutX must be between 0 and ${canvasWidth - 1}`);
+  // Allow generous negative coordinates for organizing scenes off-canvas
+  const MIN_COORDINATE = -10000;
+  const MAX_COORDINATE = 20000;
+
+  if (layoutX < MIN_COORDINATE || layoutX > MAX_COORDINATE) {
+    throw new Error(`layoutX must be between ${MIN_COORDINATE} and ${MAX_COORDINATE}`);
   }
-  if (layoutY < 0 || layoutY >= canvasHeight) {
-    throw new Error(`layoutY must be between 0 and ${canvasHeight - 1}`);
+  if (layoutY < MIN_COORDINATE || layoutY > MAX_COORDINATE) {
+    throw new Error(`layoutY must be between ${MIN_COORDINATE} and ${MAX_COORDINATE}`);
   }
-  if (layoutX + width > canvasWidth) {
-    throw new Error(
-      `Button extends beyond canvas width (layoutX: ${layoutX} + width: ${width} > canvasWidth: ${canvasWidth})`,
-    );
-  }
-  if (layoutY + height > canvasHeight) {
-    throw new Error(
-      `Button extends beyond canvas height (layoutY: ${layoutY} + height: ${height} > canvasHeight: ${canvasHeight})`,
-    );
-  }
+
+  // No longer validate that buttons must be within canvas bounds
+  // This allows users to organize buttons anywhere, including negative coordinates
 }
 
 export const sceneBoardResolvers = {
