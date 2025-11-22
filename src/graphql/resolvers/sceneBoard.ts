@@ -57,12 +57,8 @@ export interface SceneBoardButtonPositionInput {
 function validateButtonPosition(
   layoutX: number,
   layoutY: number,
-  _width: number,
-  _height: number,
-  _canvasWidth: number,
-  _canvasHeight: number,
 ): void {
-  // Allow generous negative coordinates for organizing scenes off-canvas
+  // Allow negative and extended positive coordinates for flexible scene organization
   const MIN_COORDINATE = -10000;
   const MAX_COORDINATE = 20000;
 
@@ -72,9 +68,6 @@ function validateButtonPosition(
   if (layoutY < MIN_COORDINATE || layoutY > MAX_COORDINATE) {
     throw new Error(`layoutY must be between ${MIN_COORDINATE} and ${MAX_COORDINATE}`);
   }
-
-  // No longer validate that buttons must be within canvas bounds
-  // This allows users to organize buttons anywhere, including negative coordinates
 }
 
 export const sceneBoardResolvers = {
@@ -191,28 +184,17 @@ export const sceneBoardResolvers = {
           throw new Error("Scene board not found");
         }
 
-        const newCanvasWidth = input.canvasWidth ?? currentBoard.canvasWidth;
-        const newCanvasHeight = input.canvasHeight ?? currentBoard.canvasHeight;
-
-        // Validate all existing buttons will fit in new canvas size
+        // Validate all existing button positions are within reasonable bounds
         for (const button of currentBoard.buttons) {
-          const width = button.width ?? 200;
-          const height = button.height ?? 120;
-
           try {
             validateButtonPosition(
               button.layoutX,
               button.layoutY,
-              width,
-              height,
-              newCanvasWidth,
-              newCanvasHeight,
             );
           } catch (error) {
             throw new Error(
               `Cannot resize canvas: Button "${button.id}" at (${button.layoutX}, ${button.layoutY}) ` +
-                `with size ${width}x${height} would not fit in ${newCanvasWidth}x${newCanvasHeight} canvas. ` +
-                `Original error: ${error instanceof Error ? error.message : String(error)}`,
+                `has invalid coordinates. ${error instanceof Error ? error.message : String(error)}`,
             );
           }
         }
@@ -286,14 +268,10 @@ export const sceneBoardResolvers = {
       const width = input.width ?? 200;
       const height = input.height ?? 120;
 
-      // Validate button position is within canvas bounds
+      // Validate button position is within reasonable bounds
       validateButtonPosition(
         input.layoutX,
         input.layoutY,
-        width,
-        height,
-        sceneBoard.canvasWidth,
-        sceneBoard.canvasHeight,
       );
 
       return prisma.sceneBoardButton.create({
@@ -329,26 +307,17 @@ export const sceneBoardResolvers = {
         throw new Error("Scene board button not found");
       }
 
-      // Calculate new values (use current if not updating)
-      const layoutX = input.layoutX ?? button.layoutX;
-      const layoutY = input.layoutY ?? button.layoutY;
-      const width = input.width ?? button.width ?? 200;
-      const height = input.height ?? button.height ?? 120;
-
-      // Validate new position if any coordinates changed
+      // Validate new position if coordinates changed
       if (
         input.layoutX !== undefined ||
-        input.layoutY !== undefined ||
-        input.width !== undefined ||
-        input.height !== undefined
+        input.layoutY !== undefined
       ) {
+        const layoutX = input.layoutX ?? button.layoutX;
+        const layoutY = input.layoutY ?? button.layoutY;
+
         validateButtonPosition(
           layoutX,
           layoutY,
-          width,
-          height,
-          button.sceneBoard.canvasWidth,
-          button.sceneBoard.canvasHeight,
         );
       }
 
@@ -400,10 +369,6 @@ export const sceneBoardResolvers = {
         validateButtonPosition(
           pos.layoutX,
           pos.layoutY,
-          button.width ?? 200,
-          button.height ?? 120,
-          button.sceneBoard.canvasWidth,
-          button.sceneBoard.canvasHeight,
         );
       }
 
