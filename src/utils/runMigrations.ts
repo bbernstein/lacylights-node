@@ -9,8 +9,16 @@ const execAsync = promisify(exec);
  * This ensures the database schema is always up-to-date, especially
  * important for Raspberry Pi deployments where users click "upgrade"
  * and expect everything to work automatically.
+ *
+ * Can be skipped by setting SKIP_MIGRATIONS=true environment variable.
  */
 export async function runMigrations(): Promise<void> {
+  // Skip migrations if explicitly disabled (useful for testing)
+  if (process.env.SKIP_MIGRATIONS === 'true') {
+    logger.info('Skipping database migrations (SKIP_MIGRATIONS=true)');
+    return;
+  }
+
   try {
     logger.info('Checking for pending database migrations...');
 
