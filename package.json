@@ -1,6 +1,6 @@
 {
   "name": "lacylights-node",
-  "version": "1.6.3",
+  "version": "1.6.4-b1",
   "description": "Stage Lighting Control System - Node.js Server",
   "main": "dist/index.js",
   "scripts": {
