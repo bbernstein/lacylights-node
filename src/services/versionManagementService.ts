@@ -37,6 +37,7 @@ export class VersionManagementService {
   private updateScriptPath: string;
   private wrapperScriptPath: string;
   private reposBasePath: string;
+  private wrapperScriptAvailable?: boolean;
 
   constructor(
     updateScriptPath = '/opt/lacylights/scripts/update-repos.sh',
@@ -93,14 +94,21 @@ export class VersionManagementService {
   /**
    * Get the best available update script (wrapper if available, base script otherwise)
    * The wrapper script handles read-only filesystem remounting on Raspberry Pi
+   *
+   * This method caches the wrapper availability check to avoid redundant filesystem
+   * access on subsequent calls, improving performance when multiple operations are
+   * performed in succession.
    */
   private async getUpdateScript(): Promise<string> {
-    try {
-      await fs.access(this.wrapperScriptPath, fs.constants.X_OK);
-      return this.wrapperScriptPath;
-    } catch {
-      return this.updateScriptPath;
+    if (this.wrapperScriptAvailable === undefined) {
+      try {
+        await fs.access(this.wrapperScriptPath, fs.constants.X_OK);
+        this.wrapperScriptAvailable = true;
+      } catch {
+        this.wrapperScriptAvailable = false;
+      }
     }
+    return this.wrapperScriptAvailable ? this.wrapperScriptPath : this.updateScriptPath;
   }
 
   /**
