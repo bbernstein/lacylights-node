@@ -368,6 +368,11 @@ describe('VersionManagementService', () => {
       await expect(service.updateRepository('lacylights-node', 'invalid-version')).rejects.toThrow(
         'Invalid version format'
       );
+
+      // Beta version starting with b0 should be invalid (must start with b1-b9)
+      await expect(service.updateRepository('lacylights-node', 'v1.2.3b0')).rejects.toThrow(
+        'Invalid version format'
+      );
     });
 
     it('should throw error for version with shell injection attempt', async () => {
@@ -390,6 +395,15 @@ describe('VersionManagementService', () => {
 
       // Test 'latest'
       await expect(service.updateRepository('lacylights-node', 'latest')).resolves.toBeTruthy();
+
+      // Test beta versions with custom format (bN)
+      await expect(service.updateRepository('lacylights-node', 'v1.6.4b1')).resolves.toBeTruthy();
+      await expect(service.updateRepository('lacylights-node', '1.6.4b2')).resolves.toBeTruthy();
+      await expect(service.updateRepository('lacylights-node', 'v0.7.4b10')).resolves.toBeTruthy();
+
+      // Test standard semver prerelease format
+      await expect(service.updateRepository('lacylights-node', 'v1.2.3-beta.1')).resolves.toBeTruthy();
+      await expect(service.updateRepository('lacylights-node', '1.2.3-alpha.2')).resolves.toBeTruthy();
     });
 
     it('should return error result when update fails', async () => {

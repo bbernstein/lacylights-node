@@ -30,8 +30,9 @@ export interface UpdateResult {
 
 export class VersionManagementService {
   private static readonly VALID_REPOSITORIES = ['lacylights-fe', 'lacylights-node', 'lacylights-mcp'] as const;
-  // Matches "latest" or full semver: v?MAJOR.MINOR.PATCH(-PRERELEASE)?(+BUILD)?
-  private static readonly VERSION_PATTERN = /^(latest|v?\d+\.\d+\.\d+(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?)$/;
+  // Matches "latest" or full semver: v?MAJOR.MINOR.PATCH(bN)?(-PRERELEASE)?(+BUILD)?
+  // Supports custom beta format (e.g., v1.6.4b1) and standard semver prerelease
+  private static readonly VERSION_PATTERN = /^(latest|v?\d+\.\d+\.\d+(?:b[1-9][0-9]*)?(?:-[0-9A-Za-z-.]+)?(?:\+[0-9A-Za-z-.]+)?)$/;
   private static readonly UPDATE_TIMEOUT_MS = 300000; // 5 minutes
 
   private updateScriptPath: string;
@@ -67,7 +68,7 @@ export class VersionManagementService {
   private validateVersion(version: string): void {
     if (!VersionManagementService.VERSION_PATTERN.test(version)) {
       throw new Error(
-        `Invalid version format: ${version}. Must be 'latest' or a semantic version (e.g., '1.2.3' or 'v1.2.3')`
+        `Invalid version format: ${version}. Must be 'latest' or a semantic version (e.g., '1.2.3', 'v1.2.3', '1.6.4b1')`
       );
     }
   }
