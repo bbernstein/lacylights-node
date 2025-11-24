@@ -31,6 +31,8 @@ jobs:
     runs-on: ubuntu-latest
     env:
       COMPONENT: node
+      BETA_VERSION_PATTERN: '^([0-9]+\.[0-9]+\.[0-9]+)b([0-9]+)$'
+      BETA_SUFFIX_PATTERN: 'b[0-9]+$'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -67,7 +69,7 @@ jobs:
           echo "Is prerelease: $IS_PRERELEASE"
 
           # Detect if current version is a beta
-          if [[ "$CURRENT_VERSION" =~ ^([0-9]+\.[0-9]+\.[0-9]+)b([0-9]+)$ ]]; then
+          if [[ "$CURRENT_VERSION" =~ $BETA_VERSION_PATTERN ]]; then
             IS_CURRENT_BETA=true
             BASE_VERSION="${BASH_REMATCH[1]}"
             BETA_NUMBER="${BASH_REMATCH[2]}"
@@ -173,7 +175,7 @@ jobs:
         id: prerelease_check_early
         run: |
           VERSION="${{ steps.new_version.outputs.version }}"
-          if [[ "$VERSION" =~ b[0-9]+$ ]]; then
+          if [[ "$VERSION" =~ $BETA_SUFFIX_PATTERN ]]; then
             echo "is_prerelease=true" >> $GITHUB_OUTPUT
             echo "Detected prerelease (beta) version"
           else
@@ -209,7 +211,7 @@ jobs:
               tag_name: tagName,
               name: '${{ steps.release_name.outputs.name }}',
               draft: false,
-              prerelease: ${{ steps.prerelease_check_early.outputs.is_prerelease }},
+              prerelease: ${{ steps.prerelease_check_early.outputs.is_prerelease == 'true' }},
               generate_release_notes: true
             });
 
@@ -274,18 +276,6 @@ jobs:
           echo "SHA256: $SHA256"
           echo "File Size: $FILE_SIZE bytes"
 
-      - name: Check prerelease status
-        id: prerelease_check
-        run: |
-          VERSION="${{ steps.new_version.outputs.version }}"
-          if [[ "$VERSION" =~ b[0-9]+$ ]]; then
-            echo "is_prerelease=true" >> $GITHUB_OUTPUT
-            echo "Detected prerelease (beta) version"
-          else
-            echo "is_prerelease=false" >> $GITHUB_OUTPUT
-            echo "Detected stable version"
-          fi
-
       - name: Calculate release metadata
         id: release_metadata
         run: |
@@ -309,7 +299,7 @@ jobs:
           echo "✓ Upload successful"
 
       - name: Update latest.json
-        if: ${{ steps.prerelease_check.outputs.is_prerelease == 'false' }}
+        if: ${{ steps.prerelease_check_early.outputs.is_prerelease == 'false' }}
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_DIST_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_DIST_SECRET_ACCESS_KEY }}
@@ -320,7 +310,7 @@ jobs:
           ARTIFACT="${{ steps.checksum.outputs.artifact }}"
           SHA256="${{ steps.checksum.outputs.sha256 }}"
           FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
-          IS_PRERELEASE="${{ steps.prerelease_check.outputs.is_prerelease }}"
+          IS_PRERELEASE="${{ steps.prerelease_check_early.outputs.is_prerelease }}"
           RELEASE_DATE="${{ steps.release_metadata.outputs.release_date }}"
 
           # Create latest.json using jq for proper JSON escaping
@@ -360,7 +350,7 @@ jobs:
           ARTIFACT="${{ steps.checksum.outputs.artifact }}"
           SHA256="${{ steps.checksum.outputs.sha256 }}"
           FILE_SIZE="${{ steps.checksum.outputs.file_size }}"
-          IS_PRERELEASE="${{ steps.prerelease_check.outputs.is_prerelease }}"
+          IS_PRERELEASE="${{ steps.prerelease_check_early.outputs.is_prerelease }}"
           RELEASE_DATE="${{ steps.release_metadata.outputs.release_date }}"
           TABLE_NAME="${{ secrets.AWS_DIST_TABLE_NAME || 'lacylights-releases' }}"
 
