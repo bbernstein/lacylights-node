@@ -35,13 +35,17 @@ export class VersionManagementService {
   private static readonly UPDATE_TIMEOUT_MS = 300000; // 5 minutes
 
   private updateScriptPath: string;
+  private wrapperScriptPath: string;
   private reposBasePath: string;
+  private wrapperScriptAvailable?: boolean;
 
   constructor(
     updateScriptPath = '/opt/lacylights/scripts/update-repos.sh',
-    reposBasePath = '/opt/lacylights/repos'
+    reposBasePath = '/opt/lacylights/repos',
+    wrapperScriptPath = '/opt/lacylights/scripts/update-repos-wrapper.sh'
   ) {
     this.updateScriptPath = updateScriptPath;
+    this.wrapperScriptPath = wrapperScriptPath;
     this.reposBasePath = reposBasePath;
   }
 
@@ -88,6 +92,26 @@ export class VersionManagementService {
   }
 
   /**
+   * Get the best available update script (wrapper if available, base script otherwise)
+   * The wrapper script handles read-only filesystem remounting on Raspberry Pi
+   *
+   * This method caches the wrapper availability check to avoid redundant filesystem
+   * access on subsequent calls, improving performance when multiple operations are
+   * performed in succession.
+   */
+  private async getUpdateScript(): Promise<string> {
+    if (this.wrapperScriptAvailable === undefined) {
+      try {
+        await fs.access(this.wrapperScriptPath, fs.constants.X_OK);
+        this.wrapperScriptAvailable = true;
+      } catch {
+        this.wrapperScriptAvailable = false;
+      }
+    }
+    return this.wrapperScriptAvailable ? this.wrapperScriptPath : this.updateScriptPath;
+  }
+
+  /**
    * Get version information for all repositories
    */
   async getSystemVersions(): Promise<SystemVersionInfo> {
@@ -96,7 +120,8 @@ export class VersionManagementService {
     }
 
     try {
-      const { stdout } = await execFileAsync(this.updateScriptPath, ['versions', 'json']);
+      const scriptPath = await this.getUpdateScript();
+      const { stdout } = await execFileAsync(scriptPath, ['versions', 'json']);
       const versionsData = JSON.parse(stdout);
 
       const repositories: RepositoryVersion[] = Object.entries(versionsData).map(([repo, versions]) => {
@@ -137,7 +162,8 @@ export class VersionManagementService {
     this.validateRepositoryName(repository);
 
     try {
-      const { stdout } = await execFileAsync(this.updateScriptPath, ['available', repository]);
+      const scriptPath = await this.getUpdateScript();
+      const { stdout } = await execFileAsync(scriptPath, ['available', repository]);
       const versions = stdout
         .trim()
         .split('\n')
@@ -203,7 +229,8 @@ export class VersionManagementService {
     const previousVersion = await this.getInstalledVersion(repository);
 
     try {
-      await execFileAsync(this.updateScriptPath, ['update', repository, version], {
+      const scriptPath = await this.getUpdateScript();
+      await execFileAsync(scriptPath, ['update', repository, version], {
         timeout: VersionManagementService.UPDATE_TIMEOUT_MS,
       });
 

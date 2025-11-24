@@ -65,6 +65,122 @@ describe('VersionManagementService', () => {
     });
   });
 
+  describe('wrapper script detection and caching', () => {
+    it('should use wrapper script when available and cache the result', async () => {
+      // First call to check base script (for isUpdateScriptAvailable)
+      // Second call to check wrapper script (for getUpdateScript)
+      mockedFsAccess.mockResolvedValue(undefined);
+
+      const mockVersionOutput = JSON.stringify({
+        'lacylights-fe': { installed: 'v1.0.0', latest: 'v1.1.0' },
+      });
+      mockExecFileAsync(mockVersionOutput);
+
+      // First call should check wrapper script
+      await service.getSystemVersions();
+
+      // Verify wrapper script was checked and used
+      expect(mockedFsAccess).toHaveBeenCalledWith('/opt/lacylights/scripts/update-repos-wrapper.sh', expect.any(Number));
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        '/opt/lacylights/scripts/update-repos-wrapper.sh',
+        ['versions', 'json'],
+        expect.anything()
+      );
+
+      // Clear mocks to verify caching
+      mockedFsAccess.mockClear();
+      mockedExecFile.mockClear();
+      mockExecFileAsync(mockVersionOutput);
+
+      // Second call should use cached result (no fs.access for wrapper)
+      await service.getSystemVersions();
+
+      // Wrapper check should not happen again (cached)
+      expect(mockedFsAccess).not.toHaveBeenCalledWith('/opt/lacylights/scripts/update-repos-wrapper.sh', expect.any(Number));
+      // But should still use wrapper script
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        '/opt/lacylights/scripts/update-repos-wrapper.sh',
+        ['versions', 'json'],
+        expect.anything()
+      );
+    });
+
+    it('should fall back to base script when wrapper is not available and cache the result', async () => {
+      // Mock: base script exists, wrapper script does not
+      mockedFsAccess.mockImplementation((path: any) => {
+        if (path === '/opt/lacylights/scripts/update-repos.sh') {
+          return Promise.resolve(undefined);
+        }
+        if (path === '/opt/lacylights/scripts/update-repos-wrapper.sh') {
+          return Promise.reject(new Error('ENOENT'));
+        }
+        return Promise.reject(new Error('Unknown path'));
+      });
+
+      const mockVersionOutput = JSON.stringify({
+        'lacylights-fe': { installed: 'v1.0.0', latest: 'v1.1.0' },
+      });
+      mockExecFileAsync(mockVersionOutput);
+
+      // First call should check wrapper and fall back to base script
+      await service.getSystemVersions();
+
+      expect(mockedFsAccess).toHaveBeenCalledWith('/opt/lacylights/scripts/update-repos-wrapper.sh', expect.any(Number));
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        '/opt/lacylights/scripts/update-repos.sh',
+        ['versions', 'json'],
+        expect.anything()
+      );
+
+      // Clear mocks to verify caching
+      mockedFsAccess.mockClear();
+      mockedExecFile.mockClear();
+      mockExecFileAsync(mockVersionOutput);
+
+      // Second call should use cached result (no wrapper check)
+      await service.getSystemVersions();
+
+      // Wrapper check should not happen again (cached as unavailable)
+      expect(mockedFsAccess).not.toHaveBeenCalledWith('/opt/lacylights/scripts/update-repos-wrapper.sh', expect.any(Number));
+      // Should still use base script
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        '/opt/lacylights/scripts/update-repos.sh',
+        ['versions', 'json'],
+        expect.anything()
+      );
+    });
+
+    it('should use wrapper script for getAvailableVersions when available', async () => {
+      mockedFsAccess.mockResolvedValue(undefined);
+
+      const mockVersions = 'v1.3.0\nv1.2.0';
+      mockExecFileAsync(mockVersions);
+
+      await service.getAvailableVersions('lacylights-node');
+
+      expect(mockedExecFile).toHaveBeenCalledWith(
+        '/opt/lacylights/scripts/update-repos-wrapper.sh',
+        ['available', 'lacylights-node'],
+        expect.anything()
+      );
+    });
+
+    it('should use wrapper script for updateRepository when available', async () => {
+      mockedFsAccess.mockResolvedValue(undefined);
+      mockedFsReadFile.mockResolvedValue('v1.0.0');
+
+      mockExecFileAsync('');
+
+      await service.updateRepository('lacylights-node', 'v1.1.0');
+
+      // Check that execFile was called with wrapper script path
+      const calls = mockedExecFile.mock.calls;
+      expect(calls.length).toBeGreaterThan(0);
+      expect(calls[calls.length - 1][0]).toBe('/opt/lacylights/scripts/update-repos-wrapper.sh');
+      expect(calls[calls.length - 1][1]).toEqual(['update', 'lacylights-node', 'v1.1.0']);
+    });
+  });
+
   describe('getSystemVersions', () => {
     it('should return system version information when script is available', async () => {
       mockedFsAccess.mockResolvedValue(undefined);
