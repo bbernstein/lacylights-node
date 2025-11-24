@@ -4,6 +4,9 @@
 
 # LacyLights Node.js Server
 
+[![Latest Release](https://img.shields.io/github/v/release/bbernstein/lacylights-node)](https://github.com/bbernstein/lacylights-node/releases)
+[![Pre-release](https://img.shields.io/github/v/release/bbernstein/lacylights-node?include_prereleases&label=beta)](https://github.com/bbernstein/lacylights-node/releases?q=prerelease%3Atrue)
+
 A professional stage lighting control system built with Node.js, GraphQL, and TypeScript. This server provides real-time DMX control, scene management, and multi-user collaboration for stage lighting operations.
 
 ## Features
@@ -185,6 +188,74 @@ npm run docker:clean
 - **Application**: Uses connection string from `.env` file
 - **Direct Connection**: `postgresql://lacylights:lacylights_dev_password@localhost:5432/lacylights`
 - **Adminer GUI**: http://localhost:8080 (server: `postgres`, user: `lacylights`, password: `lacylights_dev_password`)
+
+## Releases and Versioning
+
+LacyLights Node supports both stable and beta (prerelease) versions with automated release management.
+
+### Version Format
+
+- **Stable releases**: `X.Y.Z` (e.g., `1.6.2`)
+  - Follow semantic versioning for major, minor, and patch releases
+- **Beta releases**: `X.Y.Zb[N]` (e.g., `1.6.3b1`, `1.6.3b2`)
+  - Beta versions auto-increment (b1, b2, b3, etc.)
+  - Marked as prereleases on GitHub
+  - Ideal for testing before stable release
+
+### Beta Versioning
+
+The project features automatic beta version management:
+
+- **Create first beta**: From stable `1.6.2`, create prerelease → `1.6.3b1`
+- **Auto-increment**: From beta `1.6.3b1`, create prerelease → `1.6.3b2`
+- **Promote to stable**: From beta `1.6.3b2`, create stable release → `1.6.3`
+- **Skip beta**: From stable `1.6.2`, create stable release → `1.6.3`
+
+### Installing Releases
+
+Releases are distributed via `dist.lacylights.com` as npm-compatible tarballs:
+
+**Install latest stable version:**
+```bash
+sudo /opt/lacylights/update.sh
+```
+
+**Install latest beta version:**
+```bash
+sudo /opt/lacylights/update.sh --beta
+```
+
+**Install specific version:**
+```bash
+sudo /opt/lacylights/update.sh --version 1.6.3b1
+```
+
+**Direct download:**
+```bash
+# Stable release
+curl -O https://dist.lacylights.com/releases/node/lacylights-node-1.6.3.tar.gz
+
+# Beta release
+curl -O https://dist.lacylights.com/releases/node/lacylights-node-1.6.3b1.tar.gz
+```
+
+### Creating Releases
+
+Releases are created automatically via GitHub Actions:
+
+1. Navigate to **Actions** tab in GitHub
+2. Select **"Create Release"** workflow
+3. Click **"Run workflow"**
+4. Choose version bump type (patch/minor/major)
+5. Check "Create prerelease" for beta versions, uncheck for stable
+
+For complete release documentation, see [RELEASE_PROCESS.md](RELEASE_PROCESS.md).
+
+### Release Channels
+
+- **Stable channel**: Production-ready releases, updated in `latest.json`
+- **Beta channel**: Prerelease versions for testing, not in `latest.json`
+- **All releases**: Available on GitHub Releases and S3 storage
 
 ## Development
 
