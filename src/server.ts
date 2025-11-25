@@ -1,5 +1,5 @@
 import { ApolloServer } from "@apollo/server";
-import { expressMiddleware } from "@apollo/server/express4";
+import { expressMiddleware } from "@as-integrations/express5";
 import { ApolloServerPluginDrainHttpServer } from "@apollo/server/plugin/drainHttpServer";
 import express from "express";
 import http from "http";
@@ -10,7 +10,7 @@ import { createContext, cleanup } from "./context";
 import { setupWebSocketServer } from "./graphql/subscriptions";
 import { dmxService } from "./services/dmx";
 import { fadeEngine } from "./services/fadeEngine";
-import { FixtureSetupService } from "./services/fixtureSetupService";
+import { FixtureSourceService } from "./services/fixtureSourceService";
 import { playbackService } from "./services/playbackService";
 import { logger } from "./utils/logger";
 
@@ -25,7 +25,7 @@ export interface ServerConfig {
 export interface ServerDependencies {
   dmxService: typeof dmxService;
   fadeEngine: typeof fadeEngine;
-  fixtureSetupService: typeof FixtureSetupService;
+  fixtureSourceService: typeof FixtureSourceService;
   playbackService: typeof playbackService;
   logger: typeof logger;
 }
@@ -56,7 +56,7 @@ export class LacyLightsServer {
     this.dependencies = {
       dmxService: dependencies?.dmxService || dmxService,
       fadeEngine: dependencies?.fadeEngine || fadeEngine,
-      fixtureSetupService: dependencies?.fixtureSetupService || FixtureSetupService,
+      fixtureSourceService: dependencies?.fixtureSourceService || FixtureSourceService,
       playbackService: dependencies?.playbackService || playbackService,
       logger: dependencies?.logger || logger,
     };
@@ -104,7 +104,7 @@ export class LacyLightsServer {
   }
 
   async initializeServices(): Promise<void> {
-    await this.dependencies.fixtureSetupService.ensureFixturesPopulated();
+    await this.dependencies.fixtureSourceService.ensureFixturesPopulated();
     await this.dependencies.dmxService.initialize();
   }
 
