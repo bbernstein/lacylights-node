@@ -10,7 +10,7 @@ import { createContext, cleanup } from "./context";
 import { setupWebSocketServer } from "./graphql/subscriptions";
 import { dmxService } from "./services/dmx";
 import { fadeEngine } from "./services/fadeEngine";
-import { FixtureSetupService } from "./services/fixtureSetupService";
+import { FixtureSourceService } from "./services/fixtureSourceService";
 import { playbackService } from "./services/playbackService";
 import { logger } from "./utils/logger";
 
@@ -25,7 +25,7 @@ export interface ServerConfig {
 export interface ServerDependencies {
   dmxService: typeof dmxService;
   fadeEngine: typeof fadeEngine;
-  fixtureSetupService: typeof FixtureSetupService;
+  fixtureSetupService: typeof FixtureSourceService;
   playbackService: typeof playbackService;
   logger: typeof logger;
 }
@@ -56,7 +56,7 @@ export class LacyLightsServer {
     this.dependencies = {
       dmxService: dependencies?.dmxService || dmxService,
       fadeEngine: dependencies?.fadeEngine || fadeEngine,
-      fixtureSetupService: dependencies?.fixtureSetupService || FixtureSetupService,
+      fixtureSetupService: dependencies?.fixtureSetupService || FixtureSourceService,
       playbackService: dependencies?.playbackService || playbackService,
       logger: dependencies?.logger || logger,
     };
