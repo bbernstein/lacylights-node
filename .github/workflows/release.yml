@@ -72,12 +72,13 @@ jobs:
           # Normalize old format to new format if needed (self-correction)
           # Old format: supports both X.Y.Zb[N] (no dash) and X.Y.Z-b[N] (with dash)
           # New format: X.Y.Z-beta.[N]
+          # Note: Normalized version will be persisted to package.json when NEW_VERSION is written
           if [[ "$CURRENT_VERSION" =~ $OLD_BETA_PATTERN ]]; then
             echo "⚠️  Old format detected: $CURRENT_VERSION"
             BASE_VERSION="${BASH_REMATCH[1]}"
             BETA_NUMBER="${BASH_REMATCH[2]}"
             CURRENT_VERSION="${BASE_VERSION}-beta.${BETA_NUMBER}"
-            echo "✓ Normalized to: $CURRENT_VERSION"
+            echo "✓ Normalized to: $CURRENT_VERSION (will be persisted to package.json)"
           fi
 
           # Detect if current version is a beta (semver format: X.Y.Z-beta.[N])
