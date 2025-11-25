@@ -8,15 +8,15 @@ import { IArchiveService } from "../abstractions/ArchiveService";
 // Mock the dependent services
 jest.mock("../fixtureSetupService", () => ({
   FixtureSetupService: jest.fn().mockImplementation(() => ({
-    ensureFixturesPopulated: jest.fn(),
-    cleanup: jest.fn(),
+    ensureFixturesPopulated: jest.fn().mockResolvedValue(undefined),
+    cleanup: jest.fn().mockResolvedValue(undefined),
   })),
 }));
 
 jest.mock("../githubFixtureService", () => ({
   GitHubFixtureService: jest.fn().mockImplementation(() => ({
-    ensureFixturesPopulated: jest.fn(),
-    cleanup: jest.fn(),
+    ensureFixturesPopulated: jest.fn().mockResolvedValue(undefined),
+    cleanup: jest.fn().mockResolvedValue(undefined),
   })),
 }));
 
@@ -30,6 +30,9 @@ describe("FixtureSourceService", () => {
 
   beforeEach(() => {
     originalEnv = { ...process.env };
+    delete process.env.FIXTURE_SOURCE;
+    delete process.env.FIXTURE_FALLBACK_ENABLED;
+    delete process.env.SKIP_FIXTURE_IMPORT;
 
     mockFileSystem = {
       existsSync: jest.fn(),
@@ -63,6 +66,20 @@ describe("FixtureSourceService", () => {
     mockArchive = {
       extractZip: jest.fn(),
     };
+
+    // Reset mocks
+    const { FixtureSetupService } = jest.requireMock("../fixtureSetupService");
+    const { GitHubFixtureService } = jest.requireMock("../githubFixtureService");
+
+    FixtureSetupService.mockImplementation(() => ({
+      ensureFixturesPopulated: jest.fn().mockResolvedValue(undefined),
+      cleanup: jest.fn().mockResolvedValue(undefined),
+    }));
+
+    GitHubFixtureService.mockImplementation(() => ({
+      ensureFixturesPopulated: jest.fn().mockResolvedValue(undefined),
+      cleanup: jest.fn().mockResolvedValue(undefined),
+    }));
   });
 
   afterEach(() => {
@@ -72,9 +89,6 @@ describe("FixtureSourceService", () => {
 
   describe("constructor", () => {
     it("should use default source 'auto' when not configured", () => {
-      delete process.env.FIXTURE_SOURCE;
-      delete process.env.FIXTURE_FALLBACK_ENABLED;
-
       const service = new FixtureSourceService(
         mockFileSystem,
         mockHttp,
@@ -99,6 +113,20 @@ describe("FixtureSourceService", () => {
       );
 
       expect(service.getConfiguredSource()).toBe("github");
+    });
+
+    it("should use FIXTURE_SOURCE=ofl from environment", () => {
+      process.env.FIXTURE_SOURCE = "ofl";
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive
+      );
+
+      expect(service.getConfiguredSource()).toBe("ofl");
     });
 
     it("should respect FIXTURE_FALLBACK_ENABLED environment variable", () => {
@@ -132,6 +160,28 @@ describe("FixtureSourceService", () => {
     });
   });
 
+  describe("static create", () => {
+    it("should create a service with default dependencies", () => {
+      const createdService = FixtureSourceService.create();
+      expect(createdService).toBeInstanceOf(FixtureSourceService);
+    });
+  });
+
+  describe("static ensureFixturesPopulated", () => {
+    it("should create service and call ensureFixturesPopulated", async () => {
+      process.env.SKIP_FIXTURE_IMPORT = "true";
+      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+
+      await FixtureSourceService.ensureFixturesPopulated();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Skipping fixture import (SKIP_FIXTURE_IMPORT=true)"
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
   describe("ensureFixturesPopulated", () => {
     it("should skip import when SKIP_FIXTURE_IMPORT is set", async () => {
       process.env.SKIP_FIXTURE_IMPORT = "true";
@@ -154,32 +204,16 @@ describe("FixtureSourceService", () => {
       consoleSpy.mockRestore();
     });
 
-    it("should log configured source", async () => {
-      process.env.FIXTURE_SOURCE = "github";
-      delete process.env.SKIP_FIXTURE_IMPORT;
+    it("should log configured source - github", async () => {
       const consoleSpy = jest.spyOn(console, "log").mockImplementation();
-      jest.spyOn(console, "error").mockImplementation();
-
-      // Mock the internal services to succeed BEFORE creating the service
-      const { GitHubFixtureService } = jest.requireMock("../githubFixtureService");
-      const { FixtureSetupService } = jest.requireMock("../fixtureSetupService");
-
-      GitHubFixtureService.mockImplementation(() => ({
-        ensureFixturesPopulated: jest.fn().mockResolvedValue(undefined),
-        cleanup: jest.fn().mockResolvedValue(undefined),
-      }));
-
-      FixtureSetupService.mockImplementation(() => ({
-        ensureFixturesPopulated: jest.fn().mockResolvedValue(undefined),
-        cleanup: jest.fn().mockResolvedValue(undefined),
-      }));
 
       const service = new FixtureSourceService(
         mockFileSystem,
         mockHttp,
         mockPathService,
         mockDatabase,
-        mockArchive
+        mockArchive,
+        { source: "github" }
       );
 
       await service.ensureFixturesPopulated();
@@ -189,6 +223,239 @@ describe("FixtureSourceService", () => {
       );
 
       consoleSpy.mockRestore();
+    });
+
+    it("should use OFL source when configured", async () => {
+      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "ofl" }
+      );
+
+      await service.ensureFixturesPopulated();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Attempting to download fixtures from OFL website..."
+      );
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should use auto source by default", async () => {
+      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "auto" }
+      );
+
+      await service.ensureFixturesPopulated();
+
+      expect(consoleSpy).toHaveBeenCalledWith(
+        "Auto mode: Attempting to download fixtures from GitHub..."
+      );
+
+      consoleSpy.mockRestore();
+    });
+  });
+
+  describe("OFL source with fallback", () => {
+    it("should fall back to GitHub when OFL fails", async () => {
+      const { FixtureSetupService } = jest.requireMock("../fixtureSetupService");
+      const { GitHubFixtureService } = jest.requireMock("../githubFixtureService");
+
+      const oflMock = jest.fn().mockRejectedValue(new Error("OFL failed"));
+      const githubMock = jest.fn().mockResolvedValue(undefined);
+
+      FixtureSetupService.mockImplementation(() => ({
+        ensureFixturesPopulated: oflMock,
+        cleanup: jest.fn(),
+      }));
+
+      GitHubFixtureService.mockImplementation(() => ({
+        ensureFixturesPopulated: githubMock,
+        cleanup: jest.fn(),
+      }));
+
+      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+      jest.spyOn(console, "error").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "ofl", enableFallback: true }
+      );
+
+      await service.ensureFixturesPopulated();
+
+      expect(consoleSpy).toHaveBeenCalledWith("Falling back to GitHub repository...");
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should throw error when OFL fails and fallback disabled", async () => {
+      const { FixtureSetupService } = jest.requireMock("../fixtureSetupService");
+
+      FixtureSetupService.mockImplementation(() => ({
+        ensureFixturesPopulated: jest.fn().mockRejectedValue(new Error("OFL failed")),
+        cleanup: jest.fn(),
+      }));
+
+      jest.spyOn(console, "log").mockImplementation();
+      jest.spyOn(console, "error").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "ofl", enableFallback: false }
+      );
+
+      await expect(service.ensureFixturesPopulated()).rejects.toThrow("OFL failed");
+    });
+  });
+
+  describe("GitHub source with fallback", () => {
+    it("should fall back to OFL when GitHub fails", async () => {
+      const { FixtureSetupService } = jest.requireMock("../fixtureSetupService");
+      const { GitHubFixtureService } = jest.requireMock("../githubFixtureService");
+
+      const oflMock = jest.fn().mockResolvedValue(undefined);
+      const githubMock = jest.fn().mockRejectedValue(new Error("GitHub failed"));
+
+      FixtureSetupService.mockImplementation(() => ({
+        ensureFixturesPopulated: oflMock,
+        cleanup: jest.fn(),
+      }));
+
+      GitHubFixtureService.mockImplementation(() => ({
+        ensureFixturesPopulated: githubMock,
+        cleanup: jest.fn(),
+      }));
+
+      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+      jest.spyOn(console, "error").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "github", enableFallback: true }
+      );
+
+      await service.ensureFixturesPopulated();
+
+      expect(consoleSpy).toHaveBeenCalledWith("Falling back to OFL website...");
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should throw error when GitHub fails and fallback disabled", async () => {
+      const { GitHubFixtureService } = jest.requireMock("../githubFixtureService");
+
+      GitHubFixtureService.mockImplementation(() => ({
+        ensureFixturesPopulated: jest.fn().mockRejectedValue(new Error("GitHub failed")),
+        cleanup: jest.fn(),
+      }));
+
+      jest.spyOn(console, "log").mockImplementation();
+      jest.spyOn(console, "error").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "github", enableFallback: false }
+      );
+
+      await expect(service.ensureFixturesPopulated()).rejects.toThrow("GitHub failed");
+    });
+  });
+
+  describe("Auto mode with fallback", () => {
+    it("should try GitHub first then fall back to OFL", async () => {
+      const { FixtureSetupService } = jest.requireMock("../fixtureSetupService");
+      const { GitHubFixtureService } = jest.requireMock("../githubFixtureService");
+
+      const oflMock = jest.fn().mockResolvedValue(undefined);
+      const githubMock = jest.fn().mockRejectedValue(new Error("GitHub failed"));
+
+      FixtureSetupService.mockImplementation(() => ({
+        ensureFixturesPopulated: oflMock,
+        cleanup: jest.fn(),
+      }));
+
+      GitHubFixtureService.mockImplementation(() => ({
+        ensureFixturesPopulated: githubMock,
+        cleanup: jest.fn(),
+      }));
+
+      const consoleSpy = jest.spyOn(console, "log").mockImplementation();
+      jest.spyOn(console, "error").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "auto" }
+      );
+
+      await service.ensureFixturesPopulated();
+
+      expect(consoleSpy).toHaveBeenCalledWith("Attempting OFL website as fallback...");
+
+      consoleSpy.mockRestore();
+    });
+
+    it("should throw combined error when both sources fail", async () => {
+      const { FixtureSetupService } = jest.requireMock("../fixtureSetupService");
+      const { GitHubFixtureService } = jest.requireMock("../githubFixtureService");
+
+      FixtureSetupService.mockImplementation(() => ({
+        ensureFixturesPopulated: jest.fn().mockRejectedValue(new Error("OFL failed")),
+        cleanup: jest.fn(),
+      }));
+
+      GitHubFixtureService.mockImplementation(() => ({
+        ensureFixturesPopulated: jest.fn().mockRejectedValue(new Error("GitHub failed")),
+        cleanup: jest.fn(),
+      }));
+
+      jest.spyOn(console, "log").mockImplementation();
+      jest.spyOn(console, "error").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive,
+        { source: "auto" }
+      );
+
+      await expect(service.ensureFixturesPopulated()).rejects.toThrow(
+        "Failed to download fixtures from both sources"
+      );
     });
   });
 
