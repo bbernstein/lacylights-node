@@ -70,7 +70,7 @@ jobs:
           echo "Is prerelease: $IS_PRERELEASE"
 
           # Normalize old format to new format if needed (self-correction)
-          # Old format: X.Y.Zb[N] or X.Y.Z-b[N]
+          # Old format: supports both X.Y.Zb[N] (no dash) and X.Y.Z-b[N] (with dash)
           # New format: X.Y.Z-beta.[N]
           if [[ "$CURRENT_VERSION" =~ $OLD_BETA_PATTERN ]]; then
             echo "⚠️  Old format detected: $CURRENT_VERSION"
