@@ -25,7 +25,7 @@ export interface ServerConfig {
 export interface ServerDependencies {
   dmxService: typeof dmxService;
   fadeEngine: typeof fadeEngine;
-  fixtureSetupService: typeof FixtureSourceService;
+  fixtureSourceService: typeof FixtureSourceService;
   playbackService: typeof playbackService;
   logger: typeof logger;
 }
@@ -56,7 +56,7 @@ export class LacyLightsServer {
     this.dependencies = {
       dmxService: dependencies?.dmxService || dmxService,
       fadeEngine: dependencies?.fadeEngine || fadeEngine,
-      fixtureSetupService: dependencies?.fixtureSetupService || FixtureSourceService,
+      fixtureSourceService: dependencies?.fixtureSourceService || FixtureSourceService,
       playbackService: dependencies?.playbackService || playbackService,
       logger: dependencies?.logger || logger,
     };
@@ -104,7 +104,7 @@ export class LacyLightsServer {
   }
 
   async initializeServices(): Promise<void> {
-    await this.dependencies.fixtureSetupService.ensureFixturesPopulated();
+    await this.dependencies.fixtureSourceService.ensureFixturesPopulated();
     await this.dependencies.dmxService.initialize();
   }
 

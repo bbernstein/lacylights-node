@@ -61,7 +61,7 @@ describe('LacyLightsServer', () => {
       fadeEngine: {
         stop: jest.fn(),
       },
-      fixtureSetupService: {
+      fixtureSourceService: {
         ensureFixturesPopulated: jest.fn().mockResolvedValue(undefined),
       },
       playbackService: {
@@ -144,7 +144,7 @@ describe('LacyLightsServer', () => {
       expect(deps.fadeEngine).toBe(mockDependencies.fadeEngine);
       expect(deps.logger).toBe(mockDependencies.logger);
       expect(deps.playbackService).toBe(mockDependencies.playbackService);
-      expect(deps.fixtureSetupService).toBe(mockDependencies.fixtureSetupService);
+      expect(deps.fixtureSourceService).toBe(mockDependencies.fixtureSourceService);
     });
   });
 
@@ -202,7 +202,7 @@ describe('LacyLightsServer', () => {
 
       await server.initializeServices();
 
-      expect(mockDependencies.fixtureSetupService.ensureFixturesPopulated).toHaveBeenCalledTimes(1);
+      expect(mockDependencies.fixtureSourceService.ensureFixturesPopulated).toHaveBeenCalledTimes(1);
       expect(mockDependencies.dmxService.initialize).toHaveBeenCalledTimes(1);
     });
 
@@ -432,7 +432,7 @@ describe('LacyLightsServer', () => {
 
       await server.initializeServices();
 
-      expect(mockDependencies.fixtureSetupService.ensureFixturesPopulated).toHaveBeenCalledTimes(1);
+      expect(mockDependencies.fixtureSourceService.ensureFixturesPopulated).toHaveBeenCalledTimes(1);
       expect(mockDependencies.dmxService.initialize).toHaveBeenCalledTimes(1);
     });
 

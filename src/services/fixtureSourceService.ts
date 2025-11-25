@@ -19,12 +19,15 @@ import { IArchiveService, ArchiveService } from "./abstractions/ArchiveService";
  */
 export type FixtureSource = "ofl" | "github" | "auto";
 
+/** Valid fixture source values */
+const VALID_FIXTURE_SOURCES: FixtureSource[] = ["ofl", "github", "auto"];
+
 export interface FixtureSourceConfig {
   /**
    * Primary source to use for fixture data.
-   * - "ofl": Use open-fixture-library.org website (default)
+   * - "ofl": Use open-fixture-library.org website
    * - "github": Use GitHub repository directly
-   * - "auto": Try OFL first, fall back to GitHub if it fails
+   * - "auto": Try GitHub first, fall back to OFL if it fails (default)
    */
   source: FixtureSource;
 
@@ -59,8 +62,21 @@ export class FixtureSourceService {
     archive: IArchiveService,
     config?: Partial<FixtureSourceConfig>
   ) {
+    // Validate FIXTURE_SOURCE environment variable
+    const envSource = process.env.FIXTURE_SOURCE;
+    let validatedSource: FixtureSource = "auto";
+    if (envSource) {
+      if (VALID_FIXTURE_SOURCES.includes(envSource as FixtureSource)) {
+        validatedSource = envSource as FixtureSource;
+      } else {
+        console.warn(
+          `Invalid FIXTURE_SOURCE "${envSource}" provided. Valid values are: ${VALID_FIXTURE_SOURCES.join(", ")}. Falling back to "auto".`
+        );
+      }
+    }
+
     const defaultConfig: FixtureSourceConfig = {
-      source: (process.env.FIXTURE_SOURCE as FixtureSource) || "auto",
+      source: validatedSource,
       enableFallback: process.env.FIXTURE_FALLBACK_ENABLED !== "false",
     };
 

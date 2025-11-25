@@ -92,6 +92,8 @@ export interface GitHubFixtureConfig {
   oflJsonPath: string;
   requestTimeoutMs: number;
   maxConcurrentRequests: number;
+  maxRedirects: number;
+  maxResponseSizeBytes: number;
 }
 
 /**
@@ -119,6 +121,8 @@ export class GitHubFixtureService {
       oflJsonPath: this.pathService.join(process.cwd(), "temp", "ofl-github.json"),
       requestTimeoutMs: 30000,
       maxConcurrentRequests: 5,
+      maxRedirects: 5,
+      maxResponseSizeBytes: 10 * 1024 * 1024, // 10 MB
     };
 
     this.config = { ...defaultConfig, ...config };
@@ -275,6 +279,10 @@ export class GitHubFixtureService {
           const fixtureData = await this.downloadRawFile(file.download_url);
           const fixtureName = this.pathService.basename(file.name, ".json");
           fixtures[fixtureName] = fixtureData;
+        } else {
+          console.warn(
+            `    Warning: Skipping ${manufacturerName}/${file.name} - download_url is missing`
+          );
         }
       } catch (error) {
         console.warn(
@@ -313,13 +321,26 @@ export class GitHubFixtureService {
           return;
         }
 
-        let data = "";
+        const chunks: Buffer[] = [];
+        let totalSize = 0;
+        let aborted = false;
+
         response.on("data", (chunk) => {
-          data += chunk;
+          if (aborted) {return;}
+          totalSize += chunk.length;
+          if (totalSize > this.config.maxResponseSizeBytes) {
+            aborted = true;
+            request.destroy();
+            reject(new Error(`GitHub API response size exceeds maximum allowed (${this.config.maxResponseSizeBytes} bytes)`));
+            return;
+          }
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         });
 
         response.on("end", () => {
+          if (aborted) {return;}
           try {
+            const data = Buffer.concat(chunks, totalSize).toString("utf8");
             const contents = JSON.parse(data) as GitHubContentItem[];
             resolve(contents);
           } catch (error) {
@@ -342,7 +363,12 @@ export class GitHubFixtureService {
   /**
    * Download a raw file from GitHub
    */
-  private async downloadRawFile(downloadUrl: string): Promise<OFLFixture> {
+  private async downloadRawFile(downloadUrl: string, redirectCount = 0): Promise<OFLFixture> {
+    // Check redirect limit to prevent infinite recursion
+    if (redirectCount >= this.config.maxRedirects) {
+      throw new Error(`Maximum redirect limit (${this.config.maxRedirects}) exceeded`);
+    }
+
     return new Promise((resolve, reject) => {
       const options = {
         headers: {
@@ -352,11 +378,11 @@ export class GitHubFixtureService {
       };
 
       const request = https.get(downloadUrl, options, (response) => {
-        // Handle redirects
+        // Handle redirects with limit
         if (response.statusCode === 301 || response.statusCode === 302) {
           const redirectUrl = response.headers.location;
           if (redirectUrl) {
-            this.downloadRawFile(redirectUrl).then(resolve).catch(reject);
+            this.downloadRawFile(redirectUrl, redirectCount + 1).then(resolve).catch(reject);
             return;
           }
         }
@@ -366,13 +392,26 @@ export class GitHubFixtureService {
           return;
         }
 
-        let data = "";
+        const chunks: Buffer[] = [];
+        let totalSize = 0;
+        let aborted = false;
+
         response.on("data", (chunk) => {
-          data += chunk;
+          if (aborted) {return;}
+          totalSize += chunk.length;
+          if (totalSize > this.config.maxResponseSizeBytes) {
+            aborted = true;
+            request.destroy();
+            reject(new Error(`Response size exceeds maximum allowed (${this.config.maxResponseSizeBytes} bytes)`));
+            return;
+          }
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
         });
 
         response.on("end", () => {
+          if (aborted) {return;}
           try {
+            const data = Buffer.concat(chunks, totalSize).toString("utf8");
             const fixture = JSON.parse(data) as OFLFixture;
             resolve(fixture);
           } catch (error) {

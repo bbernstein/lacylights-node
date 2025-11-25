@@ -158,6 +158,26 @@ describe("FixtureSourceService", () => {
       expect(service.getConfiguredSource()).toBe("ofl");
       expect(service.isFallbackEnabled()).toBe(false);
     });
+
+    it("should warn and fallback to auto for invalid FIXTURE_SOURCE", () => {
+      process.env.FIXTURE_SOURCE = "invalid_source";
+      const warnSpy = jest.spyOn(console, "warn").mockImplementation();
+
+      const service = new FixtureSourceService(
+        mockFileSystem,
+        mockHttp,
+        mockPathService,
+        mockDatabase,
+        mockArchive
+      );
+
+      expect(service.getConfiguredSource()).toBe("auto");
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Invalid FIXTURE_SOURCE "invalid_source"')
+      );
+
+      warnSpy.mockRestore();
+    });
   });
 
   describe("static create", () => {
