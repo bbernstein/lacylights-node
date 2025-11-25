@@ -9,7 +9,7 @@ jest.mock("@apollo/server", () => ({
   })),
 }));
 
-jest.mock("@apollo/server/express4", () => ({
+jest.mock("@as-integrations/express5", () => ({
   expressMiddleware: jest.fn(),
 }));
 

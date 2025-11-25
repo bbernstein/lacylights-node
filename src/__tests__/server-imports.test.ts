@@ -5,7 +5,7 @@
 
 // Mock everything before importing
 jest.mock("@apollo/server");
-jest.mock("@apollo/server/express4");
+jest.mock("@as-integrations/express5");
 jest.mock("@apollo/server/plugin/drainHttpServer");
 jest.mock("express", () => {
   const mockApp = {
